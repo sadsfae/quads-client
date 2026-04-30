@@ -97,3 +97,12 @@ def test_shell_update_visible_commands_admin():
 
             # No admin commands should be hidden for admin
             assert "cloud_create" not in shell.hidden_commands
+
+
+def test_shell_exit_command():
+    """Test that exit command returns True to exit the shell"""
+    with patch("quads_client.shell.QuadsClientConfig"):
+        with patch("quads_client.shell.ConnectionManager"):
+            shell = QuadsClientShell()
+            result = shell.do_exit("")
+            assert result is True

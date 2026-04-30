@@ -17,7 +17,10 @@ def test_register_success(mock_shell):
     user_cmd = UserCommands(mock_shell)
     user_cmd.cmd_register("user@example.com password123")
 
-    mock_shell.connection.api.register.assert_called_once_with(email="user@example.com", password="password123")
+    # Should set credentials on API instance then call register()
+    assert mock_shell.connection.api.username == "user@example.com"
+    assert mock_shell.connection.api.password == "password123"
+    mock_shell.connection.api.register.assert_called_once_with()
     mock_shell.config.update_server_credentials.assert_called_once_with(
         "quads1.example.com", "user@example.com", "password123"
     )

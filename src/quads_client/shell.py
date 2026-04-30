@@ -68,6 +68,10 @@ History: ~/.config/quads/.quads-client-history.db
         self._update_prompt()
         self._update_visible_commands()
 
+    def do_exit(self, args):
+        """Exit the application"""
+        return True
+
     def _shorten_server_name(self, name):
         """Shorten server name by stripping last 2 segments (e.g. quads2-dev.rdu2.scalelab)"""
         parts = name.split(".")

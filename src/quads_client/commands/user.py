@@ -35,7 +35,10 @@ class UserCommands:
         password = parts[1]
 
         try:
-            result = self.shell.connection.api.register(email=email, password=password)
+            # Set credentials on API instance for registration
+            self.shell.connection.api.username = email
+            self.shell.connection.api.password = password
+            result = self.shell.connection.api.register()
             self.shell.poutput(f"✓ User registered successfully: {email}")
             if isinstance(result, dict) and result.get("message"):
                 self.shell.poutput(f"  {result['message']}")
