@@ -46,7 +46,7 @@ History: ~/.config/quads/.quads-client-history.db
         self.command_history = CommandHistory()
 
         # Hide unwanted cmd2 built-in commands
-        self.permanently_hidden = ["macro", "run_script", "edit", "run_pyscript", "shortcuts"]
+        self.permanently_hidden = ["macro", "run_script", "edit", "run_pyscript", "shortcuts", "_relative_run_script"]
         self.hidden_commands.extend(self.permanently_hidden)
 
         try:

@@ -73,7 +73,7 @@ class ConnectionManager:
             return None
 
     def connect(self, server_name: str, registration_mode: bool = False) -> None:
-        """Connect to a server. If registration_mode=True, allows blank credentials."""
+        """Connect to a server. Automatically enters registration mode if credentials are blank."""
         if server_name not in self.config.get_all_servers():
             raise ConnectionError(f"Unknown server: {server_name}")
 
@@ -81,14 +81,9 @@ class ConnectionManager:
         username, password = self.config.get_server_credentials(server_name)
         verify = self.config.get_server_verify(server_name)
 
-        # Allow blank credentials in registration mode
-        if not registration_mode and (not username or not password):
-            raise ConnectionError(
-                f"Server '{server_name}' has no credentials. Use 'register' command to create an account."
-            )
-
         try:
-            if registration_mode or not username or not password:
+            # Automatically use registration mode if credentials are missing
+            if not username or not password or registration_mode:
                 # Registration mode: connect without login
                 api = QuadsApi(base_url=url, username="", password="", verify=verify)
                 self._api = api

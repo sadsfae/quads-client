@@ -137,3 +137,88 @@ def test_get_server_verify_invalid_path(tmp_path):
     config = QuadsClientConfig(config_path=str(config_file))
     with pytest.raises(ConfigError, match="verify must be true or false"):
         config.get_server_verify("test_server")
+
+
+def test_config_missing_servers_dict(tmp_path):
+    """Test config without 'servers' key"""
+    config_file = tmp_path / "quads-client.yml"
+    config_data = {"default_server": "test"}
+    config_file.write_text(yaml.dump(config_data))
+
+    with pytest.raises(ConfigError, match="must contain 'servers' dictionary"):
+        QuadsClientConfig(config_path=str(config_file))
+
+
+def test_config_empty_servers(tmp_path):
+    """Test config with empty servers dict"""
+    config_file = tmp_path / "quads-client.yml"
+    config_data = {"servers": {}}
+    config_file.write_text(yaml.dump(config_data))
+
+    with pytest.raises(ConfigError, match="At least one server must be configured"):
+        QuadsClientConfig(config_path=str(config_file))
+
+
+def test_config_no_default_server(tmp_path):
+    """Test get_default_server when no default is configured"""
+    config_file = tmp_path / "quads-client.yml"
+    config_data = {"servers": {"test_server": {"url": "https://test.example.com"}}}
+    config_file.write_text(yaml.dump(config_data))
+
+    config = QuadsClientConfig(config_path=str(config_file))
+    assert config.get_default_server() is None
+
+
+def test_update_server_credentials(tmp_path):
+    """Test updating server credentials"""
+    config_file = tmp_path / "quads-client.yml"
+    config_data = {
+        "servers": {
+            "test_server": {"url": "https://test.example.com", "username": "old@example.com", "password": "old"}
+        }
+    }
+    config_file.write_text(yaml.dump(config_data))
+
+    config = QuadsClientConfig(config_path=str(config_file))
+    config.update_server_credentials("test_server", "new@example.com", "newpass")
+
+    # Verify credentials were updated in memory
+    username, password = config.get_server_credentials("test_server")
+    assert username == "new@example.com"
+    assert password == "newpass"
+
+    # Verify credentials were written to file
+    with open(config_file, "r") as f:
+        saved_data = yaml.safe_load(f)
+    assert saved_data["servers"]["test_server"]["username"] == "new@example.com"
+    assert saved_data["servers"]["test_server"]["password"] == "newpass"
+
+
+def test_update_server_credentials_unknown_server(tmp_path):
+    """Test updating credentials for non-existent server"""
+    config_file = tmp_path / "quads-client.yml"
+    config_data = {"servers": {"test_server": {"url": "https://test.example.com"}}}
+    config_file.write_text(yaml.dump(config_data))
+
+    config = QuadsClientConfig(config_path=str(config_file))
+    with pytest.raises(ConfigError, match="not found in configuration"):
+        config.update_server_credentials("nonexistent", "user", "pass")
+
+
+def test_config_read_error(tmp_path, monkeypatch):
+    """Test handling of file read errors"""
+    config_file = tmp_path / "quads-client.yml"
+    config_data = {"servers": {"test_server": {"url": "https://test.example.com"}}}
+    config_file.write_text(yaml.dump(config_data))
+
+    # Make the file unreadable
+    import os
+
+    os.chmod(config_file, 0o000)
+
+    try:
+        with pytest.raises(ConfigError, match="Error reading config file"):
+            QuadsClientConfig(config_path=str(config_file))
+    finally:
+        # Restore permissions for cleanup
+        os.chmod(config_file, 0o644)
