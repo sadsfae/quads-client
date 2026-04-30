@@ -68,7 +68,9 @@ dnf install quads-client
 ```bash
 git clone https://github.com/quadsproject/quads-client.git
 cd quads-client
-python3 setup.py install
+python3 -m venv venv
+source venv/bin/activate
+pip install -e .
 ```
 
 ## Configuration
@@ -79,20 +81,22 @@ Create `~/.config/quads/quads-client.yml`:
 servers:
   quads1.rdu2.scalelab:
     url: https://quads1.rdu2.scalelab.example.com
-    username: admin@example.com
-    password: your-password
+    username: ""
+    password: ""
     verify: true
 
   quads2.rdu2.scalelab:
     url: https://quads2.rdu2.scalelab.example.com
-    username: admin@example.com
-    password: your-password
+    username: ""
+    password: ""
     verify: true
 
 default_server: quads1.rdu2.scalelab
 ```
 
-**Notes**: 
+**Notes**:
+- For new users: Leave `username` and `password` blank. Use the `register` command after connecting to create an account.
+- For existing users: Fill in your credentials to login automatically on connect.
 - Specify the base URL only (no `/api/v3/` path and no port `:5000`). The QUADS API is accessed via nginx reverse proxy, and quads-lib automatically appends `/api/v3/` to your base URL.
 - `verify: true` enables SSL certificate verification using your system's CA bundle (recommended). If you've properly installed your CA certificates via `update-ca-trust` (RHEL/Fedora) or `update-ca-certificates` (Debian/Ubuntu), this will work automatically. Set to `false` only for development/testing with self-signed certificates.
 
