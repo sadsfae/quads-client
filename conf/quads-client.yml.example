@@ -1,13 +1,13 @@
 servers:
   quads1.rdu2.scalelab:
     url: https://quads1.rdu2.scalelab.example.com
-    username: admin@example.com
-    password: changeme
+    username: ""
+    password: ""
     verify: true
   quads2.rdu2.scalelab:
     url: https://quads2.rdu2.scalelab.example.com
-    username: admin@example.com
-    password: changeme
+    username: ""
+    password: ""
     verify: true
 
 default_server: quads1.rdu2.scalelab
