@@ -1,57 +1,83 @@
-Name:           quads-client
-Version:        1.0.0
-Release:        1%{?dist}
-Summary:        QUADS Client TUI Shell
+#### NOTE: if building locally you may need to do the following:
+####
+#### yum install rpmdevtools -y
+#### spectool -g -R rpm/quads-client.spec
+####
+#### At this point you can use rpmbuild -ba quads-client.spec
+#### this is because our Source0 is a remote Github location
+####
+#### Our upstream repository is located here:
+#### https://copr.fedorainfracloud.org/coprs/quadsdev/quads-client
+####
 
-License:        GPLv3
-URL:            https://quads.dev
-Source0:        https://github.com/quadsproject/quads-client/archive/%{branch}.tar.gz#/%{name}-%{version}-%{release}.tar.gz 
+%define name quads-client
+%define reponame quads-client
+%define branch main
+%define version 1.0.0
+%define build_timestamp %{lua: print(os.date("%Y%m%d"))}
 
-BuildArch:      noarch
-BuildRequires:  python3-devel >= 3.13
-BuildRequires:  python3-setuptools
+Summary: QUADS Client TUI Shell for managing multiple QUADS server instances
+Name: %{name}
+Version: %{version}
+Release: %{build_timestamp}
+Source0: https://github.com/sadsfae/quads-client/archive/%{branch}.tar.gz#/%{name}-%{version}-%{release}.tar.gz
+License: GPLv3
+BuildRoot: %{_tmppath}/%{name}-buildroot
+Prefix: %{_prefix}
+BuildArch: noarch
+Vendor: QUADS Project
+Packager: QUADS Project
+BuildRequires: python3-devel >= 3.13
+BuildRequires: python3-setuptools
+Requires: python3 >= 3.13
+Requires: python3-cmd2 >= 2.0.0
+Requires: quads-lib >= 0.1.9
+Requires: python3-tabulate >= 0.9.0
+Requires: python3-argcomplete >= 3.1.2
+Requires: python3-PyYAML >= 6.0.0
+Requires: bash-completion
 
-# Runtime dependencies
-Requires:       python3 >= 3.13
-Requires:       python3-cmd2 >= 2.0.0
-Requires:       quads-lib >= 0.1.9
-Requires:       python3-tabulate >= 0.9.0
-Requires:       python3-argcomplete >= 3.1.2
-Requires:       python3-pyyaml >= 6.0.0
-Requires:       bash-completion
+AutoReq: no
+
+Url: https://quads.dev
 
 %description
+
 QUADS Client is an interactive TUI (Text User Interface) shell for managing
 multiple QUADS (QUADS Automated Deployment System) server instances.
 
-Features:
-- Multi-server connection management with bearer token authentication
-- Interactive cmd2-based shell with command history and tab completion
-- Self-scheduling mode (SSM) for non-admin users
-- Cloud management commands (list, create, delete)
-- Real-time provisioning progress tracking
-- SQLite-based persistent command history
-- Thin wrapper design with server-side authorization
+Features include:
+ * Multi-server connection management with bearer token authentication
+ * Interactive cmd2-based shell with command history and tab completion
+ * Self-scheduling mode (SSM) for non-admin users
+ * Cloud management commands (list, create, delete)
+ * Real-time provisioning progress tracking
+ * SQLite-based persistent command history
+ * Thin wrapper design with server-side authorization
 
 QUADS Client requires Python 3.13 or later and communicates with QUADS
 servers via the python-quads-lib API wrapper.
 
 %prep
-%autosetup -n quads_client-%{version}
+%autosetup -n %{reponame}-%{branch}
 
 %build
 %py3_build
 
 %install
+rm -rf %{buildroot}
+mkdir -p %{buildroot}%{_datadir}/doc/quads-client
 %py3_install
 
 # Install example configuration
-mkdir -p %{buildroot}%{_datadir}/doc/quads-client
 install -m 0644 conf/quads-client.yml.example %{buildroot}%{_datadir}/doc/quads-client/
 
+%clean
+rm -rf %{buildroot}
+
 %files
-%license LICENSE
 %doc README.md
+%license LICENSE
 %{_bindir}/quads-client
 %{python3_sitelib}/quads_client/
 %{python3_sitelib}/quads_client-*.egg-info/
@@ -60,12 +86,36 @@ install -m 0644 conf/quads-client.yml.example %{buildroot}%{_datadir}/doc/quads-
 %post
 # Enable bash completion globally if available
 if [ -x /usr/bin/activate-global-python-argcomplete3 ]; then
-    /usr/bin/activate-global-python-argcomplete3 || true
+    /usr/bin/activate-global-python-argcomplete3 2>/dev/null || true
 fi
 
+# First time installation message
+if [ "$1" -eq 1 ]; then
+echo "======================================================="
+echo " QUADS Client installed successfully                   "
+echo "======================================================="
+echo "                                                       "
+echo " To get started:                                       "
+echo "   1. Copy example config:                             "
+echo "      cp /usr/share/doc/quads-client/quads-client.yml.example ~/.quads-client.yml"
+echo "   2. Edit ~/.quads-client.yml with your QUADS servers "
+echo "   3. Run: quads-client                                "
+echo "                                                       "
+echo "======================================================="
+fi
+:;
+
+%preun
+:;
+
+%postun
+find %{python3_sitelib}/quads_client 2>/dev/null | grep -E "(/__pycache__$|\.pyc$|\.pyo$)" | xargs rm -rf 2>/dev/null || true
+:;
+
 %changelog
-* Thu Apr 30 2026 Will Foster <wfoster@redhat.com> - 1.0.0-1
-- Initial quads-client package release
+
+* Wed Apr 30 2026 Will Foster <wfoster@redhat.com>
+- 1.0.0 initial release
 - TUI shell with multi-server support
 - Thin wrapper design with server-side authorization
 - Self-scheduling mode (SSM) for non-admin users
