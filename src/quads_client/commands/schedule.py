@@ -62,7 +62,9 @@ class ScheduleCommands:
             self.shell.perror(f"Failed to list schedules: {e}")
 
     def cmd_add_schedule(self, args):
-        """Add a schedule. Usage: add-schedule --host <hostname> --cloud <cloudname> --start <YYYY-MM-DD> --end <YYYY-MM-DD>"""
+        """Add a schedule.
+        Usage: add-schedule --host <hostname> --cloud <cloudname> --start <YYYY-MM-DD> --end <YYYY-MM-DD>
+        """
         if not self._require_connection():
             return
 
