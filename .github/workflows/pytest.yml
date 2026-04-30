@@ -66,8 +66,8 @@ jobs:
 
       - name: Check code formatting with black
         run: |
-          black --check --line-length 119 src/quads_client/
+          black --check --diff .
 
       - name: Lint with flake8
         run: |
-          flake8 src/quads_client/ --max-line-length=119 --extend-ignore=E203,W503
+          flake8 .

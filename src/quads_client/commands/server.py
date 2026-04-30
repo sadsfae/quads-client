@@ -133,7 +133,9 @@ class ServerCommands:
             self.shell.perror(f"Failed to add server: {e}")
 
     def cmd_edit_server(self, args):
-        """Edit an existing server. Usage: edit-server <name> [--url URL] [--username USER] [--password PASS] [--verify true|false]"""
+        """Edit an existing server.
+        Usage: edit-server <name> [--url URL] [--username USER] [--password PASS] [--verify true|false]
+        """
         parts = args.split()
         if len(parts) < 1:
             self.shell.perror(

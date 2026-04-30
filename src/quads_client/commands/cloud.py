@@ -150,14 +150,17 @@ class CloudCommands:
                 self.shell.perror(f"Failed to delete cloud: {e}")
 
     def cmd_mod_cloud(self, args):
-        """Modify cloud attributes. Usage: mod-cloud <cloud_name> [--owner OWNER] [--description DESC] [--ticket TICKET] [--wipe true|false]"""
+        """Modify cloud attributes.
+        Usage: mod-cloud <cloud_name> [--owner OWNER] [--description DESC] [--ticket TICKET] [--wipe true|false]
+        """
         if not self._require_connection():
             return
 
         parts = args.split()
         if len(parts) < 1:
             self.shell.perror(
-                "Usage: mod-cloud <cloud_name> [--owner OWNER] [--description DESC] [--ticket TICKET] [--wipe true|false] [--ccusers CCUSERS]"
+                "Usage: mod-cloud <cloud_name> [--owner OWNER] [--description DESC] "
+                "[--ticket TICKET] [--wipe true|false] [--ccusers CCUSERS]"
             )
             return
 

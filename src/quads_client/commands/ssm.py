@@ -86,7 +86,7 @@ class SSMCommands:
             assignment_id = assignment.get("id", "unknown")
             cloud_name = assignment.get("cloud", {}).get("name", "unknown")
 
-            self.shell.poutput(f"✓ Self-assignment created successfully")
+            self.shell.poutput("✓ Self-assignment created successfully")
             self.shell.poutput(f"  Assignment ID: {assignment_id}")
             self.shell.poutput(f"  Cloud: {cloud_name}")
             self.shell.poutput(f"  Owner: {username}")
