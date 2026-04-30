@@ -30,6 +30,7 @@ class ConnectionCommands:
             username = self.shell.connection.username
 
             self.shell._update_prompt()
+            self.shell._update_visible_commands()
             self.shell.poutput(f"Connected to {server_name} as {username}")
         except ConnectionError as e:
             self.shell.perror(str(e))
@@ -43,6 +44,7 @@ class ConnectionCommands:
         server = self.shell.connection.current_server
         self.shell.connection.disconnect()
         self.shell._update_prompt()
+        self.shell._update_visible_commands()
         self.shell.poutput(f"Disconnected from {server}")
 
     def cmd_status(self, args):

@@ -326,6 +326,7 @@ def test_server_status_no_credentials(mock_shell):
     server_cmd = ServerCommands(mock_shell)
     server_config = {"url": "https://quads.example.com"}
 
-    status = server_cmd._get_server_status("test", "https://quads.example.com", server_config)
+    status, version = server_cmd._get_server_status("test", "https://quads.example.com", server_config)
 
     assert status == "No credentials"
+    assert version == "N/A"

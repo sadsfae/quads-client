@@ -35,20 +35,37 @@ class AvailableCommands:
 
         try:
             hosts = self.shell.connection.api.filter_available(filters)
+
+            # Check if API returned an error string instead of a list
+            if isinstance(hosts, str):
+                self.shell.perror(f"API error: {hosts}")
+                return
+
             if not hosts:
                 self.shell.poutput("No available hosts found")
                 return
 
+            # Ensure hosts is a list
+            if not isinstance(hosts, list):
+                self.shell.perror(f"Unexpected response type: {type(hosts)}")
+                return
+
             table_data = []
             for host in hosts:
-                table_data.append(
-                    [
-                        host.get("name", ""),
-                        host.get("model", ""),
-                        host.get("host_type", ""),
-                        "Yes" if host.get("can_self_schedule", False) else "No",
-                    ]
-                )
+                # Handle both dict and object responses
+                if isinstance(host, dict):
+                    name = host.get("name", "")
+                    model = host.get("model", "")
+                    host_type = host.get("host_type", "")
+                    can_self_schedule = host.get("can_self_schedule", False)
+                else:
+                    # If it's an object, try attribute access
+                    name = getattr(host, "name", "")
+                    model = getattr(host, "model", "")
+                    host_type = getattr(host, "host_type", "")
+                    can_self_schedule = getattr(host, "can_self_schedule", False)
+
+                table_data.append([name, model, host_type, "Yes" if can_self_schedule else "No"])
 
             headers = ["Name", "Model", "Type", "Self-Schedule"]
             self.shell.poutput(tabulate(table_data, headers=headers, tablefmt="simple"))

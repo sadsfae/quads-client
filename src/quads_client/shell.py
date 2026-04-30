@@ -6,7 +6,7 @@ from quads_client.commands.connection import ConnectionCommands
 from quads_client.commands.host import HostCommands
 from quads_client.commands.schedule import ScheduleCommands
 from quads_client.commands.server import ServerCommands
-from quads_client.commands.ssm import SSMCommands
+from quads_client.commands.user import UserCommands
 from quads_client.commands.version import VersionCommands
 from quads_client.config import ConfigError, QuadsClientConfig
 from quads_client.connection import ConnectionManager
@@ -27,8 +27,8 @@ QUADS Client v1.0.0 - Interactive TUI Shell
 https://quads.dev
 
 Type 'help' for available commands
-Type 'connect' to choose a server
-Type 'ssm setup' for self-scheduling mode
+Type 'connect' to connect to a server
+Type 'register' to create a new account
 
 Configuration: ~/.config/quads/quads-client.yml
 History: ~/.config/quads/.quads-client-history.db
@@ -45,6 +45,10 @@ History: ~/.config/quads/.quads-client-history.db
         self.connection = None
         self.command_history = CommandHistory()
 
+        # Hide unwanted cmd2 built-in commands
+        self.permanently_hidden = ["macro", "run_script", "edit", "run_pyscript", "shortcuts"]
+        self.hidden_commands.extend(self.permanently_hidden)
+
         try:
             self.config = QuadsClientConfig()
             self.connection = ConnectionManager(self.config)
@@ -55,20 +59,82 @@ History: ~/.config/quads/.quads-client-history.db
         self.connection_commands = ConnectionCommands(self)
         self.version_commands = VersionCommands(self)
         self.cloud_commands = CloudCommands(self)
-        self.ssm_commands = SSMCommands(self)
+        self.user_commands = UserCommands(self)
         self.host_commands = HostCommands(self)
         self.schedule_commands = ScheduleCommands(self)
         self.available_commands = AvailableCommands(self)
         self.server_commands = ServerCommands(self)
 
         self._update_prompt()
+        self._update_visible_commands()
+
+    def _shorten_server_name(self, name):
+        """Shorten server name by stripping last 2 segments (e.g. quads2-dev.rdu2.scalelab)"""
+        parts = name.split(".")
+        if len(parts) > 3:
+            return ".".join(parts[:-2])
+        return name
 
     def _update_prompt(self):
         if self.connection and self.connection.is_connected:
             server = self.connection.current_server
-            self.prompt = f"\033[1;32m({server})\033[0m > "
+            short_name = self._shorten_server_name(server)
+            self.prompt = f"\033[1;32m({short_name})\033[0m > "
         else:
             self.prompt = "\033[1;31m(disconnected)\033[0m > "
+
+    def _update_visible_commands(self):
+        """Update visible commands based on user role"""
+        # Admin-only commands
+        admin_commands = [
+            "cloud_create",
+            "cloud_delete",
+            "mod_cloud",
+            "ls_hosts",
+            "mark_broken",
+            "mark_repaired",
+            "retire",
+            "unretire",
+            "ls_broken",
+            "ls_retired",
+            "ls_schedule",
+            "add_schedule",
+            "mod_schedule",
+            "rm_schedule",
+            "extend",
+            "shrink",
+        ]
+
+        # Commands requiring authentication (user or admin)
+        auth_required_commands = [
+            "login",
+            "whoami",
+            "available",
+            "schedule",
+            "assignment_create",
+            "assignment_list",
+            "assignment_status",
+            "assignment_terminate",
+            "my_hosts",
+            "cloud_list",
+            "ls_available",
+        ]
+
+        # Get current authentication state
+        is_authenticated = self.connection and self.connection.is_authenticated if self.connection else False
+        is_admin = self.connection and self.connection.is_admin if self.connection else False
+
+        # Reset hidden commands to permanently hidden list
+        self.hidden_commands = list(self.permanently_hidden)
+
+        # Hide auth-required commands if not authenticated
+        if not is_authenticated:
+            self.hidden_commands.extend(auth_required_commands)
+            # Also hide admin commands if not authenticated
+            self.hidden_commands.extend(admin_commands)
+        elif not is_admin:
+            # Authenticated but not admin - only hide admin commands
+            self.hidden_commands.extend(admin_commands)
 
     def do_version(self, args):
         """Display QUADS Client version"""
@@ -107,45 +173,45 @@ History: ~/.config/quads/.quads-client-history.db
         """Delete a cloud (admin only)"""
         self.cloud_commands.cmd_cloud_delete(args)
 
-    def do_ssm_register(self, args):
+    def do_register(self, args):
         """Register a new user"""
-        self.ssm_commands.cmd_ssm_register(args)
+        self.user_commands.cmd_register(args)
 
-    def do_ssm_login(self, args):
-        """Explicit login"""
-        self.ssm_commands.cmd_ssm_login(args)
+    def do_login(self, args):
+        """Login to current server"""
+        self.user_commands.cmd_login(args)
 
-    def do_ssm_create(self, args):
-        """Create a self-assignment"""
-        self.ssm_commands.cmd_ssm_create(args)
-
-    def do_ssm_status(self, args):
-        """Show assignment details"""
-        self.ssm_commands.cmd_ssm_status(args)
-
-    def do_ssm_list(self, args):
-        """List user's assignments"""
-        self.ssm_commands.cmd_ssm_list(args)
-
-    def do_ssm_terminate(self, args):
-        """Terminate an assignment"""
-        self.ssm_commands.cmd_ssm_terminate(args)
-
-    def do_ssm_whoami(self, args):
+    def do_whoami(self, args):
         """Show current user information"""
-        self.ssm_commands.cmd_ssm_whoami(args)
+        self.user_commands.cmd_whoami(args)
 
-    def do_ssm_available(self, args):
-        """Show available hosts for self-scheduling"""
-        self.ssm_commands.cmd_ssm_available(args)
+    def do_assignment_create(self, args):
+        """Create an assignment"""
+        self.user_commands.cmd_assignment_create(args)
 
-    def do_ssm_schedule(self, args):
-        """Schedule a host for yourself"""
-        self.ssm_commands.cmd_ssm_schedule(args)
+    def do_assignment_list(self, args):
+        """List user's assignments"""
+        self.user_commands.cmd_assignment_list(args)
 
-    def do_ssm_my_hosts(self, args):
+    def do_assignment_status(self, args):
+        """Show assignment details"""
+        self.user_commands.cmd_assignment_status(args)
+
+    def do_assignment_terminate(self, args):
+        """Terminate an assignment"""
+        self.user_commands.cmd_assignment_terminate(args)
+
+    def do_available(self, args):
+        """Show available hosts"""
+        self.user_commands.cmd_available(args)
+
+    def do_schedule(self, args):
+        """Schedule a host"""
+        self.user_commands.cmd_schedule(args)
+
+    def do_my_hosts(self, args):
         """Show hosts scheduled by you"""
-        self.ssm_commands.cmd_ssm_my_hosts(args)
+        self.user_commands.cmd_my_hosts(args)
 
     def do_ls_hosts(self, args):
         """List all hosts"""
