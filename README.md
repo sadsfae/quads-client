@@ -45,16 +45,20 @@ servers:
     url: https://quads1.rdu2.scalelab.example.com
     username: admin@example.com
     password: your-password
+    verify: true
 
   quads2.rdu2.scalelab:
     url: https://quads2.rdu2.scalelab.example.com
     username: admin@example.com
     password: your-password
+    verify: true
 
 default_server: quads1.rdu2.scalelab
 ```
 
-**Note**: Specify the base URL only (no `/api/v3/` path and no port `:5000`). The QUADS API is accessed via nginx reverse proxy, and quads-lib automatically appends `/api/v3/` to your base URL.
+**Notes**: 
+- Specify the base URL only (no `/api/v3/` path and no port `:5000`). The QUADS API is accessed via nginx reverse proxy, and quads-lib automatically appends `/api/v3/` to your base URL.
+- `verify: true` enables SSL certificate verification using your system's CA bundle (recommended). If you've properly installed your CA certificates via `update-ca-trust` (RHEL/Fedora) or `update-ca-certificates` (Debian/Ubuntu), this will work automatically. Set to `false` only for development/testing with self-signed certificates.
 
 ## Usage
 
@@ -99,6 +103,35 @@ cloud-delete <name> - Delete a cloud (admin only)
 ssm-available                - Show available hosts for self-scheduling
 ssm-schedule <hostname> <cloud> - Schedule a host for yourself
 ssm-my-hosts                 - Show your scheduled hosts
+```
+
+### Host Management (Admin)
+
+```
+ls-hosts            - List all hosts
+mark-broken <host>  - Mark a host as broken
+mark-repaired <host>- Mark a broken host as repaired
+retire <host>       - Mark a host as retired
+unretire <host>     - Mark a retired host as active
+ls-broken           - List all broken hosts
+ls-retired          - List all retired hosts
+```
+
+### Schedule Management (Admin)
+
+```
+ls-schedule [--host hostname] [--cloud cloudname]  - List schedules
+add-schedule --host <hostname> --cloud <cloudname> --start <YYYY-MM-DD> --end <YYYY-MM-DD>
+mod-schedule --id <schedule_id> [--start <YYYY-MM-DD>] [--end <YYYY-MM-DD>]
+rm-schedule <schedule_id>     - Remove a schedule
+extend --host <hostname> --weeks <number>  - Extend a schedule
+shrink --host <hostname> --weeks <number>  - Shrink a schedule
+```
+
+### Available Hosts
+
+```
+ls-available [--start YYYY-MM-DD] [--end YYYY-MM-DD] [--model MODEL]
 ```
 
 ### Other Commands

@@ -5,15 +5,16 @@ from quads_client.connection import ConnectionError
 
 
 def test_connect_list_servers(mock_shell):
-    """Test connect command without args lists servers"""
+    """Test connect command without args and no default server lists servers"""
     mock_shell.connection.get_available_servers.return_value = ["server1", "server2"]
-    mock_shell.config.get_default_server.return_value = "server1"
+    mock_shell.config.get_default_server.return_value = None
 
     conn_cmd = ConnectionCommands(mock_shell)
     conn_cmd.cmd_connect("")
 
-    assert mock_shell.poutput.call_count >= 3
+    assert mock_shell.poutput.call_count >= 2
     mock_shell.connection.get_available_servers.assert_called_once()
+    mock_shell.connection.connect.assert_not_called()
 
 
 def test_connect_success(mock_shell, mock_api):

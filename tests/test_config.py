@@ -79,3 +79,61 @@ def test_config_missing_credentials(tmp_path):
     # Returns empty strings when credentials are missing
     assert username == ""
     assert password == ""
+
+
+def test_get_server_verify_default(tmp_path):
+    """Test retrieving server verify defaults to True"""
+    config_file = tmp_path / "quads-client.yml"
+    config_data = {"servers": {"test_server": {"url": "https://test.example.com"}}}
+    config_file.write_text(yaml.dump(config_data))
+
+    config = QuadsClientConfig(config_path=str(config_file))
+    verify = config.get_server_verify("test_server")
+    assert verify is True
+
+
+def test_get_server_verify_true(tmp_path):
+    """Test retrieving server verify when set to true"""
+    config_file = tmp_path / "quads-client.yml"
+    config_data = {
+        "servers": {"test_server": {"url": "https://test.example.com", "username": "test@example.com", "verify": True}}
+    }
+    config_file.write_text(yaml.dump(config_data))
+
+    config = QuadsClientConfig(config_path=str(config_file))
+    verify = config.get_server_verify("test_server")
+    assert verify is True
+
+
+def test_get_server_verify_false(tmp_path):
+    """Test retrieving server verify when set to false"""
+    config_file = tmp_path / "quads-client.yml"
+    config_data = {
+        "servers": {
+            "test_server": {"url": "https://test.example.com", "username": "test@example.com", "verify": False}
+        }
+    }
+    config_file.write_text(yaml.dump(config_data))
+
+    config = QuadsClientConfig(config_path=str(config_file))
+    verify = config.get_server_verify("test_server")
+    assert verify is False
+
+
+def test_get_server_verify_invalid_path(tmp_path):
+    """Test that custom CA paths are rejected"""
+    config_file = tmp_path / "quads-client.yml"
+    config_data = {
+        "servers": {
+            "test_server": {
+                "url": "https://test.example.com",
+                "username": "test@example.com",
+                "verify": "/etc/ssl/certs/custom-ca.crt",
+            }
+        }
+    }
+    config_file.write_text(yaml.dump(config_data))
+
+    config = QuadsClientConfig(config_path=str(config_file))
+    with pytest.raises(ConfigError, match="verify must be true or false"):
+        config.get_server_verify("test_server")

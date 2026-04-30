@@ -57,3 +57,10 @@ class QuadsClientConfig:
         username = server.get("username", "")
         password = server.get("password", "")
         return username, password
+
+    def get_server_verify(self, name: str) -> bool:
+        server = self.get_server(name)
+        verify = server.get("verify", True)
+        if not isinstance(verify, bool):
+            raise ConfigError(f"Server '{name}' verify must be true or false, not a path")
+        return verify

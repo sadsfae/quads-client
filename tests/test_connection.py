@@ -84,3 +84,44 @@ def test_connection_get_available_servers(mock_config):
     conn = ConnectionManager(mock_config)
     servers = conn.get_available_servers()
     assert "test_server" in servers
+
+
+def test_connection_uses_ssl_verification(mock_config, mock_api):
+    """Test that connection uses SSL verification from config"""
+    mock_config.get_server_verify.return_value = True
+
+    with patch("quads_client.connection.QuadsApi") as mock_quads_api:
+        mock_quads_api.return_value = mock_api
+        conn = ConnectionManager(mock_config)
+        conn.connect("test_server")
+
+        mock_quads_api.assert_called_once()
+        call_kwargs = mock_quads_api.call_args[1]
+        assert call_kwargs["verify"] is True
+
+
+def test_connection_ssl_verification_disabled(mock_config, mock_api):
+    """Test connection with SSL verification disabled"""
+    mock_config.get_server_verify.return_value = False
+
+    with patch("quads_client.connection.QuadsApi") as mock_quads_api:
+        mock_quads_api.return_value = mock_api
+        conn = ConnectionManager(mock_config)
+        conn.connect("test_server")
+
+        mock_quads_api.assert_called_once()
+        call_kwargs = mock_quads_api.call_args[1]
+        assert call_kwargs["verify"] is False
+
+
+def test_connection_uses_base_url_parameter(mock_config, mock_api):
+    """Test that connection uses base_url parameter (not url)"""
+    with patch("quads_client.connection.QuadsApi") as mock_quads_api:
+        mock_quads_api.return_value = mock_api
+        conn = ConnectionManager(mock_config)
+        conn.connect("test_server")
+
+        mock_quads_api.assert_called_once()
+        call_kwargs = mock_quads_api.call_args[1]
+        assert "base_url" in call_kwargs
+        assert "url" not in call_kwargs
