@@ -61,7 +61,7 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: '3.11'
+          python-version: '3.13'
           cache: 'pip'
 
       - name: Install dependencies
@@ -71,7 +71,7 @@ jobs:
 
       - name: Check code formatting with black
         run: |
-          black --check --line-length 119 src/quads_client/
+          black --check --line-length 119 --target-version py311 --target-version py312 --target-version py313 src/quads_client/
 
       - name: Lint with flake8
         run: |
