@@ -32,12 +32,17 @@ def test_connection_connect_invalid_server(mock_config):
 
 
 def test_connection_connect_missing_credentials(mock_config):
-    """Test connecting with missing credentials"""
-    mock_config.get_server_credentials.return_value = (None, None)
-    conn = ConnectionManager(mock_config)
+    """Test connecting with missing credentials enters registration mode"""
+    mock_config.get_server_credentials.return_value = ("", "")
 
-    with pytest.raises(ConnectionError, match="no credentials"):
+    with patch("quads_client.connection.QuadsApi") as mock_api:
+        conn = ConnectionManager(mock_config)
         conn.connect("test_server")
+
+        # Should connect in registration mode
+        assert conn.is_connected
+        assert conn._registration_mode is True
+        assert conn.username is None
 
 
 def test_connection_connect_login_failure(mock_config, mock_api):

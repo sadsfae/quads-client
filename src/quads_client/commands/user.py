@@ -40,12 +40,24 @@ class UserCommands:
             if isinstance(result, dict) and result.get("message"):
                 self.shell.poutput(f"  {result['message']}")
 
-            # Save credentials to config file
+            # Save credentials to config file and auto-reconnect
             if self.shell.connection.current_server:
                 try:
-                    self.shell.config.update_server_credentials(self.shell.connection.current_server, email, password)
+                    server_name = self.shell.connection.current_server
+                    self.shell.config.update_server_credentials(server_name, email, password)
                     self.shell.poutput("✓ Credentials saved to configuration")
-                    self.shell.poutput("  Use 'disconnect' then 'connect' to login with new credentials")
+
+                    # Automatically reconnect with new credentials
+                    try:
+                        self.shell.poutput("✓ Logging in with new credentials...")
+                        self.shell.connection.disconnect()
+                        self.shell.connection.connect(server_name)
+                        self.shell._update_prompt()
+                        self.shell._update_visible_commands()
+                        self.shell.poutput(f"✓ Logged in successfully as {email}")
+                    except Exception as login_error:
+                        self.shell.pwarning(f"Warning: Auto-login failed: {login_error}")
+                        self.shell.pwarning("Please use 'connect' command to login")
                 except Exception as e:
                     self.shell.pwarning(f"Warning: Could not save credentials: {e}")
                     self.shell.pwarning("You will need to manually update your config file")

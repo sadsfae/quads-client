@@ -4,11 +4,15 @@ from quads_client.commands.user import UserCommands
 
 
 def test_register_success(mock_shell):
-    """Test register command"""
+    """Test register command with auto-login"""
     mock_shell.connection.is_connected = True
     mock_shell.connection.current_server = "quads1.example.com"
     mock_shell.connection.api.register.return_value = {"status": "success", "message": "User registered"}
     mock_shell.config.update_server_credentials = MagicMock()
+    mock_shell.connection.disconnect = MagicMock()
+    mock_shell.connection.connect = MagicMock()
+    mock_shell._update_prompt = MagicMock()
+    mock_shell._update_visible_commands = MagicMock()
 
     user_cmd = UserCommands(mock_shell)
     user_cmd.cmd_register("user@example.com password123")
@@ -19,7 +23,10 @@ def test_register_success(mock_shell):
     mock_shell.config.update_server_credentials.assert_called_once_with(
         "quads1.example.com", "user@example.com", "password123"
     )
-    assert mock_shell.poutput.call_count >= 2
+    # Should auto-reconnect after registration
+    mock_shell.connection.disconnect.assert_called_once()
+    mock_shell.connection.connect.assert_called_once_with("quads1.example.com")
+    assert mock_shell.poutput.call_count >= 3
 
 
 def test_register_missing_args(mock_shell):

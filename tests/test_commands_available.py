@@ -104,3 +104,54 @@ def test_ls_available_model_filter_only(available_commands, mock_shell):
     available_commands.cmd_ls_available("--model R630")
 
     mock_shell.connection.api.filter_available.assert_called_once_with({"model": "R630"})
+
+
+def test_ls_available_string_error(available_commands, mock_shell):
+    """Test ls-available when API returns error string"""
+    mock_shell.connection.is_connected = True
+    mock_shell.connection.api.filter_available.return_value = "Database connection failed"
+
+    available_commands.cmd_ls_available("")
+
+    mock_shell.perror.assert_called_with("API error: Database connection failed")
+
+
+def test_ls_available_unexpected_type(available_commands, mock_shell):
+    """Test ls-available when API returns unexpected type"""
+    mock_shell.connection.is_connected = True
+    mock_shell.connection.api.filter_available.return_value = 12345  # int instead of list
+
+    available_commands.cmd_ls_available("")
+
+    mock_shell.perror.assert_called_with("Unexpected response type: <class 'int'>")
+
+
+def test_ls_available_object_response(available_commands, mock_shell):
+    """Test ls-available with object responses instead of dicts"""
+    mock_shell.connection.is_connected = True
+
+    # Create mock objects with attributes instead of dicts
+    mock_host = MagicMock()
+    mock_host.name = "host03.example.com"
+    mock_host.model = "R650"
+    mock_host.host_type = "baremetal"
+    mock_host.can_self_schedule = True
+
+    mock_shell.connection.api.filter_available.return_value = [mock_host]
+
+    available_commands.cmd_ls_available("")
+
+    # Should handle object responses by using getattr
+    mock_shell.poutput.assert_called()
+
+
+def test_ls_available_unknown_flag(available_commands, mock_shell):
+    """Test ls-available ignores unknown flags"""
+    mock_shell.connection.is_connected = True
+    mock_shell.connection.api.filter_available.return_value = []
+
+    # --unknown is not a valid flag, should be ignored
+    available_commands.cmd_ls_available("--unknown value --model R630")
+
+    # Should still process the valid --model flag
+    mock_shell.connection.api.filter_available.assert_called_once_with({"model": "R630"})
