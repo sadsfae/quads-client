@@ -173,7 +173,9 @@ def test_update_server_credentials(tmp_path):
     """Test updating server credentials"""
     config_file = tmp_path / "quads-client.yml"
     config_data = {
-        "servers": {"test_server": {"url": "https://test.example.com", "username": "old@example.com", "password": "old"}}
+        "servers": {
+            "test_server": {"url": "https://test.example.com", "username": "old@example.com", "password": "old"}
+        }
     }
     config_file.write_text(yaml.dump(config_data))
 
