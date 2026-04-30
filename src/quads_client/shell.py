@@ -1,7 +1,10 @@
 import cmd2
 
+from quads_client.commands.available import AvailableCommands
 from quads_client.commands.cloud import CloudCommands
 from quads_client.commands.connection import ConnectionCommands
+from quads_client.commands.host import HostCommands
+from quads_client.commands.schedule import ScheduleCommands
 from quads_client.commands.ssm import SSMCommands
 from quads_client.commands.version import VersionCommands
 from quads_client.config import ConfigError, QuadsClientConfig
@@ -52,6 +55,9 @@ History: ~/.config/quads/.quads-client-history.db
         self.version_commands = VersionCommands(self)
         self.cloud_commands = CloudCommands(self)
         self.ssm_commands = SSMCommands(self)
+        self.host_commands = HostCommands(self)
+        self.schedule_commands = ScheduleCommands(self)
+        self.available_commands = AvailableCommands(self)
 
         self._update_prompt()
 
@@ -110,3 +116,59 @@ History: ~/.config/quads/.quads-client-history.db
     def do_ssm_my_hosts(self, args):
         """Show hosts scheduled by you"""
         self.ssm_commands.cmd_ssm_my_hosts(args)
+
+    def do_ls_hosts(self, args):
+        """List all hosts"""
+        self.host_commands.cmd_ls_hosts(args)
+
+    def do_mark_broken(self, args):
+        """Mark a host as broken"""
+        self.host_commands.cmd_mark_broken(args)
+
+    def do_mark_repaired(self, args):
+        """Mark a broken host as repaired"""
+        self.host_commands.cmd_mark_repaired(args)
+
+    def do_retire(self, args):
+        """Mark a host as retired"""
+        self.host_commands.cmd_retire(args)
+
+    def do_unretire(self, args):
+        """Mark a retired host as active"""
+        self.host_commands.cmd_unretire(args)
+
+    def do_ls_broken(self, args):
+        """List all broken hosts"""
+        self.host_commands.cmd_ls_broken(args)
+
+    def do_ls_retired(self, args):
+        """List all retired hosts"""
+        self.host_commands.cmd_ls_retired(args)
+
+    def do_ls_schedule(self, args):
+        """List schedules"""
+        self.schedule_commands.cmd_ls_schedule(args)
+
+    def do_add_schedule(self, args):
+        """Add a schedule"""
+        self.schedule_commands.cmd_add_schedule(args)
+
+    def do_mod_schedule(self, args):
+        """Modify a schedule"""
+        self.schedule_commands.cmd_mod_schedule(args)
+
+    def do_rm_schedule(self, args):
+        """Remove a schedule"""
+        self.schedule_commands.cmd_rm_schedule(args)
+
+    def do_extend(self, args):
+        """Extend a schedule"""
+        self.schedule_commands.cmd_extend(args)
+
+    def do_shrink(self, args):
+        """Shrink a schedule"""
+        self.schedule_commands.cmd_shrink(args)
+
+    def do_ls_available(self, args):
+        """List available hosts"""
+        self.available_commands.cmd_ls_available(args)

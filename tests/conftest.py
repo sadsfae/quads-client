@@ -15,6 +15,7 @@ def mock_config():
     config.get_server_url.return_value = "https://test.example.com"
     config.get_server_credentials.return_value = ("test@example.com", "testpass")
     config.get_default_server.return_value = "test_server"
+    config.get_server_verify.return_value = True
     return config
 
 

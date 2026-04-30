@@ -41,12 +41,13 @@ class ConnectionManager:
 
         url = self.config.get_server_url(server_name)
         username, password = self.config.get_server_credentials(server_name)
+        verify = self.config.get_server_verify(server_name)
 
         if not username or not password:
             raise ConnectionError(f"Server '{server_name}' missing credentials")
 
         try:
-            api = QuadsApi(base_url=url, username=username, password=password)
+            api = QuadsApi(base_url=url, username=username, password=password, verify=verify)
             response = api.login()
 
             if response.get("status") != "success":
