@@ -36,7 +36,7 @@ def test_connection_connect_missing_credentials(mock_config):
     mock_config.get_server_credentials.return_value = (None, None)
     conn = ConnectionManager(mock_config)
 
-    with pytest.raises(ConnectionError, match="missing credentials"):
+    with pytest.raises(ConnectionError, match="no credentials"):
         conn.connect("test_server")
 
 

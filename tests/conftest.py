@@ -48,13 +48,18 @@ def mock_connection_manager(mock_config, mock_api):
     conn = MagicMock()
     conn.config = mock_config
     conn.is_connected = True
+    conn.is_authenticated = True
+    conn.user_role = "user"
+    conn.is_admin = False
     conn.current_server = "test_server"
     conn.username = "test@example.com"
     conn.api = mock_api
     conn._token = "test_token_123"
+    conn._user_role = "user"
     conn.get_available_servers.return_value = ["test_server"]
     conn.connect = MagicMock()
     conn.disconnect = MagicMock()
+    conn._decode_role_from_token = MagicMock(return_value="user")
     return conn
 
 
@@ -68,4 +73,5 @@ def mock_shell(mock_config, mock_connection_manager):
     shell.perror = MagicMock()
     shell.pwarning = MagicMock()
     shell._update_prompt = MagicMock()
+    shell._update_visible_commands = MagicMock()
     return shell

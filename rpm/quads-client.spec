@@ -35,6 +35,7 @@ Requires: quads-lib >= 0.1.9
 Requires: python3-tabulate >= 0.9.0
 Requires: python3-argcomplete >= 3.1.2
 Requires: python3-PyYAML >= 6.0.0
+Requires: python3-jwt >= 2.8.0
 Requires: bash-completion
 
 AutoReq: no

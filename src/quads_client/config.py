@@ -64,3 +64,18 @@ class QuadsClientConfig:
         if not isinstance(verify, bool):
             raise ConfigError(f"Server '{name}' verify must be true or false, not a path")
         return verify
+
+    def update_server_credentials(self, name: str, username: str, password: str) -> None:
+        """Update server credentials in config file"""
+        _ = self.get_server(name)  # Validates server exists
+
+        # Update in-memory config
+        self._config["servers"][name]["username"] = username
+        self._config["servers"][name]["password"] = password
+
+        # Write to file
+        try:
+            with open(self.config_path, "w") as f:
+                yaml.dump(self._config, f, default_flow_style=False)
+        except Exception as e:
+            raise ConfigError(f"Failed to update config file: {e}")

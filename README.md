@@ -13,7 +13,7 @@ QUADS Client is an interactive TUI (Text User Interface) shell for managing mult
 - **Multi-Server Support**: Connect to and manage multiple QUADS servers from a single interface
 - **Bearer Token Authentication**: Secure JWT-based authentication via python-quads-lib
 - **Interactive Shell**: Built on cmd2 with command history, tab completion, and help system
-- **Self-Scheduling Mode (SSM)**: Non-admin users can schedule hosts for themselves
+- **User Registration**: Non-admin users can register accounts and manage their own assignments
 - **Command History**: SQLite-based persistent command history per server
 - **Progress Tracking**: Real-time provisioning progress monitoring
 - **Connection Management**: Easy switching between QUADS server instances
@@ -32,14 +32,14 @@ QUADS Client is an interactive TUI (Text User Interface) shell for managing mult
   - [Connection Management](#connection-management)
   - [Server Management](#server-management)
   - [Cloud Management](#cloud-management)
-  - [Self-Scheduling Mode (SSM)](#self-scheduling-mode-ssm)
+  - [User & Assignment Commands](#user--assignment-commands)
   - [Host Management (Admin)](#host-management-admin)
   - [Schedule Management (Admin)](#schedule-management-admin)
   - [Available Hosts](#available-hosts)
   - [Other Commands](#other-commands)
 - [Authorization](#authorization)
   - [Server Roles](#server-roles)
-  - [Self-Scheduling Mode (SSM)](#self-scheduling-mode-ssm-1)
+  - [User Registration & Assignments](#user-registration--assignments)
 - [Architecture](#architecture)
 - [Dependencies](#dependencies)
 - [Development](#development)
@@ -59,6 +59,7 @@ QUADS Client is an interactive TUI (Text User Interface) shell for managing mult
 ### From RPM (Recommended)
 
 ```bash
+dnf copr enable quadsdev/python3-quads  -y
 dnf install quads-client
 ```
 
@@ -214,18 +215,26 @@ quads-client is a thin wrapper around the QUADS API via python-quads-lib. All au
 The QUADS server implements two roles:
 
 - **admin**: Full access to create/delete clouds, manage all schedules, and perform administrative operations
-- **user**: Can view resources, create schedules, and use self-scheduling mode (SSM) on designated clouds
+- **user**: Can view resources, create schedules, manage assignments, and schedule hosts
 
 When a command requires elevated permissions, the server will return a 403 Forbidden error, which quads-client displays to the user.
 
-### Self-Scheduling Mode (SSM)
+### User Registration & Assignments
 
-SSM is a server-side feature (not a role) controlled by:
+Users can register accounts directly from the CLI:
 
-- Assignment flag: `is_self_schedule=True` on the cloud assignment
-- Host flag: `can_self_schedule=True` on individual hosts
+1. **Connect** to a server (credentials can be blank in config)
+2. **Register** with `register <email> <password>`
+3. Credentials are automatically saved to your config file
+4. **Login** with the `login` command or reconnect
 
-When scheduling on an SSM-enabled cloud, the server automatically calculates start/end dates based on configuration.
+Assignments allow users to:
+- Create self-service cloud assignments with `assignment-create`
+- Schedule hosts to their assignments with `schedule`
+- View and manage their own resources with `assignment-list`, `my-hosts`
+- Terminate assignments when done with `assignment-terminate`
+
+The server controls which hosts can be self-scheduled via the `can_self_schedule` flag.
 
 See [docs/INTEGRATION_ANALYSIS.md](docs/INTEGRATION_ANALYSIS.md) for complete API integration details.
 

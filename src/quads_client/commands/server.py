@@ -7,6 +7,13 @@ class ServerCommands:
     def __init__(self, shell):
         self.shell = shell
 
+    def _shorten_server_name(self, name):
+        """Shorten server name by stripping last 2 segments (e.g. quads2-dev.rdu2.scalelab)"""
+        parts = name.split(".")
+        if len(parts) > 3:
+            return ".".join(parts[:-2])
+        return name
+
     def cmd_servers(self, args):
         """List all configured servers with status"""
         if not self.shell.config:
@@ -20,22 +27,24 @@ class ServerCommands:
         table_data = []
         for i, (name, server_config) in enumerate(servers.items(), 1):
             url = server_config.get("url", "")
-            status = self._get_server_status(name, url, server_config)
+            status, version = self._get_server_status(name, url, server_config)
             info = self._get_server_info(name, url, server_config)
 
             is_default = "✓" if name == default else ""
             is_connected = "Connected" if name == current else status
+            short_name = self._shorten_server_name(name)
 
-            table_data.append([i, name, url, info, is_connected, is_default])
+            table_data.append([i, short_name, version, info, is_connected, is_default])
 
-        headers = ["#", "Server Name", "URL", "Info", "Status", "Default"]
+        headers = ["#", "Server Name", "Version", "Info", "Status", "Default"]
         self.shell.poutput(tabulate(table_data, headers=headers, tablefmt="simple"))
 
         if current:
-            self.shell.poutput(f"\nCurrent connection: {current}")
+            short_current = self._shorten_server_name(current)
+            self.shell.poutput(f"\nCurrent connection: {short_current}")
 
     def _get_server_status(self, name, url, server_config):
-        """Check if server is online"""
+        """Check if server is online and get version"""
         try:
             from quads_lib import QuadsApi
 
@@ -44,13 +53,14 @@ class ServerCommands:
             verify = server_config.get("verify", True)
 
             if not username or not password:
-                return "No credentials"
+                return "No credentials", "N/A"
 
             api = QuadsApi(base_url=url, username=username, password=password, verify=verify)
-            api.get_version()
-            return "Online"
+            version_info = api.get_version()
+            version = version_info.get("version", "unknown") if isinstance(version_info, dict) else "unknown"
+            return "Online", version
         except Exception:
-            return "Offline"
+            return "Offline", "N/A"
 
     def _get_server_info(self, name, url, server_config):
         """Get server summary info"""
