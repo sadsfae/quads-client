@@ -9,17 +9,19 @@ class ConnectionCommands:
             return
 
         if not args.strip():
-            servers = self.shell.connection.get_available_servers()
-            self.shell.poutput("Available servers:")
-            for server in servers:
-                self.shell.poutput(f"  {server}")
             default = self.shell.config.get_default_server() if self.shell.config else None
             if default:
-                self.shell.poutput(f"\nDefault: {default}")
-            self.shell.poutput("\nUsage: connect <server_name>")
-            return
-
-        server_name = args.strip()
+                server_name = default
+                self.shell.poutput(f"Connecting to default server: {default}")
+            else:
+                servers = self.shell.connection.get_available_servers()
+                self.shell.poutput("Available servers:")
+                for server in servers:
+                    self.shell.poutput(f"  {server}")
+                self.shell.poutput("\nUsage: connect <server_name>")
+                return
+        else:
+            server_name = args.strip()
         try:
             from quads_client.connection import ConnectionError
 

@@ -70,6 +70,15 @@ History: ~/.config/quads/.quads-client-history.db
         """Connect to a QUADS server. Usage: connect [server_name]"""
         self.connection_commands.cmd_connect(args)
 
+    def complete_connect(self, text, line, begidx, endidx):
+        """Autocomplete for connect command"""
+        if self.connection:
+            servers = self.connection.get_available_servers()
+            if text:
+                return [s for s in servers if s.startswith(text)]
+            return servers
+        return []
+
     def do_disconnect(self, args):
         """Disconnect from current QUADS server"""
         self.connection_commands.cmd_disconnect(args)

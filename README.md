@@ -42,17 +42,19 @@ Create `~/.config/quads/quads-client.yml`:
 ```yaml
 servers:
   quads1.rdu2.scalelab:
-    url: https://quads1.rdu2.scalelab.example.com:5000
+    url: https://quads1.rdu2.scalelab.example.com
     username: admin@example.com
     password: your-password
 
   quads2.rdu2.scalelab:
-    url: https://quads2.rdu2.scalelab.example.com:5000
+    url: https://quads2.rdu2.scalelab.example.com
     username: admin@example.com
     password: your-password
 
 default_server: quads1.rdu2.scalelab
 ```
+
+**Note**: Specify the base URL only (no `/api/v3/` path and no port `:5000`). The QUADS API is accessed via nginx reverse proxy, and quads-lib automatically appends `/api/v3/` to your base URL.
 
 ## Usage
 

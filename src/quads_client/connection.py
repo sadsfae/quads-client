@@ -46,7 +46,7 @@ class ConnectionManager:
             raise ConnectionError(f"Server '{server_name}' missing credentials")
 
         try:
-            api = QuadsApi(url=url, username=username, password=password)
+            api = QuadsApi(base_url=url, username=username, password=password)
             response = api.login()
 
             if response.get("status") != "success":
