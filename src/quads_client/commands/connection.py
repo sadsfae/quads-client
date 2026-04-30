@@ -1,6 +1,3 @@
-import cmd2
-
-
 class ConnectionCommands:
     def __init__(self, shell):
         self.shell = shell

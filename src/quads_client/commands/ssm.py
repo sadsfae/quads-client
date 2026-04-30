@@ -42,7 +42,7 @@ class SSMCommands:
         hostname, cloud = parts[0], parts[1]
         try:
             # Server handles SSM logic (auto-calculates dates if SSM cloud)
-            result = self.shell.connection.api.create_schedule({"hostname": hostname, "cloud": cloud})
+            self.shell.connection.api.create_schedule({"hostname": hostname, "cloud": cloud})
             self.shell.poutput(f"Host '{hostname}' scheduled on {cloud}")
         except Exception as e:
             if "403" in str(e) or "Forbidden" in str(e):

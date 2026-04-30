@@ -14,7 +14,8 @@ class CommandHistory:
 
     def _init_db(self):
         with sqlite3.connect(self.db_path) as conn:
-            conn.execute("""
+            conn.execute(
+                """
                 CREATE TABLE IF NOT EXISTS command_history (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
                     timestamp TEXT NOT NULL,
@@ -22,7 +23,8 @@ class CommandHistory:
                     command TEXT NOT NULL,
                     success INTEGER NOT NULL
                 )
-                """)
+                """
+            )
             conn.execute("CREATE INDEX IF NOT EXISTS idx_timestamp ON command_history(timestamp)")
             conn.execute("CREATE INDEX IF NOT EXISTS idx_server ON command_history(server)")
             conn.commit()

@@ -5,7 +5,7 @@ from quads_client.commands.connection import ConnectionCommands
 from quads_client.commands.ssm import SSMCommands
 from quads_client.commands.version import VersionCommands
 from quads_client.config import ConfigError, QuadsClientConfig
-from quads_client.connection import ConnectionError, ConnectionManager
+from quads_client.connection import ConnectionManager
 from quads_client.history import CommandHistory
 
 

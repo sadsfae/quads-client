@@ -32,7 +32,7 @@ class CloudCommands:
 
         cloud_name = args.strip()
         try:
-            result = self.shell.connection.api.create_cloud({"cloud": cloud_name})
+            self.shell.connection.api.create_cloud({"cloud": cloud_name})
             self.shell.poutput(f"Cloud '{cloud_name}' created successfully")
         except Exception as e:
             if "403" in str(e) or "Forbidden" in str(e):
