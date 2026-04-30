@@ -317,7 +317,7 @@ pytest tests/ --cov=quads_client --cov-report=html --cov-report=term
 ### Manual Testing
 
 ```bash
-PYTHONPATH=src python3 -c "from quads_client.shell import QuadsClientShell; shell = QuadsClientShell()"
+PYTHONPATH=src python3 -c "from quads_client.shell import QuadsClientShell; shell = QuadsClientShell(); shell.cmdloop()"
 ```
 
 ## Contributing
@@ -336,5 +336,5 @@ GPLv3
 ## Links
 
 - QUADS Server: https://github.com/quadsproject/quads
-- Documentation: https://quads.dev
+- About QUADS: https://quads.dev
 - Issues: https://github.com/quadsproject/quads-client/issues
