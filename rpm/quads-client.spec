@@ -5,7 +5,7 @@ Summary:        QUADS Client TUI Shell
 
 License:        GPLv3
 URL:            https://quads.dev
-Source0:        %{name}-%{version}.tar.gz
+Source0:        https://github.com/quadsproject/quads-client/archive/%{branch}.tar.gz#/%{name}-%{version}-%{release}.tar.gz 
 
 BuildArch:      noarch
 BuildRequires:  python3-devel >= 3.13
