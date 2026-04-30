@@ -19,6 +19,41 @@ QUADS Client is an interactive TUI (Text User Interface) shell for managing mult
 - **Connection Management**: Easy switching between QUADS server instances
 - **Thin Wrapper Design**: Server-side authorization via QUADS API
 
+## Table of Contents
+
+- [Installation](#installation)
+  - [From RPM (Recommended)](#from-rpm-recommended)
+  - [From Source](#from-source)
+- [Configuration](#configuration)
+- [Usage](#usage)
+  - [Interactive Mode](#interactive-mode)
+  - [One-Shot Commands](#one-shot-commands)
+- [Commands](#commands)
+  - [Connection Management](#connection-management)
+  - [Server Management](#server-management)
+  - [Cloud Management](#cloud-management)
+  - [Self-Scheduling Mode (SSM)](#self-scheduling-mode-ssm)
+  - [Host Management (Admin)](#host-management-admin)
+  - [Schedule Management (Admin)](#schedule-management-admin)
+  - [Available Hosts](#available-hosts)
+  - [Other Commands](#other-commands)
+- [Authorization](#authorization)
+  - [Server Roles](#server-roles)
+  - [Self-Scheduling Mode (SSM)](#self-scheduling-mode-ssm-1)
+- [Architecture](#architecture)
+- [Dependencies](#dependencies)
+- [Development](#development)
+  - [Building from Source](#building-from-source)
+  - [Building RPM](#building-rpm)
+  - [Code Formatting](#code-formatting)
+- [Testing](#testing)
+  - [Run Tests](#run-tests)
+  - [Run Tests with Coverage](#run-tests-with-coverage)
+  - [Manual Testing](#manual-testing)
+- [Contributing](#contributing)
+- [License](#license)
+- [Links](#links)
+
 ## Installation
 
 ### From RPM (Recommended)
@@ -89,20 +124,48 @@ disconnect           - Disconnect from current server
 status               - Show connection status and user roles
 ```
 
+### Server Management
+
+```
+servers              - List all configured servers with status
+add-server <name> <url> <username> <password> [--no-verify]  
+                     - Add new server to configuration
+edit-server <name> [--url URL] [--username USER] [--password PASS] [--verify true|false]
+                     - Edit existing server configuration
+rm-server <name>     - Remove server from configuration
+config-reload        - Reload configuration from file
+```
+
 ### Cloud Management
 
 ```
-cloud-list          - List all clouds
-cloud-create <name> - Create a new cloud (admin only)
-cloud-delete <name> - Delete a cloud (admin only)
+cloud-list                         - List all clouds
+cloud-list --cloud <name> --detail - Show detailed cloud information with hosts
+cloud-create <name>                - Create a new cloud (admin only)
+cloud-delete <name>                - Delete a cloud (admin only)
+mod-cloud <name> [OPTIONS]         - Modify cloud attributes (admin only)
+  --owner OWNER                    - Set cloud owner
+  --description DESC               - Set cloud description
+  --ticket TICKET                  - Set ticket number
+  --wipe true|false                - Enable/disable wipe
+  --ccusers CCUSERS                - Set CC users list
 ```
 
 ### Self-Scheduling Mode (SSM)
 
 ```
-ssm-available                - Show available hosts for self-scheduling
-ssm-schedule <hostname> <cloud> - Schedule a host for yourself
-ssm-my-hosts                 - Show your scheduled hosts
+ssm-register <email> <password>              - Register a new user
+ssm-login                                     - Explicit login
+ssm-whoami                                    - Show current user information
+ssm-create --description <desc> [OPTIONS]    - Create a self-assignment
+  --wipe true|false                          - Enable/disable wipe
+  --qinq <vlan>                              - Set VLAN number
+ssm-list                                     - List user's assignments
+ssm-status <assignment_id>                   - Show assignment details
+ssm-terminate <assignment_id>                - Terminate an assignment
+ssm-available                                - Show available hosts for self-scheduling
+ssm-schedule <hostname> <cloud>              - Schedule a host for yourself
+ssm-my-hosts                                 - Show your scheduled hosts
 ```
 
 ### Host Management (Admin)

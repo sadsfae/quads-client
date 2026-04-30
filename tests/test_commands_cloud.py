@@ -12,7 +12,8 @@ def test_cloud_list_success(mock_shell):
     cloud_cmd.cmd_cloud_list("")
 
     mock_shell.connection.api.get_clouds.assert_called_once()
-    assert mock_shell.poutput.call_count >= 2
+    # Enhanced cloud-list now uses tabulate, so only one poutput call with the table
+    assert mock_shell.poutput.call_count == 1
 
 
 def test_cloud_list_no_clouds(mock_shell):

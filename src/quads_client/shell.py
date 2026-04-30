@@ -5,6 +5,7 @@ from quads_client.commands.cloud import CloudCommands
 from quads_client.commands.connection import ConnectionCommands
 from quads_client.commands.host import HostCommands
 from quads_client.commands.schedule import ScheduleCommands
+from quads_client.commands.server import ServerCommands
 from quads_client.commands.ssm import SSMCommands
 from quads_client.commands.version import VersionCommands
 from quads_client.config import ConfigError, QuadsClientConfig
@@ -58,6 +59,7 @@ History: ~/.config/quads/.quads-client-history.db
         self.host_commands = HostCommands(self)
         self.schedule_commands = ScheduleCommands(self)
         self.available_commands = AvailableCommands(self)
+        self.server_commands = ServerCommands(self)
 
         self._update_prompt()
 
@@ -104,6 +106,34 @@ History: ~/.config/quads/.quads-client-history.db
     def do_cloud_delete(self, args):
         """Delete a cloud (admin only)"""
         self.cloud_commands.cmd_cloud_delete(args)
+
+    def do_ssm_register(self, args):
+        """Register a new user"""
+        self.ssm_commands.cmd_ssm_register(args)
+
+    def do_ssm_login(self, args):
+        """Explicit login"""
+        self.ssm_commands.cmd_ssm_login(args)
+
+    def do_ssm_create(self, args):
+        """Create a self-assignment"""
+        self.ssm_commands.cmd_ssm_create(args)
+
+    def do_ssm_status(self, args):
+        """Show assignment details"""
+        self.ssm_commands.cmd_ssm_status(args)
+
+    def do_ssm_list(self, args):
+        """List user's assignments"""
+        self.ssm_commands.cmd_ssm_list(args)
+
+    def do_ssm_terminate(self, args):
+        """Terminate an assignment"""
+        self.ssm_commands.cmd_ssm_terminate(args)
+
+    def do_ssm_whoami(self, args):
+        """Show current user information"""
+        self.ssm_commands.cmd_ssm_whoami(args)
 
     def do_ssm_available(self, args):
         """Show available hosts for self-scheduling"""
@@ -172,3 +202,27 @@ History: ~/.config/quads/.quads-client-history.db
     def do_ls_available(self, args):
         """List available hosts"""
         self.available_commands.cmd_ls_available(args)
+
+    def do_servers(self, args):
+        """List all configured servers"""
+        self.server_commands.cmd_servers(args)
+
+    def do_add_server(self, args):
+        """Add a new server to configuration"""
+        self.server_commands.cmd_add_server(args)
+
+    def do_edit_server(self, args):
+        """Edit an existing server configuration"""
+        self.server_commands.cmd_edit_server(args)
+
+    def do_rm_server(self, args):
+        """Remove a server from configuration"""
+        self.server_commands.cmd_rm_server(args)
+
+    def do_config_reload(self, args):
+        """Reload configuration from file"""
+        self.server_commands.cmd_config_reload(args)
+
+    def do_mod_cloud(self, args):
+        """Modify cloud attributes"""
+        self.cloud_commands.cmd_mod_cloud(args)
