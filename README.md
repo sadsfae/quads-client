@@ -59,6 +59,7 @@ QUADS Client is an interactive TUI (Text User Interface) shell for managing mult
 ### From RPM (Recommended)
 
 ```bash
+dnf copr enable quadsdev/python3-quads  -y
 dnf install quads-client
 ```
 

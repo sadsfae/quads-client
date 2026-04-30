@@ -67,7 +67,7 @@ class QuadsClientConfig:
 
     def update_server_credentials(self, name: str, username: str, password: str) -> None:
         """Update server credentials in config file"""
-        server = self.get_server(name)  # Validates server exists
+        _ = self.get_server(name)  # Validates server exists
 
         # Update in-memory config
         self._config["servers"][name]["username"] = username

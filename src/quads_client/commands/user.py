@@ -44,7 +44,7 @@ class UserCommands:
             if self.shell.connection.current_server:
                 try:
                     self.shell.config.update_server_credentials(self.shell.connection.current_server, email, password)
-                    self.shell.poutput(f"✓ Credentials saved to configuration")
+                    self.shell.poutput("✓ Credentials saved to configuration")
                     self.shell.poutput("  Use 'disconnect' then 'connect' to login with new credentials")
                 except Exception as e:
                     self.shell.pwarning(f"Warning: Could not save credentials: {e}")
@@ -88,11 +88,11 @@ class UserCommands:
 
             self.shell.poutput(f"\nCurrent user: {username or 'Not authenticated'}")
             if is_auth:
-                self.shell.poutput(f"Authenticated: Yes")
+                self.shell.poutput("Authenticated: Yes")
                 if role:
                     self.shell.poutput(f"Role: {role}")
             else:
-                self.shell.poutput(f"Authenticated: No")
+                self.shell.poutput("Authenticated: No")
 
             # Try to get additional user info
             if is_auth:
