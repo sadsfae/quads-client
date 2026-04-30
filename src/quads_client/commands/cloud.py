@@ -76,7 +76,10 @@ class CloudCommands:
                 ["Description", cloud.get("description", "") or "-"],
                 ["Ticket", cloud.get("ticket", "") or "-"],
                 ["CC Users", cloud.get("ccusers", "") or "-"],
-                ["VLAN (QinQ)", cloud.get("vlan", {}).get("vlan_id", "-") if isinstance(cloud.get("vlan"), dict) else "-"],
+                [
+                    "VLAN (QinQ)",
+                    cloud.get("vlan", {}).get("vlan_id", "-") if isinstance(cloud.get("vlan"), dict) else "-",
+                ],
                 ["Wipe", "Yes" if cloud.get("wipe", False) else "No"],
                 ["Validated", "Yes" if cloud.get("validated", False) else "No"],
             ]

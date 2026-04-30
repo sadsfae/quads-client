@@ -136,7 +136,9 @@ class ServerCommands:
         """Edit an existing server. Usage: edit-server <name> [--url URL] [--username USER] [--password PASS] [--verify true|false]"""
         parts = args.split()
         if len(parts) < 1:
-            self.shell.perror("Usage: edit-server <name> [--url URL] [--username USER] [--password PASS] [--verify true|false]")
+            self.shell.perror(
+                "Usage: edit-server <name> [--url URL] [--username USER] [--password PASS] [--verify true|false]"
+            )
             return
 
         name = parts[0]

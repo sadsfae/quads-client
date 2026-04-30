@@ -11,7 +11,9 @@ def test_ssm_register_success(mock_shell):
     ssm_cmd = SSMCommands(mock_shell)
     ssm_cmd.cmd_ssm_register("user@example.com password123")
 
-    mock_shell.connection.api.register.assert_called_once_with({"email": "user@example.com", "password": "password123"})
+    mock_shell.connection.api.register.assert_called_once_with(
+        {"email": "user@example.com", "password": "password123"}
+    )
     assert mock_shell.poutput.call_count >= 1
 
 
@@ -378,9 +380,7 @@ def test_ssm_terminate_not_connected(mock_shell):
 def test_ssm_terminate_api_error(mock_shell):
     """Test ssm-terminate with API error"""
     mock_shell.connection.is_connected = True
-    mock_shell.connection.api.filter_assignments.return_value = [
-        {"id": 42, "cloud": {"name": "cloud17"}}
-    ]
+    mock_shell.connection.api.filter_assignments.return_value = [{"id": 42, "cloud": {"name": "cloud17"}}]
     mock_shell.connection.api.terminate_assignment.side_effect = Exception("Termination failed")
 
     with patch("builtins.input", return_value="y"):
