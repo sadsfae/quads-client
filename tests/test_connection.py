@@ -35,7 +35,7 @@ def test_connection_connect_missing_credentials(mock_config):
     """Test connecting with missing credentials enters registration mode"""
     mock_config.get_server_credentials.return_value = ("", "")
 
-    with patch("quads_client.connection.QuadsApi") as mock_api:
+    with patch("quads_client.connection.QuadsApi"):
         conn = ConnectionManager(mock_config)
         conn.connect("test_server")
 

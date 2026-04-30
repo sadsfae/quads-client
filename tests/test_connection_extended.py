@@ -91,7 +91,7 @@ def test_connect_registration_mode(mock_config):
     mock_config.get_server_credentials.return_value = ("", "")
     mock_config.get_server_verify.return_value = True
 
-    with patch("quads_client.connection.QuadsApi") as mock_api:
+    with patch("quads_client.connection.QuadsApi"):
         conn = ConnectionManager(mock_config)
         conn.connect("test_server", registration_mode=True)
 
