@@ -87,7 +87,9 @@ class ScheduleCommands:
                 i += 1
 
         if not all(k in data for k in ["host", "cloud", "start", "end"]):
-            self.shell.perror("Usage: add-schedule --host <hostname> --cloud <cloudname> --start <YYYY-MM-DD> --end <YYYY-MM-DD>")
+            self.shell.perror(
+                "Usage: add-schedule --host <hostname> --cloud <cloudname> --start <YYYY-MM-DD> --end <YYYY-MM-DD>"
+            )
             return
 
         try:

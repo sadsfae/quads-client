@@ -114,8 +114,6 @@ def test_connection_ssl_verification_disabled(mock_config, mock_api):
         assert call_kwargs["verify"] is False
 
 
-
-
 def test_connection_uses_base_url_parameter(mock_config, mock_api):
     """Test that connection uses base_url parameter (not url)"""
     with patch("quads_client.connection.QuadsApi") as mock_quads_api:

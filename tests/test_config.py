@@ -96,9 +96,7 @@ def test_get_server_verify_true(tmp_path):
     """Test retrieving server verify when set to true"""
     config_file = tmp_path / "quads-client.yml"
     config_data = {
-        "servers": {
-            "test_server": {"url": "https://test.example.com", "username": "test@example.com", "verify": True}
-        }
+        "servers": {"test_server": {"url": "https://test.example.com", "username": "test@example.com", "verify": True}}
     }
     config_file.write_text(yaml.dump(config_data))
 
