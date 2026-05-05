@@ -1,5 +1,6 @@
 [run]
 source = quads_client
+relative_files = true
 omit =
     */tests/*
     */venv/*
