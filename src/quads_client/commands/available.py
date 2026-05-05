@@ -12,12 +12,33 @@ class AvailableCommands:
 
     def cmd_ls_available(self, args):
         """List available hosts.
-        Usage: ls-available [--start YYYY-MM-DD] [--end YYYY-MM-DD] [--model MODEL] [--ram GB]
-                            [--gpu-vendor VENDOR] [--gpu-product PRODUCT]
-                            [--disk-size GB] [--disk-type TYPE] [--disk-count N]
-                            [--interfaces N]
+        Usage: ls-available [start YYYY-MM-DD] [end YYYY-MM-DD] [model MODEL] [ram GB]
+                            [gpu-vendor VENDOR] [gpu-product PRODUCT]
+                            [disk-size GB] [disk-type TYPE] [disk-count N]
+                            [interfaces N]
         """
         if not self._require_connection():
+            return
+
+        # Handle help request
+        if args.strip() in ("?", "-h", "--help"):
+            self.shell.poutput("Usage: ls-available [OPTIONS]")
+            self.shell.poutput("\nList available hosts with optional hardware filtering.")
+            self.shell.poutput("\nOptions:")
+            self.shell.poutput("  start YYYY-MM-DD        Start date for availability")
+            self.shell.poutput("  end YYYY-MM-DD          End date for availability")
+            self.shell.poutput("  model MODEL             Filter by server model (e.g., r640)")
+            self.shell.poutput("  ram GB                  Minimum RAM in GB")
+            self.shell.poutput("  gpu-vendor VENDOR       GPU vendor (e.g., 'NVIDIA Corporation')")
+            self.shell.poutput("  gpu-product PRODUCT     GPU model (e.g., 'Tesla V100')")
+            self.shell.poutput("  disk-size GB            Minimum disk size in GB")
+            self.shell.poutput("  disk-type TYPE          Disk type (nvme, ssd, sata)")
+            self.shell.poutput("  disk-count N            Minimum number of disks")
+            self.shell.poutput("  interfaces N            Minimum number of network interfaces")
+            self.shell.poutput("\nExamples:")
+            self.shell.poutput("  ls-available model r640 ram 256")
+            self.shell.poutput("  ls-available gpu-vendor 'NVIDIA Corporation' gpu-product 'Tesla V100'")
+            self.shell.poutput("  ls-available start 2026-06-01 end 2026-06-15")
             return
 
         parts = args.split()
@@ -25,34 +46,35 @@ class AvailableCommands:
 
         i = 0
         while i < len(parts):
-            if parts[i] == "--start" and i + 1 < len(parts):
+            if parts[i] == "start" and i + 1 < len(parts):
                 filters["start"] = parts[i + 1]
                 i += 2
-            elif parts[i] == "--end" and i + 1 < len(parts):
+            elif parts[i] == "end" and i + 1 < len(parts):
                 filters["end"] = parts[i + 1]
                 i += 2
-            elif parts[i] == "--model" and i + 1 < len(parts):
-                filters["model"] = parts[i + 1]
+            elif parts[i] == "model" and i + 1 < len(parts):
+                # Case-insensitive model matching
+                filters["model"] = parts[i + 1].lower()
                 i += 2
-            elif parts[i] == "--ram" and i + 1 < len(parts):
+            elif parts[i] == "ram" and i + 1 < len(parts):
                 filters["memory__gte"] = int(parts[i + 1]) * 1024
                 i += 2
-            elif parts[i] == "--gpu-vendor" and i + 1 < len(parts):
+            elif parts[i] == "gpu-vendor" and i + 1 < len(parts):
                 filters["processors.vendor"] = parts[i + 1]
                 i += 2
-            elif parts[i] == "--gpu-product" and i + 1 < len(parts):
+            elif parts[i] == "gpu-product" and i + 1 < len(parts):
                 filters["processors.product"] = parts[i + 1]
                 i += 2
-            elif parts[i] == "--disk-size" and i + 1 < len(parts):
+            elif parts[i] == "disk-size" and i + 1 < len(parts):
                 filters["disks.size_gb__gte"] = int(parts[i + 1])
                 i += 2
-            elif parts[i] == "--disk-type" and i + 1 < len(parts):
+            elif parts[i] == "disk-type" and i + 1 < len(parts):
                 filters["disks.disk_type"] = parts[i + 1]
                 i += 2
-            elif parts[i] == "--disk-count" and i + 1 < len(parts):
+            elif parts[i] == "disk-count" and i + 1 < len(parts):
                 filters["disks.count__gte"] = int(parts[i + 1])
                 i += 2
-            elif parts[i] == "--interfaces" and i + 1 < len(parts):
+            elif parts[i] == "interfaces" and i + 1 < len(parts):
                 filters["interfaces.count__gte"] = int(parts[i + 1])
                 i += 2
             else:
@@ -79,18 +101,40 @@ class AvailableCommands:
             for host in hosts:
                 # Handle both dict and object responses
                 if isinstance(host, dict):
-                    name = host.get("name", "")
-                    model = host.get("model", "")
-                    host_type = host.get("host_type", "")
+                    # Try different possible field names
+                    name = host.get("name") or host.get("hostname", "")
+                    model = host.get("model") or host.get("host_model", "")
+                    host_type = host.get("host_type") or host.get("type", "")
                     can_self_schedule = host.get("can_self_schedule", False)
                 else:
                     # If it's an object, try attribute access
-                    name = getattr(host, "name", "")
-                    model = getattr(host, "model", "")
-                    host_type = getattr(host, "host_type", "")
+                    name = getattr(host, "name", None) or getattr(host, "hostname", "")
+                    model = getattr(host, "model", None) or getattr(host, "host_model", "")
+                    host_type = getattr(host, "host_type", None) or getattr(host, "type", "")
                     can_self_schedule = getattr(host, "can_self_schedule", False)
 
+                # Debug: if we're still getting empty data, print what we received
+                if not name and not model and not host_type:
+                    # Object might be a simple hostname string
+                    if isinstance(host, str):
+                        name = host
+                        model = "N/A"
+                        host_type = "N/A"
+                        can_self_schedule = False
+                    else:
+                        # Show what fields are available for debugging
+                        if isinstance(host, dict):
+                            self.shell.perror(f"DEBUG: Host dict keys: {list(host.keys())[:10]}")
+                        else:
+                            attrs = [a for a in dir(host) if not a.startswith("_")][:10]
+                            self.shell.perror(f"DEBUG: Host object attrs: {attrs}")
+                        continue
+
                 table_data.append([name, model, host_type, "Yes" if can_self_schedule else "No"])
+
+            if not table_data:
+                self.shell.poutput("No available hosts found")
+                return
 
             headers = ["Name", "Model", "Type", "Self-Schedule"]
             self.shell.poutput(tabulate(table_data, headers=headers, tablefmt="simple"))

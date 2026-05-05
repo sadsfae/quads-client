@@ -706,6 +706,10 @@ class QuadsClientShell(cmd2.Cmd):
         """Add a new server to configuration"""
         self.server_commands.cmd_add_server(args)
 
+    def do_add_quads_server(self, args):
+        """Interactive wizard to add a new QUADS server"""
+        self.server_commands.cmd_add_quads_server(args)
+
     def do_edit_server(self, args):
         """Edit an existing server configuration"""
         self.server_commands.cmd_edit_server(args)

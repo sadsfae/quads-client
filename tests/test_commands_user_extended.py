@@ -181,6 +181,43 @@ def test_schedule_api_error(mock_shell):
     mock_shell.perror.assert_called()
 
 
+def test_schedule_no_available_hosts(mock_shell):
+    """Test schedule when no hosts are available"""
+    mock_shell.connection.is_connected = True
+    mock_shell.connection.is_authenticated = True
+    mock_shell.connection.is_admin = False
+    mock_shell.connection.username = "user@example.com"
+    mock_shell.connection.api.filter_available.return_value = []
+
+    user_cmd = UserCommands(mock_shell)
+    user_cmd.cmd_schedule('3 description "Test"')
+
+    # Should error with no available hosts message
+    assert any("No available hosts" in str(call) for call in mock_shell.perror.call_args_list)
+
+
+def test_schedule_schedule_creation_failure(mock_shell):
+    """Test schedule when schedule creation fails"""
+    mock_shell.connection.is_connected = True
+    mock_shell.connection.is_authenticated = True
+    mock_shell.connection.is_admin = False
+    mock_shell.connection.username = "user@example.com"
+    mock_shell.connection.api.filter_available.return_value = [
+        {"name": "host01.example.com", "model": "r640", "can_self_schedule": True}
+    ]
+    mock_shell.connection.api.create_self_assignment.return_value = {
+        "id": 123,
+        "cloud": {"name": "cloud02"},
+    }
+    mock_shell.connection.api.create_schedule.side_effect = Exception("Schedule creation failed")
+
+    user_cmd = UserCommands(mock_shell)
+    user_cmd.cmd_schedule('1 description "Test"')
+
+    # Should show warning about failed schedule
+    assert mock_shell.pwarning.call_count >= 1 or mock_shell.perror.call_count >= 1
+
+
 def test_my_hosts_api_error(mock_shell):
     """Test my_hosts when API call fails"""
     mock_shell.connection.is_connected = True

@@ -430,7 +430,33 @@ def test_assignment_terminate_missing_args(mock_shell):
     user_cmd = UserCommands(mock_shell)
     user_cmd.cmd_release("")
 
-    mock_shell.perror.assert_called_with("Usage: release <assignment_id> [hostname]")
+    # Should show usage help
+    assert any("Usage: release" in str(call) for call in mock_shell.poutput.call_args_list)
+
+
+def test_assignment_terminate_help_question_mark(mock_shell):
+    """Test release command with ? shows help"""
+    mock_shell.connection.is_connected = True
+    mock_shell.connection.is_authenticated = True
+
+    user_cmd = UserCommands(mock_shell)
+    user_cmd.cmd_release("?")
+
+    # Should show usage help
+    assert any("Usage: release" in str(call) for call in mock_shell.poutput.call_args_list)
+    assert any("Examples:" in str(call) for call in mock_shell.poutput.call_args_list)
+
+
+def test_assignment_terminate_invalid_id(mock_shell):
+    """Test release command with invalid assignment ID"""
+    mock_shell.connection.is_connected = True
+    mock_shell.connection.is_authenticated = True
+
+    user_cmd = UserCommands(mock_shell)
+    user_cmd.cmd_release("abc")
+
+    # Should error about invalid ID
+    assert any("Invalid assignment ID" in str(call) for call in mock_shell.perror.call_args_list)
 
 
 def test_assignment_terminate_not_authenticated(mock_shell):

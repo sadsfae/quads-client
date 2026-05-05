@@ -30,7 +30,7 @@ def test_connect_no_default_server(connection_commands, mock_shell, mock_config)
     connection_commands.cmd_connect("")
 
     mock_shell.poutput.assert_any_call("Available servers:")
-    mock_shell.poutput.assert_any_call("\nUsage: connect <server_name>")
+    mock_shell.poutput.assert_any_call("\nUsage: connect <server_name|number>")
     mock_shell.connection.connect.assert_not_called()
 
 

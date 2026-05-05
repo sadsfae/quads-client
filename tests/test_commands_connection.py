@@ -108,3 +108,53 @@ def test_status_no_config(mock_shell):
     conn_cmd.cmd_status("")
 
     mock_shell.perror.assert_called_with("Configuration not loaded")
+
+
+def test_connect_by_number_success(mock_shell):
+    """Test connecting to server by number"""
+    mock_shell.connection.get_available_servers.return_value = ["server1", "server2", "server3"]
+    mock_shell.connection.connect = MagicMock()
+    mock_shell.connection.username = "test@example.com"
+    mock_shell._update_prompt = MagicMock()
+
+    conn_cmd = ConnectionCommands(mock_shell)
+    conn_cmd.cmd_connect("2")
+
+    # Should connect to server2 (index 1, but display as #2)
+    mock_shell.connection.connect.assert_called_once_with("server2")
+
+
+def test_connect_by_number_invalid_low(mock_shell):
+    """Test connecting with invalid low number"""
+    mock_shell.connection.get_available_servers.return_value = ["server1", "server2"]
+
+    conn_cmd = ConnectionCommands(mock_shell)
+    conn_cmd.cmd_connect("0")
+
+    mock_shell.perror.assert_called()
+    mock_shell.connection.connect.assert_not_called()
+
+
+def test_connect_by_number_invalid_high(mock_shell):
+    """Test connecting with invalid high number"""
+    mock_shell.connection.get_available_servers.return_value = ["server1", "server2"]
+
+    conn_cmd = ConnectionCommands(mock_shell)
+    conn_cmd.cmd_connect("5")
+
+    mock_shell.perror.assert_called()
+    mock_shell.connection.connect.assert_not_called()
+
+
+def test_connect_by_name_still_works(mock_shell):
+    """Test that connecting by name still works"""
+    mock_shell.connection.get_available_servers.return_value = ["server1", "server2"]
+    mock_shell.connection.connect = MagicMock()
+    mock_shell.connection.username = "test@example.com"
+    mock_shell._update_prompt = MagicMock()
+
+    conn_cmd = ConnectionCommands(mock_shell)
+    conn_cmd.cmd_connect("server1")
+
+    # Should still work with server name
+    mock_shell.connection.connect.assert_called_once_with("server1")

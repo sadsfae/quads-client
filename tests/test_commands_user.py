@@ -46,6 +46,32 @@ def test_available_not_authenticated(mock_shell):
     mock_shell.perror.assert_called_with("Not authenticated. Use 'login' command first.")
 
 
+def test_available_help(mock_shell):
+    """Test available command help with ?"""
+    mock_shell.connection.is_connected = True
+    mock_shell.connection.is_authenticated = True
+
+    user_cmd = UserCommands(mock_shell)
+    user_cmd.cmd_available("?")
+
+    # Should print help, not call API
+    assert any("Usage:" in str(call) for call in mock_shell.poutput.call_args_list)
+    mock_shell.connection.api.filter_hosts.assert_not_called()
+
+
+def test_available_help_dash_h(mock_shell):
+    """Test available command help with -h"""
+    mock_shell.connection.is_connected = True
+    mock_shell.connection.is_authenticated = True
+
+    user_cmd = UserCommands(mock_shell)
+    user_cmd.cmd_available("-h")
+
+    # Should print help, not call API
+    assert any("Usage:" in str(call) for call in mock_shell.poutput.call_args_list)
+    mock_shell.connection.api.filter_hosts.assert_not_called()
+
+
 def test_schedule_success(mock_shell):
     """Test schedule command success - superseded by test_commands_unified_schedule.py"""
     mock_shell.connection.is_connected = True
@@ -99,15 +125,15 @@ def test_my_hosts_success(mock_shell):
     mock_shell.connection.api.filter_assignments.return_value = [
         {"id": 1, "owner": "test", "cloud": {"name": "cloud02"}, "description": "Test assignment"}
     ]
-    mock_shell.connection.api.get_schedules.return_value = [
+    mock_shell.connection.api.get_current_schedules.return_value = [
         {"id": 1, "host": {"name": "host01.example.com"}, "start": "2026-05-01", "end": "2026-05-15"}
     ]
 
     user_cmd = UserCommands(mock_shell)
     user_cmd.cmd_my_hosts("")
 
-    mock_shell.connection.api.filter_assignments.assert_called_once_with({"owner": "test"})
-    mock_shell.connection.api.get_schedules.assert_called_once_with({"assignment_id": 1})
+    mock_shell.connection.api.filter_assignments.assert_called_once_with({"owner": "test", "active": True})
+    mock_shell.connection.api.get_current_schedules.assert_called_once_with({"assignment_id": 1})
     assert mock_shell.poutput.call_count >= 2
 
 
@@ -121,7 +147,7 @@ def test_my_hosts_no_schedules(mock_shell):
     user_cmd = UserCommands(mock_shell)
     user_cmd.cmd_my_hosts("")
 
-    mock_shell.poutput.assert_called_with("No hosts scheduled by test")
+    mock_shell.poutput.assert_called_with("No active hosts scheduled by test")
 
 
 def test_my_hosts_not_authenticated(mock_shell):
@@ -144,3 +170,93 @@ def test_schedule_not_authenticated(mock_shell):
     user_cmd.cmd_schedule("host01.example.com cloud02")
 
     mock_shell.perror.assert_called_with("Not authenticated. Use 'login' command first.")
+
+
+def test_schedule_count_with_dict_hosts(mock_shell):
+    """Test schedule with count mode when API returns dicts"""
+    mock_shell.connection.is_connected = True
+    mock_shell.connection.is_authenticated = True
+    mock_shell.connection.is_admin = False
+    mock_shell.connection.username = "test@example.com"
+
+    # API returns list of dicts
+    mock_shell.connection.api.filter_available.return_value = [
+        {"name": "host01.example.com"},
+        {"name": "host02.example.com"},
+    ]
+    mock_shell.connection.api.create_self_assignment.return_value = {
+        "id": 42,
+        "cloud": {"name": "cloud17"},
+    }
+    mock_shell.connection.api.create_schedule.return_value = {"id": 1}
+
+    user_cmd = UserCommands(mock_shell)
+    user_cmd.cmd_schedule('2 description "Test"')
+
+    # Should create schedule for 2 hosts
+    assert mock_shell.connection.api.create_schedule.call_count == 2
+
+
+def test_schedule_count_with_object_hosts(mock_shell):
+    """Test schedule with count mode when API returns objects"""
+    mock_shell.connection.is_connected = True
+    mock_shell.connection.is_authenticated = True
+    mock_shell.connection.is_admin = False
+    mock_shell.connection.username = "test@example.com"
+
+    # API returns list of objects with name attribute
+    class HostObj:
+        def __init__(self, name):
+            self.name = name
+
+    mock_shell.connection.api.filter_available.return_value = [
+        HostObj("host01.example.com"),
+        HostObj("host02.example.com"),
+    ]
+    mock_shell.connection.api.create_self_assignment.return_value = {
+        "id": 42,
+        "cloud": {"name": "cloud17"},
+    }
+    mock_shell.connection.api.create_schedule.return_value = {"id": 1}
+
+    user_cmd = UserCommands(mock_shell)
+    user_cmd.cmd_schedule('2 description "Test"')
+
+    # Should create schedule for 2 hosts
+    assert mock_shell.connection.api.create_schedule.call_count == 2
+
+
+def test_release_help(mock_shell):
+    """Test release command with help flag"""
+    mock_shell.connection.is_connected = True
+    mock_shell.connection.is_authenticated = True
+
+    user_cmd = UserCommands(mock_shell)
+    user_cmd.cmd_release("?")
+
+    # Should print usage, not error
+    assert any("Usage:" in str(call) for call in mock_shell.poutput.call_args_list)
+
+
+def test_release_help_dash_h(mock_shell):
+    """Test release command with -h flag"""
+    mock_shell.connection.is_connected = True
+    mock_shell.connection.is_authenticated = True
+
+    user_cmd = UserCommands(mock_shell)
+    user_cmd.cmd_release("-h")
+
+    # Should print usage, not error
+    assert any("Usage:" in str(call) for call in mock_shell.poutput.call_args_list)
+
+
+def test_release_help_help_flag(mock_shell):
+    """Test release command with --help flag"""
+    mock_shell.connection.is_connected = True
+    mock_shell.connection.is_authenticated = True
+
+    user_cmd = UserCommands(mock_shell)
+    user_cmd.cmd_release("--help")
+
+    # Should print usage, not error
+    assert any("Usage:" in str(call) for call in mock_shell.poutput.call_args_list)

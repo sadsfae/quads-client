@@ -37,12 +37,12 @@ def test_ls_available_with_filters(available_commands, mock_shell):
     mock_shell.connection.is_connected = True
     mock_shell.connection.api.filter_available.return_value = []
 
-    available_commands.cmd_ls_available("--start 2026-05-01 --end 2026-05-15 --model R630")
+    available_commands.cmd_ls_available("start 2026-05-01 end 2026-05-15 model R630")
 
     expected_filters = {
         "start": "2026-05-01",
         "end": "2026-05-15",
-        "model": "R630",
+        "model": "r630",  # Lowercased for case-insensitive matching
     }
     mock_shell.connection.api.filter_available.assert_called_once_with(expected_filters)
 
@@ -81,7 +81,7 @@ def test_ls_available_start_filter_only(available_commands, mock_shell):
     mock_shell.connection.is_connected = True
     mock_shell.connection.api.filter_available.return_value = []
 
-    available_commands.cmd_ls_available("--start 2026-05-01")
+    available_commands.cmd_ls_available("start 2026-05-01")
 
     mock_shell.connection.api.filter_available.assert_called_once_with({"start": "2026-05-01"})
 
@@ -91,7 +91,7 @@ def test_ls_available_end_filter_only(available_commands, mock_shell):
     mock_shell.connection.is_connected = True
     mock_shell.connection.api.filter_available.return_value = []
 
-    available_commands.cmd_ls_available("--end 2026-05-15")
+    available_commands.cmd_ls_available("end 2026-05-15")
 
     mock_shell.connection.api.filter_available.assert_called_once_with({"end": "2026-05-15"})
 
@@ -101,9 +101,9 @@ def test_ls_available_model_filter_only(available_commands, mock_shell):
     mock_shell.connection.is_connected = True
     mock_shell.connection.api.filter_available.return_value = []
 
-    available_commands.cmd_ls_available("--model R630")
+    available_commands.cmd_ls_available("model R630")
 
-    mock_shell.connection.api.filter_available.assert_called_once_with({"model": "R630"})
+    mock_shell.connection.api.filter_available.assert_called_once_with({"model": "r630"})
 
 
 def test_ls_available_string_error(available_commands, mock_shell):
@@ -150,11 +150,11 @@ def test_ls_available_unknown_flag(available_commands, mock_shell):
     mock_shell.connection.is_connected = True
     mock_shell.connection.api.filter_available.return_value = []
 
-    # --unknown is not a valid flag, should be ignored
-    available_commands.cmd_ls_available("--unknown value --model R630")
+    # unknown is not a valid flag, should be ignored
+    available_commands.cmd_ls_available("unknown value model R630")
 
-    # Should still process the valid --model flag
-    mock_shell.connection.api.filter_available.assert_called_once_with({"model": "R630"})
+    # Should still process the valid model flag (lowercased)
+    mock_shell.connection.api.filter_available.assert_called_once_with({"model": "r630"})
 
 
 def test_ls_available_ram_filter(available_commands, mock_shell):
@@ -162,7 +162,7 @@ def test_ls_available_ram_filter(available_commands, mock_shell):
     mock_shell.connection.is_connected = True
     mock_shell.connection.api.filter_available.return_value = []
 
-    available_commands.cmd_ls_available("--ram 256")
+    available_commands.cmd_ls_available("ram 256")
 
     mock_shell.connection.api.filter_available.assert_called_once_with({"memory__gte": 256 * 1024})
 
@@ -172,7 +172,7 @@ def test_ls_available_gpu_filters(available_commands, mock_shell):
     mock_shell.connection.is_connected = True
     mock_shell.connection.api.filter_available.return_value = []
 
-    available_commands.cmd_ls_available("--gpu-vendor NVIDIA --gpu-product V100")
+    available_commands.cmd_ls_available("gpu-vendor NVIDIA gpu-product V100")
 
     expected_filters = {
         "processors.vendor": "NVIDIA",
@@ -186,7 +186,7 @@ def test_ls_available_disk_filters(available_commands, mock_shell):
     mock_shell.connection.is_connected = True
     mock_shell.connection.api.filter_available.return_value = []
 
-    available_commands.cmd_ls_available("--disk-size 500 --disk-type nvme --disk-count 2")
+    available_commands.cmd_ls_available("disk-size 500 disk-type nvme disk-count 2")
 
     expected_filters = {
         "disks.size_gb__gte": 500,
@@ -201,7 +201,7 @@ def test_ls_available_interface_filter(available_commands, mock_shell):
     mock_shell.connection.is_connected = True
     mock_shell.connection.api.filter_available.return_value = []
 
-    available_commands.cmd_ls_available("--interfaces 4")
+    available_commands.cmd_ls_available("interfaces 4")
 
     mock_shell.connection.api.filter_available.assert_called_once_with({"interfaces.count__gte": 4})
 
@@ -211,7 +211,7 @@ def test_ls_available_combined_filters(available_commands, mock_shell):
     mock_shell.connection.is_connected = True
     mock_shell.connection.api.filter_available.return_value = []
 
-    available_commands.cmd_ls_available("--model r650 --ram 128 --disk-type nvme --interfaces 4")
+    available_commands.cmd_ls_available("model r650 ram 128 disk-type nvme interfaces 4")
 
     expected_filters = {
         "model": "r650",
@@ -220,3 +220,48 @@ def test_ls_available_combined_filters(available_commands, mock_shell):
         "interfaces.count__gte": 4,
     }
     mock_shell.connection.api.filter_available.assert_called_once_with(expected_filters)
+
+
+def test_ls_available_help(available_commands, mock_shell):
+    """Test ls-available help with ?"""
+    mock_shell.connection.is_connected = True
+
+    available_commands.cmd_ls_available("?")
+
+    # Should print help, not call API
+    assert any("Usage:" in str(call) for call in mock_shell.poutput.call_args_list)
+    mock_shell.connection.api.filter_available.assert_not_called()
+
+
+def test_ls_available_help_dash_h(available_commands, mock_shell):
+    """Test ls-available help with -h"""
+    mock_shell.connection.is_connected = True
+
+    available_commands.cmd_ls_available("-h")
+
+    # Should print help, not call API
+    assert any("Usage:" in str(call) for call in mock_shell.poutput.call_args_list)
+    mock_shell.connection.api.filter_available.assert_not_called()
+
+
+def test_ls_available_help_help_flag(available_commands, mock_shell):
+    """Test ls-available help with --help"""
+    mock_shell.connection.is_connected = True
+
+    available_commands.cmd_ls_available("--help")
+
+    # Should print help, not call API
+    assert any("Usage:" in str(call) for call in mock_shell.poutput.call_args_list)
+    mock_shell.connection.api.filter_available.assert_not_called()
+
+
+def test_ls_available_case_insensitive_model(available_commands, mock_shell):
+    """Test ls-available with case-insensitive model matching"""
+    mock_shell.connection.is_connected = True
+    mock_shell.connection.api.filter_available.return_value = []
+
+    # User types uppercase, should be lowercased
+    available_commands.cmd_ls_available("model R650")
+
+    # Should lowercase the model value
+    mock_shell.connection.api.filter_available.assert_called_once_with({"model": "r650"})
