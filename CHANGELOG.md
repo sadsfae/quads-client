@@ -1,6 +1,28 @@
 # CHANGELOG
 
 
+## v0.1.2 (2026-05-05)
+
+### Bug Fixes
+
+- Break out contrib, release becomes terminate
+  ([`a7cb34e`](https://github.com/quadsproject/quads-client/commit/a7cb34e474d295ed02800c0c54ec682e3455a91b))
+
+### Chores
+
+- Add tests for rich_console
+  ([`eeab940`](https://github.com/quadsproject/quads-client/commit/eeab940731980bdaa06d8fdfc96050c2299b0f78))
+
+- Add version, sync-back for RPM spec
+  ([`62bc9e9`](https://github.com/quadsproject/quads-client/commit/62bc9e973f7466ea1e14c34d4facbb6246b026ca))
+
+- Change release to terminate
+  ([`5260ac4`](https://github.com/quadsproject/quads-client/commit/5260ac4e91729959cdfbf3c56d63c8cc1157aa3e))
+
+- Update RPM spec version to 0.1.1
+  ([`9c9b7e6`](https://github.com/quadsproject/quads-client/commit/9c9b7e6734aa18466d83e535884465b3b5b2df36))
+
+
 ## v0.1.1 (2026-05-05)
 
 ### Bug Fixes
