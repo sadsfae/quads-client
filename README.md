@@ -199,8 +199,8 @@ my-hosts
 my-assignments
 
 # 4. Release when done
-release 42                    # Terminate entire assignment
-release 42 host01.example.com # Release single host
+terminate 42                    # Terminate entire assignment
+terminate 42 host01.example.com # Release single host
 ```
 
 That's it. No tickets, no admin approval required.
@@ -221,7 +221,7 @@ cloud-create  cloud-delete  cloud-list
 
 - **Cloud names**: `cloud-delete <Tab>` → shows available clouds
 - **Hostnames**: `mark-broken <Tab>` → shows non-broken hosts
-- **Assignment IDs**: `release <Tab>` → shows your active assignment IDs
+- **Assignment IDs**: `terminate <Tab>` → shows your active assignment IDs
 - **Server names**: `connect <Tab>` → shows configured servers
 - **Keywords**: `schedule <Tab>` → shows options like `description`, `nowipe`, `vlan`, `qinq`, `model`, `ram`
 
@@ -242,8 +242,8 @@ cloud01  cloud02  cloud03
 (quads1-dev) > cloud-list --cloud <Tab>
 cloud01  cloud02  cloud03
 
-# Release command
-(quads1-dev) > release <Tab>
+# Terminate command
+(quads1-dev) > terminate <Tab>
 42  43  44
 
 # Host management
@@ -323,7 +323,7 @@ schedule <count|hostname[,hostname...]|host-list path> description <desc> [OPTIO
 my-assignments                                   - List all your assignments
 my-hosts                                         - Show your currently scheduled hosts
 available                                        - Show available hosts for self-scheduling
-release <assignment-id> [hostname]               - Terminate assignment or release host
+terminate <assignment-id> [hostname]             - Terminate assignment or release host
 ```
 
 **SSM Syntax:**
@@ -342,8 +342,8 @@ schedule host-list ~/hosts.txt description "Batch test" vlan 1150 nowipe
 # View and manage assignments
 my-assignments
 my-hosts
-release 42
-release 42 host03.example.com
+terminate 42
+terminate 42 host03.example.com
 ```
 
 **Common Mistakes:**
@@ -452,7 +452,7 @@ Users can register accounts directly from the CLI:
 SSM users can:
 - **Schedule** hosts with unified `schedule` command (count/hosts/host-list syntax)
 - **View** their own resources with `my-assignments` and `my-hosts` (ownership enforced)
-- **Terminate** assignments when done with `release` (own assignments only)
+- **Terminate** assignments when done with `terminate` (own assignments only)
 - **Duration**: Server-controlled (5 days or Sunday 21:00 UTC, whichever first)
 - **Limits**: Max 10 hosts per assignment, max 3 active assignments per user
 

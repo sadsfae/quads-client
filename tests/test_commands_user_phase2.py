@@ -363,7 +363,7 @@ def test_assignment_terminate_success(mock_shell):
 
     with patch("builtins.input", return_value="y"):
         user_cmd = UserCommands(mock_shell)
-        user_cmd.cmd_release("42")
+        user_cmd.cmd_terminate("42")
 
         mock_shell.connection.api.terminate_assignment.assert_called_once_with(42)
         assert "Terminated assignment" in str(mock_shell.poutput.call_args_list)
@@ -381,7 +381,7 @@ def test_assignment_terminate_rejected(mock_shell):
 
     with patch("builtins.input", return_value="n"):
         user_cmd = UserCommands(mock_shell)
-        user_cmd.cmd_release("42")
+        user_cmd.cmd_terminate("42")
 
         mock_shell.connection.api.terminate_assignment.assert_not_called()
         mock_shell.poutput.assert_called_with("Assignment not terminated")
@@ -403,7 +403,7 @@ def test_assignment_terminate_error_response(mock_shell):
 
     with patch("builtins.input", return_value="y"):
         user_cmd = UserCommands(mock_shell)
-        user_cmd.cmd_release("42")
+        user_cmd.cmd_terminate("42")
 
         mock_shell.perror.assert_called_with("Failed to terminate: Assignment still has active hosts")
 
@@ -417,33 +417,33 @@ def test_assignment_terminate_not_found(mock_shell):
     mock_shell.connection.api.filter_assignments.return_value = []
 
     user_cmd = UserCommands(mock_shell)
-    user_cmd.cmd_release("99")
+    user_cmd.cmd_terminate("99")
 
     mock_shell.perror.assert_called_with("Assignment 99 not found")
 
 
 def test_assignment_terminate_missing_args(mock_shell):
-    """Test release command without assignment ID"""
+    """Test terminate command without assignment ID"""
     mock_shell.connection.is_connected = True
     mock_shell.connection.is_authenticated = True
 
     user_cmd = UserCommands(mock_shell)
-    user_cmd.cmd_release("")
+    user_cmd.cmd_terminate("")
 
     # Should show usage help
-    assert any("Usage: release" in str(call) for call in mock_shell.poutput.call_args_list)
+    assert any("Usage: terminate" in str(call) for call in mock_shell.poutput.call_args_list)
 
 
 def test_assignment_terminate_help_question_mark(mock_shell):
-    """Test release command with ? shows help"""
+    """Test terminate command with ? shows help"""
     mock_shell.connection.is_connected = True
     mock_shell.connection.is_authenticated = True
 
     user_cmd = UserCommands(mock_shell)
-    user_cmd.cmd_release("?")
+    user_cmd.cmd_terminate("?")
 
     # Should show usage help
-    assert any("Usage: release" in str(call) for call in mock_shell.poutput.call_args_list)
+    assert any("Usage: terminate" in str(call) for call in mock_shell.poutput.call_args_list)
     assert any("Examples:" in str(call) for call in mock_shell.poutput.call_args_list)
 
 
@@ -453,7 +453,7 @@ def test_assignment_terminate_invalid_id(mock_shell):
     mock_shell.connection.is_authenticated = True
 
     user_cmd = UserCommands(mock_shell)
-    user_cmd.cmd_release("abc")
+    user_cmd.cmd_terminate("abc")
 
     # Should error about invalid ID
     assert any("Invalid assignment ID" in str(call) for call in mock_shell.perror.call_args_list)
@@ -465,7 +465,7 @@ def test_assignment_terminate_not_authenticated(mock_shell):
     mock_shell.connection.is_authenticated = False
 
     user_cmd = UserCommands(mock_shell)
-    user_cmd.cmd_release("42")
+    user_cmd.cmd_terminate("42")
 
     mock_shell.perror.assert_called_with("Not authenticated. Use 'login' command first.")
 
@@ -483,7 +483,7 @@ def test_assignment_terminate_api_error(mock_shell):
 
     with patch("builtins.input", return_value="y"):
         user_cmd = UserCommands(mock_shell)
-        user_cmd.cmd_release("42")
+        user_cmd.cmd_terminate("42")
 
         # Should handle error via error_handler
         mock_shell.perror.assert_called()

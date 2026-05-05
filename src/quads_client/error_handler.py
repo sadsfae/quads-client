@@ -51,7 +51,7 @@ def handle_api_error(shell, error, operation="operation"):
         shell.perror("Hint: SSM users can schedule max 10 hosts per assignment")
     elif "cloud limit exceeded" in error_msg or "user cloud limit" in error_msg or "ssm_user_cloud_limit" in error_msg:
         shell.perror(f"Server limit: {error}")
-        shell.perror("Hint: You have 3 active assignments. Terminate one first with 'release'")
+        shell.perror("Hint: You have 3 active assignments. Terminate one first with 'terminate'")
         shell.perror("Run 'my-assignments' to see your active assignments")
     # Handle ticketing system errors (SSM should not require tickets)
     # Check for missing ticket first (more specific)
