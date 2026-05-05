@@ -140,7 +140,7 @@ class TestUnifiedScheduleSSM:
         # Should handle error gracefully with hints
         mock_shell.perror.assert_called()
         error_calls = [str(call) for call in mock_shell.perror.call_args_list]
-        assert any("Terminate one first with 'release'" in call for call in error_calls)
+        assert any("Terminate one first with 'terminate'" in call for call in error_calls)
 
     def test_schedule_ssm_missing_description(self, mock_shell):
         """Test SSM schedule without required description"""
@@ -318,11 +318,11 @@ class TestMyAssignments:
         assert "No active assignments found" in str(mock_shell.poutput.call_args)
 
 
-class TestReleaseCommand:
-    """Test release command with ownership validation"""
+class TestTerminateCommand:
+    """Test terminate command with ownership validation"""
 
-    def test_release_entire_assignment(self, mock_shell):
-        """Test releasing entire assignment"""
+    def test_terminate_entire_assignment(self, mock_shell):
+        """Test terminating entire assignment"""
         mock_shell.connection.is_connected = True
         mock_shell.connection.is_authenticated = True
         mock_shell.connection.is_admin = False
@@ -334,14 +334,14 @@ class TestReleaseCommand:
 
         with patch("builtins.input", return_value="y"):
             user_cmd = UserCommands(mock_shell)
-            user_cmd.cmd_release("42")
+            user_cmd.cmd_terminate("42")
 
         # Verify API calls
         mock_shell.connection.api.filter_assignments.assert_called_once()
         mock_shell.connection.api.terminate_assignment.assert_called_once_with(42)
 
-    def test_release_ownership_denied(self, mock_shell):
-        """Test release with ownership violation"""
+    def test_terminate_ownership_denied(self, mock_shell):
+        """Test terminate with ownership violation"""
         mock_shell.connection.is_connected = True
         mock_shell.connection.is_authenticated = True
         mock_shell.connection.is_admin = False
@@ -351,13 +351,13 @@ class TestReleaseCommand:
         ]
 
         user_cmd = UserCommands(mock_shell)
-        user_cmd.cmd_release("42")
+        user_cmd.cmd_terminate("42")
 
         # Should deny permission
         mock_shell.perror.assert_called_with("Permission denied: You can only terminate your own assignments")
 
-    def test_release_specific_host(self, mock_shell):
-        """Test releasing specific host from assignment"""
+    def test_terminate_specific_host(self, mock_shell):
+        """Test terminating specific host from assignment"""
         mock_shell.connection.is_connected = True
         mock_shell.connection.is_authenticated = True
         mock_shell.connection.is_admin = False
@@ -370,7 +370,7 @@ class TestReleaseCommand:
 
         with patch("builtins.input", return_value="y"):
             user_cmd = UserCommands(mock_shell)
-            user_cmd.cmd_release("42 host03.example.com")
+            user_cmd.cmd_terminate("42 host03.example.com")
 
         # Verify API calls
         mock_shell.connection.api.remove_schedule.assert_called_once_with(1)

@@ -251,27 +251,23 @@ class UserCommands:
         except Exception as e:
             handle_api_error(self.shell, e, "Listing assignments")
 
-    def cmd_assignment_terminate(self, args):
-        """Terminate an assignment. Usage: assignment-terminate <assignment_id> (deprecated, use release)"""
-        self.cmd_release(args)
-
-    def cmd_release(self, args):
+    def cmd_terminate(self, args):
         """
-        Terminate assignment or release host. Usage: release <assignment_id> [hostname]
+        Terminate assignment or release host. Usage: terminate <assignment_id> [hostname]
 
         Examples:
-          release 42                    # Terminate entire assignment
-          release 42 host03.example.com # Release specific host from assignment
+          terminate 42                    # Terminate entire assignment
+          terminate 42 host03.example.com # Release specific host from assignment
         """
         if not self._require_auth():
             return
 
         parts = args.strip().split()
         if not parts or parts[0] in ("?", "--help", "-h"):
-            self.shell.poutput("Usage: release <assignment_id> [hostname]")
+            self.shell.poutput("Usage: terminate <assignment_id> [hostname]")
             self.shell.poutput("\nExamples:")
-            self.shell.poutput("  release 42                    # Terminate entire assignment")
-            self.shell.poutput("  release 42 host01.example.com # Release single host from assignment")
+            self.shell.poutput("  terminate 42                    # Terminate entire assignment")
+            self.shell.poutput("  terminate 42 host01.example.com # Release single host from assignment")
             return
 
         assignment_id_str = parts[0]
@@ -349,7 +345,7 @@ class UserCommands:
                 self.shell.poutput("  Note: It may take a few moments for the termination to complete")
 
         except Exception as e:
-            handle_api_error(self.shell, e, "Release")
+            handle_api_error(self.shell, e, "Terminate")
 
     def cmd_available(self, args):
         """Show available hosts. Usage: available"""
