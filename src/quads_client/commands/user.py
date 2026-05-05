@@ -442,18 +442,16 @@ class UserCommands:
                         name = getattr(h, "name", None)
                         if not name:
                             # Debug: show what type and attributes it has
-                            self.shell.perror(
-                                f"DEBUG: Host {i} is {type(h).__name__} with attrs: {dir(h) if hasattr(h, '__dict__') else 'no __dict__'}"
-                            )
+                            attrs = dir(h) if hasattr(h, "__dict__") else "no __dict__"
+                            self.shell.perror(f"DEBUG: Host {i} is {type(h).__name__} with attrs: {attrs}")
                     if name:
                         host_list.append(name)
 
                 # Final safety check
                 if not host_list:
                     self.shell.perror("Failed to extract hostnames from available hosts")
-                    self.shell.perror(
-                        f"  Available returned {len(available)} items of type: {type(available[0]).__name__ if available else 'N/A'}"
-                    )
+                    item_type = type(available[0]).__name__ if available else "N/A"
+                    self.shell.perror(f"  Available returned {len(available)} items of type: {item_type}")
                     if available:
                         self.shell.perror(f"  First item: {available[0]}")
                     self.shell.perror("Please report this bug with the above debug info")

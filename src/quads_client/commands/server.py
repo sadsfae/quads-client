@@ -139,7 +139,7 @@ class ServerCommands:
                 login_result = api.login()
                 if not login_result or login_result.get("status") == "failure":
                     return "Auth failed", "N/A"
-            except Exception as login_error:
+            except Exception:
                 # Login failed - server might be offline or credentials wrong
                 return "Offline", "N/A"
 
