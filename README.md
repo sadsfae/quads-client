@@ -64,13 +64,13 @@ QUADS Client is an interactive TUI (Text User Interface) shell for managing mult
   - [Run Tests with Coverage](#run-tests-with-coverage)
   - [Manual Testing](#manual-testing)
 - [Contributing](#contributing)
-- [License](#license)
 - [Links](#links)
 
 ## Installation
 
 ### From PyPI (pip)
 
+* For Linux and Mac (with Python setup)
 * Install the latest stable release from PyPI:
 
 ```bash
@@ -546,26 +546,7 @@ PYTHONPATH=src python3 -c "from quads_client.shell import QuadsClientShell; shel
 
 ## Contributing
 
-1. Fork the repository (uncheck _only main branch_)
-2. Checkout `development` branch
-
-```bash
-git checkout development
-git checkout -b mybranch
-```
-
-3. Make your changes following DRY principles
-4. Format code with black (line-length 119)
-5. Test thoroughly and push your local changes.
-
-```bash
-git push -u origin mybranch
-```
-6. Submit a pull request
-
-## License
-
-GPLv3
+See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines on how to contribute to this project.
 
 ## Links
 
