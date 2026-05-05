@@ -21,12 +21,17 @@ QUADS Client is an interactive TUI (Text User Interface) shell for managing mult
 - **Connection Management**: Easy switching between QUADS server instances
 - **Thin Wrapper Design**: Server-side authorization via QUADS API
 
+<p align="left">
+  <img src="images/quads-client-1.png" alt="QUADS Client Screenshot" width="600">
+</p>
+
 ## Table of Contents
 
 - [Installation](#installation)
   - [From RPM (Recommended)](#from-rpm-recommended)
   - [From Source](#from-source)
 - [Configuration](#configuration)
+- [How to Self-Schedule](#how-to-self-schedule)
 - [Usage](#usage)
   - [Interactive Mode](#interactive-mode)
   - [One-Shot Commands](#one-shot-commands)
@@ -120,6 +125,32 @@ Execute a single command and exit:
 quads-client connect quads1.rdu2.scalelab
 quads-client cloud-list
 ```
+
+## How to Self-Schedule
+
+Quick start for regular users:
+
+```bash
+# 1. Connect and register
+quads-client
+connect quads1.rdu2.scalelab
+register your.email@example.com YourPassword123
+
+# 2. Schedule hosts (automatic for 5 days or until Sunday 21:00 UTC)
+schedule 3 description "My dev environment"
+schedule host01,host02 description "CI testing"
+schedule host-list hosts.txt description "Perf lab"
+
+# 3. Check your hosts
+my-hosts
+my-assignments
+
+# 4. Release when done
+release 42                    # Terminate entire assignment
+release 42 host01.example.com # Release single host
+```
+
+That's it. No tickets, no admin approval required.
 
 ## Commands
 
@@ -219,11 +250,10 @@ schedule <count|hostname[,hostname...]|host-list path> description <desc> [OPTIO
   qinq <0|1>                                     - QinQ mode
   model <model>                                  - Filter by model (count mode only)
   ram <GB>                                       - Minimum RAM in GB (count mode only)
-my-assignments                                   - List your active assignments only
+my-assignments                                   - List all your assignments
 my-hosts                                         - Show your currently scheduled hosts
-available [model M] [ram G]                      - Show available hosts for self-scheduling
+available                                        - Show available hosts for self-scheduling
 release <assignment-id> [hostname]               - Terminate assignment or release host
-assignment-list                                  - List all your assignments (including inactive)
 ```
 
 **SSM Syntax:**
@@ -298,7 +328,25 @@ extend host01.example.com weeks 1
 ### Available Hosts
 
 ```
-ls-available [--start YYYY-MM-DD] [--end YYYY-MM-DD] [--model MODEL]
+ls-available [OPTIONS]
+  --start YYYY-MM-DD        - Start date for availability
+  --end YYYY-MM-DD          - End date for availability
+  --model MODEL             - Filter by server model
+  --ram GB                  - Minimum RAM in GB
+  --gpu-vendor VENDOR       - GPU vendor (e.g., "NVIDIA Corporation")
+  --gpu-product PRODUCT     - GPU model (e.g., "Tesla V100")
+  --disk-size GB            - Minimum disk size in GB
+  --disk-type TYPE          - Disk type (nvme, ssd, sata)
+  --disk-count N            - Minimum number of disks
+  --interfaces N            - Minimum number of network interfaces
+```
+
+**Examples:**
+```bash
+ls-available --model r640 --ram 256
+ls-available --gpu-vendor "NVIDIA Corporation" --gpu-product "Tesla V100"
+ls-available --disk-type nvme --disk-count 2 --interfaces 4
+ls-available --start 2026-06-01 --end 2026-06-15 --model r650
 ```
 
 ### Other Commands
@@ -354,13 +402,19 @@ quads-client/
 │   ├── shell.py              - Main cmd2 shell
 │   ├── config.py             - YAML configuration loader
 │   ├── connection.py         - Multi-server connection manager
-│   ├── auth.py               - Authorization exception class
+│   ├── error_handler.py      - Error handling and auth retry
+│   ├── arg_parser.py         - Command argument parsing
 │   ├── history.py            - SQLite command history
 │   ├── progress.py           - Provisioning progress tracker
+│   ├── rich_console.py       - Rich terminal UI
 │   └── commands/             - Command modules
-│       ├── connection.py     - Connection commands
+│       ├── available.py      - Available hosts
 │       ├── cloud.py          - Cloud management
-│       ├── ssm.py            - Self-scheduling mode
+│       ├── connection.py     - Connection commands
+│       ├── host.py           - Host management (admin)
+│       ├── schedule.py       - Schedule management (admin)
+│       ├── server.py         - Server configuration
+│       ├── user.py           - User registration & self-scheduling
 │       └── version.py        - Version command
 ├── conf/
 │   └── quads-client.yml.example - Example configuration

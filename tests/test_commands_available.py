@@ -155,3 +155,68 @@ def test_ls_available_unknown_flag(available_commands, mock_shell):
 
     # Should still process the valid --model flag
     mock_shell.connection.api.filter_available.assert_called_once_with({"model": "R630"})
+
+
+def test_ls_available_ram_filter(available_commands, mock_shell):
+    """Test ls-available with RAM filter"""
+    mock_shell.connection.is_connected = True
+    mock_shell.connection.api.filter_available.return_value = []
+
+    available_commands.cmd_ls_available("--ram 256")
+
+    mock_shell.connection.api.filter_available.assert_called_once_with({"memory__gte": 256 * 1024})
+
+
+def test_ls_available_gpu_filters(available_commands, mock_shell):
+    """Test ls-available with GPU vendor and product filters"""
+    mock_shell.connection.is_connected = True
+    mock_shell.connection.api.filter_available.return_value = []
+
+    available_commands.cmd_ls_available("--gpu-vendor NVIDIA --gpu-product V100")
+
+    expected_filters = {
+        "processors.vendor": "NVIDIA",
+        "processors.product": "V100",
+    }
+    mock_shell.connection.api.filter_available.assert_called_once_with(expected_filters)
+
+
+def test_ls_available_disk_filters(available_commands, mock_shell):
+    """Test ls-available with disk filters"""
+    mock_shell.connection.is_connected = True
+    mock_shell.connection.api.filter_available.return_value = []
+
+    available_commands.cmd_ls_available("--disk-size 500 --disk-type nvme --disk-count 2")
+
+    expected_filters = {
+        "disks.size_gb__gte": 500,
+        "disks.disk_type": "nvme",
+        "disks.count__gte": 2,
+    }
+    mock_shell.connection.api.filter_available.assert_called_once_with(expected_filters)
+
+
+def test_ls_available_interface_filter(available_commands, mock_shell):
+    """Test ls-available with network interface filter"""
+    mock_shell.connection.is_connected = True
+    mock_shell.connection.api.filter_available.return_value = []
+
+    available_commands.cmd_ls_available("--interfaces 4")
+
+    mock_shell.connection.api.filter_available.assert_called_once_with({"interfaces.count__gte": 4})
+
+
+def test_ls_available_combined_filters(available_commands, mock_shell):
+    """Test ls-available with multiple filter types"""
+    mock_shell.connection.is_connected = True
+    mock_shell.connection.api.filter_available.return_value = []
+
+    available_commands.cmd_ls_available("--model r650 --ram 128 --disk-type nvme --interfaces 4")
+
+    expected_filters = {
+        "model": "r650",
+        "memory__gte": 128 * 1024,
+        "disks.disk_type": "nvme",
+        "interfaces.count__gte": 4,
+    }
+    mock_shell.connection.api.filter_available.assert_called_once_with(expected_filters)
