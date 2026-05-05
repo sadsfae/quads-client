@@ -1,6 +1,31 @@
 # CHANGELOG
 
 
+## v0.1.1 (2026-05-05)
+
+### Bug Fixes
+
+- Regression in schedule command for SSM
+  ([`1a2bce7`](https://github.com/quadsproject/quads-client/commit/1a2bce74d029c7045657ea497be50fafe1dd2f49))
+
+### Chores
+
+- Add CI/CD to development branch too
+  ([`bf66a3b`](https://github.com/quadsproject/quads-client/commit/bf66a3bcc82079291814756e637f0c20806121e0))
+
+- Docs update
+  ([`6ff7a8d`](https://github.com/quadsproject/quads-client/commit/6ff7a8d403cc743ecd6d5b7f6b206e2e5fe16cc9))
+
+- Fix codecov for development branch
+  ([`02326d9`](https://github.com/quadsproject/quads-client/commit/02326d939e82f8cf62054e17831f7fcb8c7ed54a))
+
+- Fix tests
+  ([`d2ab3f0`](https://github.com/quadsproject/quads-client/commit/d2ab3f0571968434e4e12499ebcfe22ee9f4963c))
+
+- Small doc update
+  ([`b48e8d0`](https://github.com/quadsproject/quads-client/commit/b48e8d0321d2ccfce5c60de08ff76ae0dd83f3f8))
+
+
 ## v0.1.0 (2026-05-05)
 
 ### Bug Fixes
