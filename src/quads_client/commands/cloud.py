@@ -270,7 +270,7 @@ class CloudCommands:
                 for key, value in updates.items():
                     self.rich_console.print_property(key, value)
             else:
-                self.shell.poutput(f"✓ Cloud '{cloud_name}' updated successfully")
+                self.shell.poutput(f"OK: Cloud '{cloud_name}' updated successfully")
                 for key, value in updates.items():
                     self.shell.poutput(f"  {key}: {value}")
 

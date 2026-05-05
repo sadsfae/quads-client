@@ -32,11 +32,11 @@ class ConnectionCommands:
 
             # Check if we're in registration mode (no credentials)
             if self.shell.connection._registration_mode:
-                self.shell.poutput(f"✓ Connected to {server_name}")
+                self.shell.poutput(f"OK: Connected to {server_name}")
                 self.shell.poutput("  No credentials configured - use 'register' to create an account")
             else:
                 username = self.shell.connection.username
-                self.shell.poutput(f"✓ Connected to {server_name} as {username}")
+                self.shell.poutput(f"OK: Connected to {server_name} as {username}")
         except ConnectionError as e:
             self.shell.perror(str(e))
 

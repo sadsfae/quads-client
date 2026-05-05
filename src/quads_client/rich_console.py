@@ -50,15 +50,15 @@ class RichConsole:
 
     def print_success(self, message):
         """Print a success message"""
-        self.console.print(f"[bold green]✓[/bold green] {message}")
+        self.console.print(f"[bold green]>>[/bold green] {message}")
 
     def print_error(self, message):
         """Print an error message"""
-        self.console.print(f"[bold red]✗[/bold red] {message}", style="red")
+        self.console.print(f"[bold red]ERROR:[/bold red] {message}", style="red")
 
     def print_warning(self, message):
         """Print a warning message"""
-        self.console.print(f"[bold yellow]⚠[/bold yellow] {message}", style="yellow")
+        self.console.print(f"[bold yellow]WARNING:[/bold yellow] {message}", style="yellow")
 
     def print_info(self, message):
         """Print an info message"""

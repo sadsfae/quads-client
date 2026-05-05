@@ -1,7 +1,7 @@
 from tabulate import tabulate
 
 from quads_client.arg_parser import parse_schedule_ssm_args
-from quads_client.error_handler import handle_api_error, require_auth, require_connection
+from quads_client.error_handler import auto_refresh_on_auth_error, handle_api_error, require_auth, require_connection
 
 
 class UserCommands:
@@ -34,7 +34,7 @@ class UserCommands:
             self.shell.connection.api.username = email
             self.shell.connection.api.password = password
             result = self.shell.connection.api.register()
-            self.shell.poutput(f"✓ User registered successfully: {email}")
+            self.shell.poutput(f"OK: User registered successfully: {email}")
             if isinstance(result, dict) and result.get("message"):
                 self.shell.poutput(f"  {result['message']}")
 
@@ -43,16 +43,16 @@ class UserCommands:
                 try:
                     server_name = self.shell.connection.current_server
                     self.shell.config.update_server_credentials(server_name, email, password)
-                    self.shell.poutput("✓ Credentials saved to configuration")
+                    self.shell.poutput("OK: Credentials saved to configuration")
 
                     # Automatically reconnect with new credentials
                     try:
-                        self.shell.poutput("✓ Logging in with new credentials...")
+                        self.shell.poutput("OK: Logging in with new credentials...")
                         self.shell.connection.disconnect()
                         self.shell.connection.connect(server_name)
                         self.shell._update_prompt()
                         self.shell._update_visible_commands()
-                        self.shell.poutput(f"✓ Logged in successfully as {email}")
+                        self.shell.poutput(f"OK: Logged in successfully as {email}")
                     except Exception as login_error:
                         self.shell.pwarning(f"Warning: Auto-login failed: {login_error}")
                         self.shell.pwarning("Please use 'connect' command to login")
@@ -70,7 +70,7 @@ class UserCommands:
         try:
             result = self.shell.connection.api.login()
             if isinstance(result, dict) and result.get("auth_token"):
-                self.shell.poutput("✓ Logged in successfully")
+                self.shell.poutput("OK: Logged in successfully")
                 # Update connection token
                 self.shell.connection._token = result["auth_token"]
                 # Try to decode role
@@ -81,7 +81,7 @@ class UserCommands:
                 # Update visible commands based on new authentication state
                 self.shell._update_visible_commands()
             else:
-                self.shell.poutput("✓ Logged in successfully")
+                self.shell.poutput("OK: Logged in successfully")
                 self.shell._update_visible_commands()
         except Exception as e:
             self.shell.perror(f"Failed to login: {e}")
@@ -153,7 +153,7 @@ class UserCommands:
             assignment_id = assignment.get("id", "unknown")
             cloud_name = assignment.get("cloud", {}).get("name", "unknown")
 
-            self.shell.poutput("✓ Assignment created successfully")
+            self.shell.poutput("OK: Assignment created successfully")
             self.shell.poutput(f"  Assignment ID: {assignment_id}")
             self.shell.poutput(f"  Cloud: {cloud_name}")
             self.shell.poutput(f"  Owner: {username}")
@@ -241,7 +241,7 @@ class UserCommands:
                 description = assignment.get("description", "")
                 if len(description) > 40:
                     description = description[:37] + "..."
-                validated = "✓" if assignment.get("validated") else "○"
+                validated = "OK:" if assignment.get("validated") else "○"
 
                 table_data.append([assignment_id, cloud_name, description, validated])
 
@@ -316,7 +316,7 @@ class UserCommands:
                     return
 
                 self.shell.connection.api.remove_schedule(schedules[0]["id"])
-                self.shell.poutput(f"✓ Released {hostname} from assignment #{assignment_id}")
+                self.shell.poutput(f"OK: Released {hostname} from assignment #{assignment_id}")
             else:
                 # Terminate entire assignment
                 response = input(f"Terminate assignment {assignment_id} (cloud: {cloud_name})? [y/N]: ")
@@ -334,7 +334,7 @@ class UserCommands:
                         )
                         return
 
-                self.shell.poutput(f"✓ Terminated assignment #{assignment_id}")
+                self.shell.poutput(f"OK: Terminated assignment #{assignment_id}")
                 self.shell.poutput("  Note: It may take a few moments for the termination to complete")
 
         except Exception as e:
@@ -367,12 +367,21 @@ class UserCommands:
     def cmd_schedule(self, args):
         """
         SSM Mode: Schedule hosts for self-service
-        Usage: schedule <count|hosts|host-list path> description <desc> [nowipe] [vlan X] [qinq 0|1] [model M] [ram G]
+
+        Syntax:
+          schedule <NUMBER>                           description <desc> [options]
+          schedule <hostname[,hostname,...]>          description <desc> [options]
+          schedule host-list <file-path>              description <desc> [options]
+
+        Options: nowipe vlan <id> qinq <0|1> model <name> ram <GB>
 
         Examples:
-          schedule 3 description "Dev testing" model r640
-          schedule host01,host02 description "CI pipeline"
+          schedule 3 description "Dev testing"                        # Count: QUADS picks 3 hosts
+          schedule 5 description "Perf lab" model r640 ram 128        # Count with filters
+          schedule host01.example.com,host02.example.com description "CI pipeline"
           schedule host-list ~/hosts.txt description "Batch test" vlan 1150 nowipe
+
+        Note: SSM mode does NOT require tickets - the server automatically creates the assignment.
         """
         if not self._require_auth():
             return
@@ -391,48 +400,66 @@ class UserCommands:
                 if parsed["ram"]:
                     filters["memory__gte"] = parsed["ram"] * 1024
 
-                available = self.shell.connection.api.filter_available(filters)
+                available = auto_refresh_on_auth_error(
+                    self.shell, self.shell.connection.api.filter_available, filters
+                )
 
                 if len(available) < parsed["count"]:
                     self.shell.perror(f"Not enough hosts available: found {len(available)}, requested {parsed['count']}")
                     self.shell.perror("Hint: Try removing filters or requesting fewer hosts")
                     return
 
-                host_list = [h["name"] for h in available[: parsed["count"]]]
+                host_list = [h.get("name") for h in available[: parsed["count"]] if isinstance(h, dict)]
 
-            # Create self-assignment (auto-assigns cloud, server enforces ssm_user_cloud_limit)
+            # Create self-assignment (server auto-assigns cloud, handles ticketing)
             owner = self.shell.connection.username.split("@")[0]
             assignment_data = {
                 "description": parsed["description"],
                 "owner": owner,
-                "wipe": parsed["wipe"],
+                "wipe": parsed["wipe"],  # Default: True (wipe enabled)
             }
-            if parsed["vlan"]:
-                assignment_data["vlan"] = parsed["vlan"]
+            # Optional fields - do NOT include cloud (let server auto-select)
             if parsed["qinq"]:
                 assignment_data["qinq"] = parsed["qinq"]
+            if parsed["vlan"]:
+                assignment_data["vlan"] = parsed["vlan"]
 
-            assignment = self.shell.connection.api.create_self_assignment(assignment_data)
-            cloud_name = assignment["cloud"]["name"]
-            assignment_id = assignment["id"]
+            # Step 1: Create self-assignment (SSM endpoint auto-assigns cloud)
+            assignment = auto_refresh_on_auth_error(
+                self.shell, self.shell.connection.api.create_self_assignment, assignment_data
+            )
 
-            # Create schedules for each host (server enforces ssm_host_limit)
+            # Extract cloud name from response
+            cloud = assignment.get("cloud", {})
+            cloud_name = cloud.get("name") if isinstance(cloud, dict) else cloud
+            assignment_id = assignment.get("id", "unknown")
+
+            # Step 2: Create schedules for each host separately (per QUADS API spec)
             for hostname in host_list:
                 schedule_data = {
                     "cloud": cloud_name,
-                    "host": hostname,
-                    # NO start/end - server controls duration
+                    "hostname": hostname,  # API expects "hostname" not "host"
+                    # NO start/end - server controls duration via ssm_default_lifetime
                 }
-                self.shell.connection.api.create_schedule(schedule_data)
+                auto_refresh_on_auth_error(
+                    self.shell, self.shell.connection.api.create_schedule, schedule_data
+                )
 
-            self.shell.poutput(f"✓ Reserved {len(host_list)} host(s) - activated immediately")
+            self.shell.poutput(f"OK: Reserved {len(host_list)} host(s) - activated immediately")
             self.shell.poutput(f"  Cloud: {cloud_name}")
             self.shell.poutput(f"  Assignment: #{assignment_id}")
             self.shell.poutput(f"  Duration: Automatic (5 days or Sunday 21:00 UTC)")
 
         except ValueError as e:
             self.shell.perror(f"Invalid arguments: {e}")
-            self.shell.perror("Usage: schedule <count|hosts> description <desc> [options]")
+            self.shell.perror("\nValid syntax:")
+            self.shell.perror("  schedule <NUMBER> description \"...\"                    # Count mode")
+            self.shell.perror("  schedule <hostname,hostname> description \"...\"         # Specific hosts")
+            self.shell.perror("  schedule host-list <file> description \"...\"            # Host list file")
+            self.shell.perror("\nExamples:")
+            self.shell.perror("  schedule 3 description \"Dev testing\"")
+            self.shell.perror("  schedule host01.example.com,host02.example.com description \"CI\"")
+            self.shell.perror("  schedule host-list ~/hosts.txt description \"Batch\"")
         except ConnectionError:
             self.shell.perror("Connection failed: unable to reach QUADS server")
             self.shell.perror("Hint: Check 'status' or run 'connect <server>'")

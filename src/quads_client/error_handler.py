@@ -1,6 +1,39 @@
 """Error handling utilities for QUADS Client"""
 
 
+def auto_refresh_on_auth_error(shell, api_call_func, *args, **kwargs):
+    """
+    Wrapper that automatically refreshes token on 401 errors
+
+    Args:
+        shell: QuadsClientShell instance
+        api_call_func: Function to call (e.g., shell.connection.api.create_assignment)
+        *args, **kwargs: Arguments to pass to api_call_func
+
+    Returns:
+        Result from api_call_func
+
+    Raises:
+        Exception if the operation fails even after token refresh
+    """
+    try:
+        return api_call_func(*args, **kwargs)
+    except Exception as e:
+        error_str = str(e).lower()
+        # Check if this is an authentication error
+        if "401" in str(e) or "unauthorized" in error_str or "token" in error_str:
+            # Try to refresh the token
+            if shell.connection and shell.connection.refresh_token():
+                # Retry the operation with fresh token
+                try:
+                    return api_call_func(*args, **kwargs)
+                except Exception as retry_error:
+                    # Still failed after refresh
+                    raise retry_error
+        # Not an auth error, or refresh failed - propagate original error
+        raise e
+
+
 def handle_api_error(shell, error, operation="operation"):
     """
     Handle API errors with user-friendly messages
@@ -20,6 +53,18 @@ def handle_api_error(shell, error, operation="operation"):
         shell.perror(f"Server limit: {error}")
         shell.perror("Hint: You have 3 active assignments. Terminate one first with 'release'")
         shell.perror("Run 'my-assignments' to see your active assignments")
+    # Handle ticketing system errors (SSM should not require tickets)
+    elif "ticketing system not configured" in error_msg or "jira" in error_msg:
+        shell.perror(f"Server configuration issue: {error}")
+        shell.perror("Hint: The server has automatic ticket creation enabled but Jira is not configured.")
+        shell.perror("")
+        shell.perror("Server admin should either:")
+        shell.perror("  1. Configure Jira credentials in QUADS config (jira_url, jira_username, jira_password), OR")
+        shell.perror("  2. Disable automatic tickets: set 'ssm_jira_create_ticket: false' in server config")
+    elif "missing" in error_msg and "ticket" in error_msg:
+        shell.perror(f"Server configuration issue: {error}")
+        shell.perror("Hint: The server requires a ticket number but auto-ticket creation is disabled.")
+        shell.perror("Server admin should enable: 'ssm_jira_create_ticket: true' in server config")
     # Handle authentication errors
     elif "401" in str(error) or "unauthorized" in error_msg:
         shell.perror(f"Authentication failed: {error}")

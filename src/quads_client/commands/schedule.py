@@ -92,7 +92,7 @@ class ScheduleCommands:
             for hostname in parsed["host_list"]:
                 schedule_data = {
                     "cloud": parsed["cloud"],
-                    "host": hostname,
+                    "hostname": hostname,  # API expects "hostname" not "host"
                     "start": None if parsed["start"] == "now" else parsed["start"],
                     "end": parsed["end"],
                 }
@@ -102,7 +102,7 @@ class ScheduleCommands:
             if self.rich_console:
                 self.rich_console.print_success(f"Created {created_count} schedule(s)")
             else:
-                self.shell.poutput(f"✓ Created {created_count} schedule(s)")
+                self.shell.poutput(f"OK: Created {created_count} schedule(s)")
 
         except ValueError as e:
             self.shell.perror(f"Invalid arguments: {e}")
@@ -126,7 +126,7 @@ class ScheduleCommands:
         i = 0
         while i < len(parts):
             if parts[i] == "--host" and i + 1 < len(parts):
-                data["host"] = parts[i + 1]
+                data["hostname"] = parts[i + 1]  # API expects "hostname"
                 i += 2
             elif parts[i] == "--cloud" and i + 1 < len(parts):
                 data["cloud"] = parts[i + 1]
@@ -140,7 +140,7 @@ class ScheduleCommands:
             else:
                 i += 1
 
-        if not all(k in data for k in ["host", "cloud", "start", "end"]):
+        if not all(k in data for k in ["hostname", "cloud", "start", "end"]):
             self.shell.perror(
                 "Usage: add-schedule --host <hostname> --cloud <cloudname> --start <YYYY-MM-DD> --end <YYYY-MM-DD>"
             )
@@ -253,18 +253,18 @@ class ScheduleCommands:
                     if self.rich_console:
                         self.rich_console.print_success(schedule['host']['name'])
                     else:
-                        self.shell.poutput(f"  ✓ {schedule['host']['name']}")
+                        self.shell.poutput(f"  OK: {schedule['host']['name']}")
 
                 if parsed["weeks"]:
                     if self.rich_console:
                         self.rich_console.print_success(f"Extended {parsed['target']} by {parsed['weeks']} week(s)")
                     else:
-                        self.shell.poutput(f"✓ Extended {parsed['target']} by {parsed['weeks']} week(s)")
+                        self.shell.poutput(f"OK: Extended {parsed['target']} by {parsed['weeks']} week(s)")
                 else:
                     if self.rich_console:
                         self.rich_console.print_success(f"Extended {parsed['target']} to {parsed['date']}")
                     else:
-                        self.shell.poutput(f"✓ Extended {parsed['target']} to {parsed['date']}")
+                        self.shell.poutput(f"OK: Extended {parsed['target']} to {parsed['date']}")
 
             else:
                 # Hostname mode: extend specific host's current schedule
@@ -285,9 +285,9 @@ class ScheduleCommands:
                 self.shell.connection.api.update_schedule(schedule["id"], {"end": end_date.strftime("%Y-%m-%d %H:%M")})
 
                 if parsed["weeks"]:
-                    self.shell.poutput(f"✓ Extended {parsed['target']} by {parsed['weeks']} week(s)")
+                    self.shell.poutput(f"OK: Extended {parsed['target']} by {parsed['weeks']} week(s)")
                 else:
-                    self.shell.poutput(f"✓ Extended {parsed['target']} to {parsed['date']}")
+                    self.shell.poutput(f"OK: Extended {parsed['target']} to {parsed['date']}")
 
         except ValueError as e:
             self.shell.perror(f"Invalid arguments: {e}")

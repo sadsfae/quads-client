@@ -206,35 +206,60 @@ mod-cloud <name> [OPTIONS]         - Modify cloud attributes (admin only)
 
 ### Self-Scheduling Mode (SSM)
 
+Self-Scheduling Mode allows regular (non-admin) users to schedule hosts without admin intervention. The QUADS server automatically creates assignments and clouds - **no tickets required**.
+
 ```
-register <email> <password>                   - Register a new user
-login                                         - Explicit login
-whoami                                        - Show current user information
-schedule <count|hosts|host-list path> description <desc> [OPTIONS]
-                                              - Schedule hosts (SSM mode)
-  nowipe                                      - Disable wipe (default: wipe enabled)
-  vlan <id>                                   - VLAN ID
-  qinq <0|1>                                  - QinQ mode
-  model <model>                               - Filter by model (count mode)
-  ram <GB>                                    - Minimum RAM (count mode)
-my-assignments                                - List your active assignments only
-my-hosts                                      - Show your currently scheduled hosts
-available [model M] [ram G]                   - Show available hosts for self-scheduling
-release <assignment-id> [hostname]            - Terminate assignment or release host
-assignment-list                               - List all your assignments (including inactive)
+register <email> <password>                      - Register a new user
+login                                            - Explicit login
+whoami                                           - Show current user information
+schedule <count|hostname[,hostname...]|host-list path> description <desc> [OPTIONS]
+                                                 - Schedule hosts (SSM mode)
+  nowipe                                         - Disable wipe (default: wipe enabled)
+  vlan <id>                                      - VLAN ID
+  qinq <0|1>                                     - QinQ mode
+  model <model>                                  - Filter by model (count mode only)
+  ram <GB>                                       - Minimum RAM in GB (count mode only)
+my-assignments                                   - List your active assignments only
+my-hosts                                         - Show your currently scheduled hosts
+available [model M] [ram G]                      - Show available hosts for self-scheduling
+release <assignment-id> [hostname]               - Terminate assignment or release host
+assignment-list                                  - List all your assignments (including inactive)
 ```
 
-**SSM Examples:**
+**SSM Syntax:**
 
 ```bash
-schedule 3 description "Dev testing" model r640
-schedule host01,host02 description "CI pipeline"
+# MODE 1: Count - just specify a NUMBER (QUADS picks hosts for you)
+schedule 3 description "Dev testing"
+schedule 5 description "Perf lab" model r640 ram 128  # With filters
+
+# MODE 2: Specific hosts - comma-separated hostnames (NO SPACES!)
+schedule host01.example.com,host02.example.com description "CI pipeline"
+
+# MODE 3: Host list file - one hostname per line
 schedule host-list ~/hosts.txt description "Batch test" vlan 1150 nowipe
+
+# View and manage assignments
 my-assignments
 my-hosts
 release 42
 release 42 host03.example.com
 ```
+
+**Common Mistakes:**
+```bash
+# ❌ WRONG - "hosts" is not a keyword!
+schedule hosts 3 description "test"
+
+# ✅ CORRECT - just the number
+schedule 3 description "test"
+```
+
+**SSM Server Requirements:**
+- QUADS server must have `self_serve_enabled: true` in quads.yml
+- No ticketing system required for SSM mode
+- Server limits: max 10 hosts per assignment, max 3 active assignments per user
+- Auto-expiration: 5 days or Sunday 21:00 UTC (configurable server-side)
 
 ### Host Management (Admin)
 

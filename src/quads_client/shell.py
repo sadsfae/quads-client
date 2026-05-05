@@ -264,7 +264,7 @@ class QuadsClientShell(cmd2.Cmd):
                 if text:
                     return [c for c in candidates if c.startswith(text)]
                 return candidates
-            # Later args: keywords
+            # After first arg (count/hosts/host-list): only keywords
             else:
                 if text:
                     return [k for k in keywords if k.startswith(text)]

@@ -32,7 +32,7 @@ def parse_schedule_ssm_args(args):
     """
     Parse SSM schedule command arguments
 
-    Syntax: schedule <count|hosts|host-list path> description <desc> [OPTIONS]
+    Syntax: schedule <count|hostname[,hostname]|host-list path> description <desc> [OPTIONS]
 
     Args:
         args: Command arguments string
@@ -45,7 +45,7 @@ def parse_schedule_ssm_args(args):
     """
     parts = args.strip().split()
     if len(parts) < 3:
-        raise ValueError("Usage: schedule <count|hosts|host-list path> description <desc> [options]")
+        raise ValueError("Usage: schedule <count|hostname[,hostname...]|host-list path> description <desc> [options]")
 
     result = {
         "count": None,
@@ -53,7 +53,7 @@ def parse_schedule_ssm_args(args):
         "description": None,
         "wipe": True,  # Default: wipe enabled
         "vlan": None,
-        "qinq": 0,
+        "qinq": None,  # Optional: only set if user specifies
         "model": None,
         "ram": None,
     }

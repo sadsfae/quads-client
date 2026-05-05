@@ -112,6 +112,32 @@ class ConnectionManager:
         except Exception as e:
             raise ConnectionError(f"Failed to connect to {server_name}: {e}")
 
+    def refresh_token(self) -> bool:
+        """Refresh the authentication token. Returns True if successful."""
+        if not self._current_server or not self._api or self._registration_mode:
+            return False
+
+        try:
+            username, password = self.config.get_server_credentials(self._current_server)
+            if not username or not password:
+                return False
+
+            # Update API credentials and re-login
+            self._api.username = username
+            self._api.password = password
+            response = self._api.login()
+
+            if response.get("status") != "success":
+                return False
+
+            # Update token and role
+            self._token = self._api.token
+            self._user_role = self._decode_role_from_token()
+            return True
+
+        except Exception:
+            return False
+
     def disconnect(self) -> None:
         self._current_server = None
         self._api = None
