@@ -281,3 +281,38 @@ def test_handle_api_error_missing_ticket():
     calls = [str(call) for call in mock_shell.perror.call_args_list]
     assert any("Server configuration issue" in str(call) for call in calls)
     assert any("ssm_jira_create_ticket: true" in str(call) for call in calls)
+
+
+def test_handle_api_error_404():
+    """Test handle_api_error for 404 not found errors"""
+    mock_shell = MagicMock()
+    error = Exception("404 Not Found")
+
+    handle_api_error(mock_shell, error, "Fetching resource")
+
+    mock_shell.perror.assert_called_once()
+    assert "Not found" in str(mock_shell.perror.call_args)
+
+
+def test_handle_api_error_500():
+    """Test handle_api_error for 500 server errors"""
+    mock_shell = MagicMock()
+    error = Exception("500 Internal Server Error")
+
+    handle_api_error(mock_shell, error, "API call")
+
+    assert mock_shell.perror.call_count >= 2
+    calls = [str(call) for call in mock_shell.perror.call_args_list]
+    assert any("Server error" in str(call) for call in calls)
+    assert any("administrator" in str(call) for call in calls)
+
+
+def test_handle_api_error_generic():
+    """Test handle_api_error for generic errors"""
+    mock_shell = MagicMock()
+    error = Exception("Something went wrong")
+
+    handle_api_error(mock_shell, error, "Custom operation")
+
+    mock_shell.perror.assert_called_once()
+    assert "Custom operation failed" in str(mock_shell.perror.call_args)

@@ -200,3 +200,17 @@ def test_connection_refresh_token_login_failed(mock_config, mock_api):
         # Refresh should fail
         result = conn.refresh_token()
         assert result is False
+
+
+def test_connection_refresh_token_exception(mock_config, mock_api):
+    """Test refresh token when an exception occurs"""
+    with patch("quads_client.connection.QuadsApi", return_value=mock_api):
+        conn = ConnectionManager(mock_config)
+        conn.connect("test_server")
+
+        # Make login raise exception on refresh
+        mock_api.login.side_effect = Exception("Network error")
+
+        # Refresh should fail gracefully
+        result = conn.refresh_token()
+        assert result is False
