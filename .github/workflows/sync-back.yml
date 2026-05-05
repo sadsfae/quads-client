@@ -27,3 +27,21 @@ jobs:
           git checkout development
           git merge origin/main
           git push origin development
+
+      - name: Update RPM spec version
+        run: |
+          # Extract version from __init__.py
+          VERSION=$(grep -oP "^__version__ = ['\"]([^'\"]+)['\"]" src/quads_client/__init__.py | grep -oP "[0-9]+\.[0-9]+\.[0-9]+")
+          echo "Extracted version: $VERSION"
+
+          # Update the spec file
+          sed -i "s/^%define version.*/%define version $VERSION/" rpm/quads-client.spec
+
+          # Commit and push if there are changes
+          git add rpm/quads-client.spec
+          if git diff --staged --quiet; then
+            echo "No version changes to commit"
+          else
+            git commit -m "chore: update RPM spec version to $VERSION"
+            git push origin development
+          fi
