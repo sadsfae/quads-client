@@ -2,6 +2,7 @@
 
 [![pytest](https://github.com/quadsproject/quads-client/actions/workflows/pytest.yml/badge.svg)](https://github.com/redhat-performance/quads-client/actions/workflows/pytest.yml)
 [![codecov](https://codecov.io/gh/quadsproject/quads-client/branch/main/graph/badge.svg)](https://codecov.io/gh/redhat-performance/quads-client)
+[![PyPI version](https://img.shields.io/pypi/v/quads-client.svg)](https://pypi.org/project/quads-client/)
 [![Python 3.13+](https://img.shields.io/badge/python-3.13+-blue.svg)](https://www.python.org/downloads/)
 [![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](https://www.gnu.org/licenses/gpl-3.0)
 [![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
@@ -32,7 +33,8 @@ QUADS Client is an interactive TUI (Text User Interface) shell for managing mult
 ## Table of Contents
 
 - [Installation](#installation)
-  - [From RPM (Recommended)](#from-rpm-recommended)
+  - [From PyPI (pip)](#from-pypi-pip)
+  - [From RPM](#from-rpm)
   - [From Source](#from-source)
 - [Configuration](#configuration)
 - [How to Self-Schedule](#how-to-self-schedule)
@@ -67,14 +69,46 @@ QUADS Client is an interactive TUI (Text User Interface) shell for managing mult
 
 ## Installation
 
-### From RPM (Recommended)
+### From PyPI (pip)
+
+* Install the latest stable release from PyPI:
 
 ```bash
-dnf copr enable quadsdev/python3-quads  -y
+python3 -m venv venv
+source venv/bin/activate
+pip install quads-client
+```
+
+* Run QUADS Client
+```bash
+quads-client
+```
+
+* To upgrade to the latest version:
+
+```bash
+source venv/bin/activate
+pip install --upgrade quads-client
+```
+
+* To deactivate the virtual environment when done:
+
+```bash
+deactivate
+```
+
+### From RPM
+
+For Red Hat-based distributions (RHEL, Rocky, Fedora):
+
+```bash
+dnf copr enable quadsdev/python3-quads -y
 dnf install quads-client
 ```
 
 ### From Source
+
+For development or the latest unreleased features:
 
 ```bash
 git clone https://github.com/quadsproject/quads-client.git
@@ -455,11 +489,6 @@ quads-client/
 ├── conf/
 │   └── quads-client.yml.example - Example configuration
 ├── tests/                    - pytest test suite
-└── docs/
-    ├── INTEGRATION_ANALYSIS.md      - API integration details
-    ├── QUADS_CLIENT_RBAC_AUDIT.md   - RBAC audit report
-    ├── EXISTING_RBAC_ANALYSIS.md    - QUADS server RBAC analysis
-    └── THIN_WRAPPER_CHANGES.md      - Thin wrapper implementation
 ```
 
 ## Dependencies
@@ -517,11 +546,21 @@ PYTHONPATH=src python3 -c "from quads_client.shell import QuadsClientShell; shel
 
 ## Contributing
 
-1. Fork the repository
-2. Create a feature branch
+1. Fork the repository (uncheck _only main branch_)
+2. Checkout `development` branch
+
+```bash
+git checkout development
+git checkout -b mybranch
+```
+
 3. Make your changes following DRY principles
 4. Format code with black (line-length 119)
-5. Test thoroughly
+5. Test thoroughly and push your local changes.
+
+```bash
+git push -u origin mybranch
+```
 6. Submit a pull request
 
 ## License
