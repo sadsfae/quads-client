@@ -260,3 +260,28 @@ def test_release_help_help_flag(mock_shell):
 
     # Should print usage, not error
     assert any("Usage:" in str(call) for call in mock_shell.poutput.call_args_list)
+
+
+def test_schedule_count_with_string_hosts(mock_shell):
+    """Test schedule with count mode when API returns plain strings"""
+    mock_shell.connection.is_connected = True
+    mock_shell.connection.is_authenticated = True
+    mock_shell.connection.is_admin = False
+    mock_shell.connection.username = "test@example.com"
+
+    # API returns list of plain hostname strings (new behavior)
+    mock_shell.connection.api.filter_available.return_value = [
+        "host01.example.com",
+        "host02.example.com",
+    ]
+    mock_shell.connection.api.create_self_assignment.return_value = {
+        "id": 42,
+        "cloud": {"name": "cloud17"},
+    }
+    mock_shell.connection.api.create_schedule.return_value = {"id": 1}
+
+    user_cmd = UserCommands(mock_shell)
+    user_cmd.cmd_schedule('2 description "Test"')
+
+    # Should create schedule for 2 hosts
+    assert mock_shell.connection.api.create_schedule.call_count == 2

@@ -1,7 +1,7 @@
 # quads-client
 
-[![pytest](https://github.com/quadsproject/quads-client/actions/workflows/pytest.yml/badge.svg)](https://github.com/redhat-performance/quads-client/actions/workflows/pytest.yml)
-[![codecov](https://codecov.io/gh/quadsproject/quads-client/branch/main/graph/badge.svg)](https://codecov.io/gh/redhat-performance/quads-client)
+[![pytest](https://github.com/quadsproject/quads-client/actions/workflows/pytest.yml/badge.svg)](https://github.com/quadsproject/quads-client/actions/workflows/pytest.yml)
+[![codecov](https://codecov.io/gh/quadsproject/quads-client/branch/main/graph/badge.svg)](https://codecov.io/gh/quadsproject/quads-client)
 [![PyPI version](https://img.shields.io/pypi/v/quads-client.svg)](https://pypi.org/project/quads-client/)
 [![Python 3.13+](https://img.shields.io/badge/python-3.13+-blue.svg)](https://www.python.org/downloads/)
 [![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](https://www.gnu.org/licenses/gpl-3.0)

@@ -2,6 +2,7 @@ from tabulate import tabulate
 
 from quads_client.arg_parser import parse_schedule_ssm_args
 from quads_client.error_handler import auto_refresh_on_auth_error, handle_api_error, require_auth, require_connection
+from quads_client.utils import extract_hostname
 
 
 class UserCommands:
@@ -438,18 +439,17 @@ class UserCommands:
                     self.shell.perror("Hint: Try removing filters or requesting fewer hosts")
                     return
 
-                # Extract hostnames - handle both dict and object responses
+                # Extract hostnames - handle string, dict, and object responses
                 host_list = []
                 for i, h in enumerate(available[: parsed["count"]]):
-                    if isinstance(h, dict):
-                        name = h.get("name")
-                        if not name:
-                            # Debug: show what keys are in the dict
+                    name = extract_hostname(h)
+                    if not name:
+                        # Debug: show what we received
+                        if isinstance(h, dict):
                             self.shell.perror(f"DEBUG: Host {i} is dict but has no 'name' key. Keys: {list(h.keys())}")
-                    else:
-                        name = getattr(h, "name", None)
-                        if not name:
-                            # Debug: show what type and attributes it has
+                        elif isinstance(h, str):
+                            self.shell.perror(f"DEBUG: Host {i} is empty string")
+                        else:
                             attrs = dir(h) if hasattr(h, "__dict__") else "no __dict__"
                             self.shell.perror(f"DEBUG: Host {i} is {type(h).__name__} with attrs: {attrs}")
                     if name:
