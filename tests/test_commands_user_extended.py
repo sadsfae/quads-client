@@ -119,7 +119,7 @@ def test_assignment_terminate_object_response(mock_shell):
     mock_shell.connection.is_admin = False
     mock_shell.connection.username = "user@example.com"
 
-    # Create mock object instead of dict (tests release command handles both)
+    # Create mock object instead of dict (tests terminate command handles both)
     mock_assignment = MagicMock()
     mock_assignment.id = 42
     mock_cloud = MagicMock()
@@ -132,7 +132,7 @@ def test_assignment_terminate_object_response(mock_shell):
 
     with patch("builtins.input", return_value="y"):
         user_cmd = UserCommands(mock_shell)
-        user_cmd.cmd_release("42")
+        user_cmd.cmd_terminate("42")
 
         # Should handle object response
         assert "Terminated assignment" in str(mock_shell.poutput.call_args_list)

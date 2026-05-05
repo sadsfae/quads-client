@@ -274,8 +274,8 @@ class QuadsClientShell(cmd2.Cmd):
 
         return keywords
 
-    def complete_release(self, text, line, begidx, endidx):
-        """Autocomplete for release command - assignment IDs and hostnames"""
+    def complete_terminate(self, text, line, begidx, endidx):
+        """Autocomplete for terminate command - assignment IDs and hostnames"""
         if not self.connection or not self.connection.is_authenticated:
             return []
 
@@ -638,9 +638,9 @@ class QuadsClientShell(cmd2.Cmd):
         """List your self-scheduled assignments"""
         self.user_commands.cmd_my_assignments(args)
 
-    def do_release(self, args):
+    def do_terminate(self, args):
         """Terminate assignment or release host"""
-        self.user_commands.cmd_release(args)
+        self.user_commands.cmd_terminate(args)
 
     def do_ls_hosts(self, args):
         """List all hosts"""

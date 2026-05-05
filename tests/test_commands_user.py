@@ -226,37 +226,37 @@ def test_schedule_count_with_object_hosts(mock_shell):
     assert mock_shell.connection.api.create_schedule.call_count == 2
 
 
-def test_release_help(mock_shell):
-    """Test release command with help flag"""
+def test_terminate_help(mock_shell):
+    """Test terminate command with help flag"""
     mock_shell.connection.is_connected = True
     mock_shell.connection.is_authenticated = True
 
     user_cmd = UserCommands(mock_shell)
-    user_cmd.cmd_release("?")
+    user_cmd.cmd_terminate("?")
 
     # Should print usage, not error
     assert any("Usage:" in str(call) for call in mock_shell.poutput.call_args_list)
 
 
-def test_release_help_dash_h(mock_shell):
-    """Test release command with -h flag"""
+def test_terminate_help_dash_h(mock_shell):
+    """Test terminate command with -h flag"""
     mock_shell.connection.is_connected = True
     mock_shell.connection.is_authenticated = True
 
     user_cmd = UserCommands(mock_shell)
-    user_cmd.cmd_release("-h")
+    user_cmd.cmd_terminate("-h")
 
     # Should print usage, not error
     assert any("Usage:" in str(call) for call in mock_shell.poutput.call_args_list)
 
 
-def test_release_help_help_flag(mock_shell):
-    """Test release command with --help flag"""
+def test_terminate_help_help_flag(mock_shell):
+    """Test terminate command with --help flag"""
     mock_shell.connection.is_connected = True
     mock_shell.connection.is_authenticated = True
 
     user_cmd = UserCommands(mock_shell)
-    user_cmd.cmd_release("--help")
+    user_cmd.cmd_terminate("--help")
 
     # Should print usage, not error
     assert any("Usage:" in str(call) for call in mock_shell.poutput.call_args_list)
