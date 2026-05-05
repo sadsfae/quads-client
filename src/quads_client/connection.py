@@ -140,8 +140,7 @@ class ConnectionManager:
             else:
                 # Generic fallback
                 raise ConnectionError(
-                    f"Failed to connect to {server_name}: {e}\n"
-                    f"Verify the server URL and network connectivity."
+                    f"Failed to connect to {server_name}: {e}\n" f"Verify the server URL and network connectivity."
                 )
 
     def refresh_token(self) -> bool:

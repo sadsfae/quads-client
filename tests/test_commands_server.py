@@ -355,9 +355,7 @@ def test_add_quads_server_already_exists(mock_shell):
                 server_cmd = ServerCommands(mock_shell)
                 server_cmd.cmd_add_quads_server("")
 
-                assert any(
-                    "already exists" in str(call) for call in mock_shell.perror.call_args_list
-                )
+                assert any("already exists" in str(call) for call in mock_shell.perror.call_args_list)
 
 
 def test_add_quads_server_no_verify(mock_shell):

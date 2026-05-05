@@ -451,7 +451,9 @@ class UserCommands:
                 # Final safety check
                 if not host_list:
                     self.shell.perror("Failed to extract hostnames from available hosts")
-                    self.shell.perror(f"  Available returned {len(available)} items of type: {type(available[0]).__name__ if available else 'N/A'}")
+                    self.shell.perror(
+                        f"  Available returned {len(available)} items of type: {type(available[0]).__name__ if available else 'N/A'}"
+                    )
                     if available:
                         self.shell.perror(f"  First item: {available[0]}")
                     self.shell.perror("Please report this bug with the above debug info")
