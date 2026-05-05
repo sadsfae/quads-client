@@ -311,6 +311,75 @@ def test_config_reload_failure(mock_shell):
         mock_shell.perror.assert_called_with("Failed to reload configuration: Config error")
 
 
+def test_add_quads_server_success(mock_shell):
+    """Test interactive add-quads-server command"""
+    mock_shell.config.config_path = "~/.config/quads/quads-client.yml"
+
+    yaml_content = {"servers": {}}
+
+    with patch("builtins.input", side_effect=["quads3.example.com", "https://quads3.example.com", "y"]):
+        with patch("requests.get") as mock_get:
+            mock_get.return_value.status_code = 200
+            with patch("builtins.open", mock_open(read_data="servers: {}\n")):
+                with patch("yaml.safe_load", return_value=yaml_content):
+                    with patch("yaml.dump") as mock_dump:
+                        server_cmd = ServerCommands(mock_shell)
+                        server_cmd.cmd_add_quads_server("")
+
+                        mock_dump.assert_called_once()
+                        # Verify empty credentials were set
+                        call_args = mock_dump.call_args[0][0]
+                        assert call_args["servers"]["quads3.example.com"]["username"] == ""
+                        assert call_args["servers"]["quads3.example.com"]["password"] == ""
+                        assert mock_shell.poutput.call_count >= 2
+
+
+def test_add_quads_server_empty_name(mock_shell):
+    """Test add-quads-server with empty server name"""
+    with patch("builtins.input", return_value=""):
+        server_cmd = ServerCommands(mock_shell)
+        server_cmd.cmd_add_quads_server("")
+
+        mock_shell.perror.assert_called_with("Server name cannot be empty")
+
+
+def test_add_quads_server_already_exists(mock_shell):
+    """Test add-quads-server with existing server name"""
+    mock_shell.config.config_path = "~/.config/quads/quads-client.yml"
+
+    yaml_content = {"servers": {"quads3.example.com": {"url": "https://quads3.example.com"}}}
+
+    with patch("builtins.input", return_value="quads3.example.com"):
+        with patch("builtins.open", mock_open(read_data="servers:\n  quads3.example.com: {}\n")):
+            with patch("yaml.safe_load", return_value=yaml_content):
+                server_cmd = ServerCommands(mock_shell)
+                server_cmd.cmd_add_quads_server("")
+
+                assert any(
+                    "already exists" in str(call) for call in mock_shell.perror.call_args_list
+                )
+
+
+def test_add_quads_server_no_verify(mock_shell):
+    """Test add-quads-server with SSL verification disabled"""
+    mock_shell.config.config_path = "~/.config/quads/quads-client.yml"
+
+    yaml_content = {"servers": {}}
+
+    with patch("builtins.input", side_effect=["quads3.example.com", "https://quads3.example.com", "n"]):
+        with patch("requests.get") as mock_get:
+            mock_get.return_value.status_code = 200
+            with patch("builtins.open", mock_open(read_data="servers: {}\n")):
+                with patch("yaml.safe_load", return_value=yaml_content):
+                    with patch("yaml.dump") as mock_dump:
+                        server_cmd = ServerCommands(mock_shell)
+                        server_cmd.cmd_add_quads_server("")
+
+                        # Verify verify was set to False
+                        call_args = mock_dump.call_args[0][0]
+                        assert call_args["servers"]["quads3.example.com"]["verify"] is False
+
+
 def test_server_info_no_credentials(mock_shell):
     """Test _get_server_info with missing credentials"""
     server_cmd = ServerCommands(mock_shell)

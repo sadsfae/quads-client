@@ -3,7 +3,7 @@ class ConnectionCommands:
         self.shell = shell
 
     def cmd_connect(self, args):
-        """Connect to a QUADS server. Usage: connect [server_name]"""
+        """Connect to a QUADS server. Usage: connect [server_name | number]"""
         if not self.shell.connection:
             self.shell.perror("Configuration not loaded")
             return
@@ -16,12 +16,24 @@ class ConnectionCommands:
             else:
                 servers = self.shell.connection.get_available_servers()
                 self.shell.poutput("Available servers:")
-                for server in servers:
-                    self.shell.poutput(f"  {server}")
-                self.shell.poutput("\nUsage: connect <server_name>")
+                for i, server in enumerate(servers, 1):
+                    self.shell.poutput(f"  {i}. {server}")
+                self.shell.poutput("\nUsage: connect <server_name|number>")
                 return
         else:
-            server_name = args.strip()
+            arg = args.strip()
+            # Check if arg is a number (server index)
+            if arg.isdigit():
+                server_index = int(arg)
+                servers = self.shell.connection.get_available_servers()
+                if server_index < 1 or server_index > len(servers):
+                    self.shell.perror(f"Invalid server number: {server_index}")
+                    self.shell.perror(f"Available servers: 1-{len(servers)}")
+                    return
+                # Convert to 0-based index
+                server_name = servers[server_index - 1]
+            else:
+                server_name = arg
         try:
             from quads_client.connection import ConnectionError
 

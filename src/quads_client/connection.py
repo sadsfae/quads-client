@@ -110,7 +110,39 @@ class ConnectionManager:
                 self._user_role = self._decode_role_from_token()
 
         except Exception as e:
-            raise ConnectionError(f"Failed to connect to {server_name}: {e}")
+            # Provide user-friendly error messages
+            error_str = str(e).lower()
+
+            if "connection" in error_str or "refused" in error_str:
+                raise ConnectionError(
+                    f"Failed to connect to {server_name}: Server is unreachable. "
+                    f"Check that the server is online and the URL is correct."
+                )
+            elif "expecting value" in error_str or "json" in error_str:
+                raise ConnectionError(
+                    f"Failed to connect to {server_name}: Server is not responding correctly. "
+                    f"It may be offline or the URL may be incorrect."
+                )
+            elif "ssl" in error_str or "certificate" in error_str:
+                raise ConnectionError(
+                    f"Failed to connect to {server_name}: SSL certificate verification failed. "
+                    f"Use 'edit-server {server_name} --verify false' to disable verification for testing."
+                )
+            elif "unauthorized" in error_str or "401" in error_str:
+                raise ConnectionError(
+                    f"Failed to connect to {server_name}: Authentication failed. Check your credentials."
+                )
+            elif "timeout" in error_str:
+                raise ConnectionError(
+                    f"Failed to connect to {server_name}: Connection timed out. "
+                    f"The server may be slow or unreachable."
+                )
+            else:
+                # Generic fallback
+                raise ConnectionError(
+                    f"Failed to connect to {server_name}: {e}\n"
+                    f"Verify the server URL and network connectivity."
+                )
 
     def refresh_token(self) -> bool:
         """Refresh the authentication token. Returns True if successful."""

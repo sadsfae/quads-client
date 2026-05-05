@@ -22,7 +22,11 @@ QUADS Client is an interactive TUI (Text User Interface) shell for managing mult
 - **Thin Wrapper Design**: Server-side authorization via QUADS API
 
 <p align="left">
-  <img src="images/quads-client-1.png" alt="QUADS Client Screenshot" width="600">
+  <img src="images/quads-client-1.png" alt="QUADS Client Screenshot 1" width="600">
+</p>
+
+<p align="left">
+  <img src="images/quads-client-2.png" alt="QUADS Client Screenshot 2" width="600">
 </p>
 
 ## Table of Contents
@@ -82,7 +86,22 @@ pip install -e .
 
 ## Configuration
 
-Create `~/.config/quads/quads-client.yml`:
+### Quick Setup (Recommended)
+
+Use the interactive `add-quads-server` command:
+
+```bash
+quads-client
+add-quads-server
+# Follow the prompts to add your QUADS server
+config-reload
+connect <server_name>
+register your.email@example.com YourPassword123
+```
+
+### Manual Configuration (Advanced)
+
+Alternatively, manually create `~/.config/quads/quads-client.yml`:
 
 ```yaml
 servers:
@@ -101,11 +120,11 @@ servers:
 default_server: quads1.rdu2.scalelab
 ```
 
-**Notes**:
-- For new users: Leave `username` and `password` blank. Use the `register` command after connecting to create an account.
-- For existing users: Fill in your credentials to login automatically on connect.
-- Specify the base URL only (no `/api/v3/` path and no port `:5000`). The QUADS API is accessed via nginx reverse proxy, and quads-lib automatically appends `/api/v3/` to your base URL.
-- `verify: true` enables SSL certificate verification using your system's CA bundle (recommended). If you've properly installed your CA certificates via `update-ca-trust` (RHEL/Fedora) or `update-ca-certificates` (Debian/Ubuntu), this will work automatically. Set to `false` only for development/testing with self-signed certificates.
+**Configuration Notes**:
+- For new users: Leave `username` and `password` blank. Use the `register` command after connecting.
+- For existing users: Fill in credentials to login automatically on connect.
+- Specify the base URL only (no `/api/v3/` path, no port `:5000`). The client automatically appends the API path.
+- `verify: true` enables SSL certificate verification (recommended). Set to `false` only for development/testing with self-signed certificates.
 
 ## Usage
 
@@ -203,21 +222,38 @@ Tab completion dynamically fetches data from the connected QUADS server, ensurin
 ### Connection Management
 
 ```
-connect [server]     - Connect to a QUADS server
-disconnect           - Disconnect from current server
-status               - Show connection status and user roles
+connect [server|number] - Connect to a QUADS server by name or number from servers list
+disconnect              - Disconnect from current server
+status                  - Show connection status and user roles
+```
+
+**Examples**:
+```bash
+connect quads1.example.com  # Connect by server name
+connect 2                   # Connect by server number from 'servers' list
 ```
 
 ### Server Management
 
 ```
 servers              - List all configured servers with status
+add-quads-server     - Interactive wizard to add a new QUADS server
 add-server <name> <url> <username> <password> [--no-verify]  
-                     - Add new server to configuration
+                     - Add new server to configuration (advanced)
 edit-server <name> [--url URL] [--username USER] [--password PASS] [--verify true|false]
                      - Edit existing server configuration
 rm-server <name>     - Remove server from configuration
 config-reload        - Reload configuration from file
+```
+
+**Adding a server (interactive method)**:
+```bash
+add-quads-server
+# Follow the prompts:
+#   1. Enter server name (e.g., quads1.example.com)
+#   2. Enter server URL (e.g., https://quads1.example.com)
+#   3. Enable SSL verification? [Y/n]
+# Then: config-reload, connect, and register
 ```
 
 ### Cloud Management

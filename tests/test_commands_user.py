@@ -99,15 +99,15 @@ def test_my_hosts_success(mock_shell):
     mock_shell.connection.api.filter_assignments.return_value = [
         {"id": 1, "owner": "test", "cloud": {"name": "cloud02"}, "description": "Test assignment"}
     ]
-    mock_shell.connection.api.get_schedules.return_value = [
+    mock_shell.connection.api.get_current_schedules.return_value = [
         {"id": 1, "host": {"name": "host01.example.com"}, "start": "2026-05-01", "end": "2026-05-15"}
     ]
 
     user_cmd = UserCommands(mock_shell)
     user_cmd.cmd_my_hosts("")
 
-    mock_shell.connection.api.filter_assignments.assert_called_once_with({"owner": "test"})
-    mock_shell.connection.api.get_schedules.assert_called_once_with({"assignment_id": 1})
+    mock_shell.connection.api.filter_assignments.assert_called_once_with({"owner": "test", "active": True})
+    mock_shell.connection.api.get_current_schedules.assert_called_once_with({"assignment_id": 1})
     assert mock_shell.poutput.call_count >= 2
 
 
@@ -121,7 +121,7 @@ def test_my_hosts_no_schedules(mock_shell):
     user_cmd = UserCommands(mock_shell)
     user_cmd.cmd_my_hosts("")
 
-    mock_shell.poutput.assert_called_with("No hosts scheduled by test")
+    mock_shell.poutput.assert_called_with("No active hosts scheduled by test")
 
 
 def test_my_hosts_not_authenticated(mock_shell):
