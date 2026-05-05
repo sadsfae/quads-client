@@ -1,5 +1,11 @@
 codecov:
   require_ci_to_pass: yes
+  branch: main
+
+  # Track these branches for coverage reports
+  branches:
+    - main
+    - development
 
 coverage:
   precision: 2
@@ -12,11 +18,17 @@ coverage:
         target: 85%
         threshold: 1%
         informational: false
+        branches:
+          - main
+          - development
     patch:
       default:
         target: 70%
         threshold: 5%
         informational: false
+        branches:
+          - main
+          - development
 
   # Exclude files that are framework/UI code with low testing value
   ignore:
