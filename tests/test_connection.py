@@ -214,3 +214,53 @@ def test_connection_refresh_token_exception(mock_config, mock_api):
         # Refresh should fail gracefully
         result = conn.refresh_token()
         assert result is False
+
+
+def test_connection_error_json_parsing(mock_config, mock_api):
+    """Test connection error handling for JSON parsing errors"""
+    mock_api.login.side_effect = Exception("Expecting value: line 1 column 1 (char 0)")
+
+    with patch("quads_client.connection.QuadsApi", return_value=mock_api):
+        conn = ConnectionManager(mock_config)
+        with pytest.raises(ConnectionError, match="Server is not responding correctly"):
+            conn.connect("test_server")
+
+
+def test_connection_error_ssl_certificate(mock_config, mock_api):
+    """Test connection error handling for SSL certificate errors"""
+    mock_api.login.side_effect = Exception("SSL certificate verify failed")
+
+    with patch("quads_client.connection.QuadsApi", return_value=mock_api):
+        conn = ConnectionManager(mock_config)
+        with pytest.raises(ConnectionError, match="SSL certificate verification failed"):
+            conn.connect("test_server")
+
+
+def test_connection_error_connection_refused(mock_config, mock_api):
+    """Test connection error handling for connection refused"""
+    mock_api.login.side_effect = Exception("Connection refused")
+
+    with patch("quads_client.connection.QuadsApi", return_value=mock_api):
+        conn = ConnectionManager(mock_config)
+        with pytest.raises(ConnectionError, match="Server is unreachable"):
+            conn.connect("test_server")
+
+
+def test_connection_error_unauthorized(mock_config, mock_api):
+    """Test connection error handling for 401 unauthorized"""
+    mock_api.login.side_effect = Exception("401 Unauthorized")
+
+    with patch("quads_client.connection.QuadsApi", return_value=mock_api):
+        conn = ConnectionManager(mock_config)
+        with pytest.raises(ConnectionError, match="Authentication failed"):
+            conn.connect("test_server")
+
+
+def test_connection_error_timeout(mock_config, mock_api):
+    """Test connection error handling for timeout"""
+    mock_api.login.side_effect = Exception("Connection timeout")
+
+    with patch("quads_client.connection.QuadsApi", return_value=mock_api):
+        conn = ConnectionManager(mock_config)
+        with pytest.raises(ConnectionError, match="Connection timed out"):
+            conn.connect("test_server")

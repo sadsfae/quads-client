@@ -365,24 +365,24 @@ extend host01.example.com weeks 1
 
 ```
 ls-available [OPTIONS]
-  --start YYYY-MM-DD        - Start date for availability
-  --end YYYY-MM-DD          - End date for availability
-  --model MODEL             - Filter by server model
-  --ram GB                  - Minimum RAM in GB
-  --gpu-vendor VENDOR       - GPU vendor (e.g., "NVIDIA Corporation")
-  --gpu-product PRODUCT     - GPU model (e.g., "Tesla V100")
-  --disk-size GB            - Minimum disk size in GB
-  --disk-type TYPE          - Disk type (nvme, ssd, sata)
-  --disk-count N            - Minimum number of disks
-  --interfaces N            - Minimum number of network interfaces
+  start YYYY-MM-DD        - Start date for availability
+  end YYYY-MM-DD          - End date for availability
+  model MODEL             - Filter by server model
+  ram GB                  - Minimum RAM in GB
+  gpu-vendor VENDOR       - GPU vendor (e.g., "NVIDIA Corporation")
+  gpu-product PRODUCT     - GPU model (e.g., "Tesla V100")
+  disk-size GB            - Minimum disk size in GB
+  disk-type TYPE          - Disk type (nvme, ssd, sata)
+  disk-count N            - Minimum number of disks
+  interfaces N            - Minimum number of network interfaces
 ```
 
 **Examples:**
 ```bash
-ls-available --model r640 --ram 256
-ls-available --gpu-vendor "NVIDIA Corporation" --gpu-product "Tesla V100"
-ls-available --disk-type nvme --disk-count 2 --interfaces 4
-ls-available --start 2026-06-01 --end 2026-06-15 --model r650
+ls-available model r640 ram 256
+ls-available gpu-vendor "NVIDIA Corporation" gpu-product "Tesla V100"
+ls-available disk-type nvme disk-count 2 interfaces 4
+ls-available start 2026-06-01 end 2026-06-15 model r650
 ```
 
 ### Other Commands

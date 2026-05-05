@@ -22,6 +22,7 @@ coverage:
   ignore:
     - "src/quads_client/shell.py"           # Interactive REPL - requires integration tests with cmd2
     - "src/quads_client/rich_console.py"   # Thin wrapper around Rich library methods
+    - "src/quads_client/progress.py"       # Progress display utility - UI/framework code
     - "tests/**"                            # Test files themselves
     - "setup.py"                            # Setup script
 

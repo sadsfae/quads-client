@@ -355,6 +355,14 @@ class UserCommands:
         if not self._require_auth():
             return
 
+        # Handle help request
+        if args.strip() in ("?", "-h", "--help"):
+            self.shell.poutput("Usage: available")
+            self.shell.poutput("\nShow hosts available for self-scheduling (SSM mode).")
+            self.shell.poutput("Lists only hosts that have can_self_schedule enabled.")
+            self.shell.poutput("\nFor hardware filtering, use: ls-available --model r640 --ram 256")
+            return
+
         try:
             # Get hosts that can be self-scheduled
             hosts = self.shell.connection.api.filter_hosts({"cloud": "cloud01", "retired": False, "broken": False})

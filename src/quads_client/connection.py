@@ -113,15 +113,11 @@ class ConnectionManager:
             # Provide user-friendly error messages
             error_str = str(e).lower()
 
-            if "connection" in error_str or "refused" in error_str:
+            # Check more specific errors first, then generic ones
+            if "timeout" in error_str:
                 raise ConnectionError(
-                    f"Failed to connect to {server_name}: Server is unreachable. "
-                    f"Check that the server is online and the URL is correct."
-                )
-            elif "expecting value" in error_str or "json" in error_str:
-                raise ConnectionError(
-                    f"Failed to connect to {server_name}: Server is not responding correctly. "
-                    f"It may be offline or the URL may be incorrect."
+                    f"Failed to connect to {server_name}: Connection timed out. "
+                    f"The server may be slow or unreachable."
                 )
             elif "ssl" in error_str or "certificate" in error_str:
                 raise ConnectionError(
@@ -132,10 +128,15 @@ class ConnectionManager:
                 raise ConnectionError(
                     f"Failed to connect to {server_name}: Authentication failed. Check your credentials."
                 )
-            elif "timeout" in error_str:
+            elif "expecting value" in error_str or "json" in error_str:
                 raise ConnectionError(
-                    f"Failed to connect to {server_name}: Connection timed out. "
-                    f"The server may be slow or unreachable."
+                    f"Failed to connect to {server_name}: Server is not responding correctly. "
+                    f"It may be offline or the URL may be incorrect."
+                )
+            elif "connection" in error_str or "refused" in error_str:
+                raise ConnectionError(
+                    f"Failed to connect to {server_name}: Server is unreachable. "
+                    f"Check that the server is online and the URL is correct."
                 )
             else:
                 # Generic fallback
