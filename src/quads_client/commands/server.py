@@ -31,7 +31,7 @@ class ServerCommands:
             status, version = self._get_server_status(name, url, server_config)
             info = self._get_server_info(name, url, server_config)
 
-            is_default = "OK:" if name == default else ""
+            is_default = "✓" if name == default else ""
             is_connected = "Connected" if name == current else status
             short_name = self._shorten_server_name(name)
 

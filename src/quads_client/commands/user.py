@@ -241,7 +241,7 @@ class UserCommands:
                 description = assignment.get("description", "")
                 if len(description) > 40:
                     description = description[:37] + "..."
-                validated = "OK:" if assignment.get("validated") else "○"
+                validated = "✓" if assignment.get("validated") else "○"
 
                 table_data.append([assignment_id, cloud_name, description, validated])
 
