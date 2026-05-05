@@ -1,15 +1,14 @@
 from tabulate import tabulate
 
+from quads_client.error_handler import require_connection
+
 
 class AvailableCommands:
     def __init__(self, shell):
         self.shell = shell
 
     def _require_connection(self):
-        if not self.shell.connection or not self.shell.connection.is_connected:
-            self.shell.perror("Not connected to any server")
-            return False
-        return True
+        return require_connection(self.shell)
 
     def cmd_ls_available(self, args):
         """List available hosts. Usage: ls-available [--start YYYY-MM-DD] [--end YYYY-MM-DD] [--model MODEL]"""

@@ -130,3 +130,87 @@ def test_connection_uses_base_url_parameter(mock_config, mock_api):
         call_kwargs = mock_quads_api.call_args[1]
         assert "base_url" in call_kwargs
         assert "url" not in call_kwargs
+
+
+def test_connection_refresh_token_success(mock_config, mock_api):
+    """Test successful token refresh"""
+    with patch("quads_client.connection.QuadsApi", return_value=mock_api):
+        conn = ConnectionManager(mock_config)
+        conn.connect("test_server")
+
+        # Reset login call count
+        mock_api.login.reset_mock()
+        mock_api.login.return_value = {"status": "success"}
+        mock_api.token = "new_token_456"
+
+        # Refresh token
+        result = conn.refresh_token()
+
+        assert result is True
+        assert conn._token == "new_token_456"
+        mock_api.login.assert_called_once()
+
+
+def test_connection_refresh_token_not_connected(mock_config):
+    """Test refresh token when not connected"""
+    conn = ConnectionManager(mock_config)
+    result = conn.refresh_token()
+    assert result is False
+
+
+def test_connection_refresh_token_registration_mode(mock_config, mock_api):
+    """Test refresh token when in registration mode"""
+    mock_config.get_server_credentials.return_value = ("", "")
+
+    with patch("quads_client.connection.QuadsApi", return_value=mock_api):
+        conn = ConnectionManager(mock_config)
+        conn.connect("test_server")
+
+        # Should be in registration mode
+        assert conn._registration_mode is True
+
+        # Refresh should fail
+        result = conn.refresh_token()
+        assert result is False
+
+
+def test_connection_refresh_token_no_credentials(mock_config, mock_api):
+    """Test refresh token when credentials are missing"""
+    with patch("quads_client.connection.QuadsApi", return_value=mock_api):
+        conn = ConnectionManager(mock_config)
+        conn.connect("test_server")
+
+        # Change credentials to empty
+        mock_config.get_server_credentials.return_value = ("", "")
+
+        # Refresh should fail
+        result = conn.refresh_token()
+        assert result is False
+
+
+def test_connection_refresh_token_login_failed(mock_config, mock_api):
+    """Test refresh token when login fails"""
+    with patch("quads_client.connection.QuadsApi", return_value=mock_api):
+        conn = ConnectionManager(mock_config)
+        conn.connect("test_server")
+
+        # Make login fail on refresh
+        mock_api.login.return_value = {"status": "failure"}
+
+        # Refresh should fail
+        result = conn.refresh_token()
+        assert result is False
+
+
+def test_connection_refresh_token_exception(mock_config, mock_api):
+    """Test refresh token when an exception occurs"""
+    with patch("quads_client.connection.QuadsApi", return_value=mock_api):
+        conn = ConnectionManager(mock_config)
+        conn.connect("test_server")
+
+        # Make login raise exception on refresh
+        mock_api.login.side_effect = Exception("Network error")
+
+        # Refresh should fail gracefully
+        result = conn.refresh_token()
+        assert result is False

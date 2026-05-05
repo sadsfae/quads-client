@@ -11,29 +11,11 @@ from quads_client.commands.version import VersionCommands
 from quads_client.config import ConfigError, QuadsClientConfig
 from quads_client.connection import ConnectionManager
 from quads_client.history import CommandHistory
+from quads_client.rich_console import RichConsole
 
 
 class QuadsClientShell(cmd2.Cmd):
-    intro = r"""
-================================================================================
-  ___  _   _   _    ____  ____       ____ _ _            _
- / _ \| | | | / \  |  _ \/ ___|     / ___| (_) ___ _ __ | |_
-| | | | | | |/ _ \ | | | \___ \ ___| |   | | |/ _ \ '_ \| __|
-| |_| | |_| / ___ \| |_| |___) |___| |___| | |  __/ | | | |_
- \__\_\\___/_/   \_\____/|____/     \____|_|_|\___|_| |_|\__|
-
-================================================================================
-QUADS Client v1.0.0 - Interactive TUI Shell
-https://quads.dev
-
-Type 'help' for available commands
-Type 'connect' to connect to a server
-Type 'register' to create a new account
-
-Configuration: ~/.config/quads/quads-client.yml
-History: ~/.config/quads/.quads-client-history.db
-================================================================================
-    """
+    intro = ""  # We'll use rich console for the banner
 
     def __init__(self):
         super().__init__(
@@ -44,6 +26,10 @@ History: ~/.config/quads/.quads-client-history.db
         self.config = None
         self.connection = None
         self.command_history = CommandHistory()
+        self.rich_console = RichConsole()
+
+        # Print rich banner
+        self.rich_console.print_banner()
 
         # Hide unwanted cmd2 built-in commands
         self.permanently_hidden = ["macro", "run_script", "edit", "run_pyscript", "shortcuts", "_relative_run_script"]
@@ -89,7 +75,7 @@ History: ~/.config/quads/.quads-client-history.db
 
     def _update_visible_commands(self):
         """Update visible commands based on user role"""
-        # Admin-only commands
+        # Admin-only commands (hidden from SSM users)
         admin_commands = [
             "cloud_create",
             "cloud_delete",
@@ -107,6 +93,20 @@ History: ~/.config/quads/.quads-client-history.db
             "rm_schedule",
             "extend",
             "shrink",
+            "define_cloud",
+            "schedule_list",
+            "schedule_update",
+            "schedule_delete",
+            "add_server",
+            "edit_server",
+            "rm_server",
+        ]
+
+        # Deprecated commands (hidden from all users)
+        deprecated_commands = [
+            "assignment_create",
+            "assignment_terminate",
+            "assignment_status",
         ]
 
         # Commands requiring authentication (user or admin)
@@ -115,11 +115,10 @@ History: ~/.config/quads/.quads-client-history.db
             "whoami",
             "available",
             "schedule",
-            "assignment_create",
             "assignment_list",
-            "assignment_status",
-            "assignment_terminate",
             "my_hosts",
+            "my_assignments",
+            "release",
             "cloud_list",
             "ls_available",
         ]
@@ -131,13 +130,16 @@ History: ~/.config/quads/.quads-client-history.db
         # Reset hidden commands to permanently hidden list
         self.hidden_commands = list(self.permanently_hidden)
 
+        # Always hide deprecated commands
+        self.hidden_commands.extend(deprecated_commands)
+
         # Hide auth-required commands if not authenticated
         if not is_authenticated:
             self.hidden_commands.extend(auth_required_commands)
             # Also hide admin commands if not authenticated
             self.hidden_commands.extend(admin_commands)
         elif not is_admin:
-            # Authenticated but not admin - only hide admin commands
+            # Authenticated but not admin - hide admin commands from SSM users
             self.hidden_commands.extend(admin_commands)
 
     def do_version(self, args):
@@ -210,12 +212,435 @@ History: ~/.config/quads/.quads-client-history.db
         self.user_commands.cmd_available(args)
 
     def do_schedule(self, args):
-        """Schedule a host"""
-        self.user_commands.cmd_schedule(args)
+        """
+        Unified schedule command (role-aware)
+        SSM mode: schedule <count|hosts|host-list path> description <desc> [options]
+        Admin mode: schedule <cloud> <hosts|host-list path> <start> <end>
+        """
+        # Route to appropriate handler based on role
+        if self.connection and self.connection.is_admin:
+            self.schedule_commands.cmd_schedule_admin(args)
+        else:
+            self.user_commands.cmd_schedule(args)
+
+    def complete_schedule(self, text, line, begidx, endidx):
+        """Autocomplete for schedule command"""
+        if not self.connection or not self.connection.is_authenticated:
+            return []
+
+        parts = line.split()
+        keywords = ["description", "nowipe", "vlan", "qinq", "model", "ram", "host-list"]
+
+        # For admin mode, try to get cloud names
+        if self.connection.is_admin:
+            try:
+                # First arg: cloud names
+                if len(parts) <= 2:
+                    clouds = self.connection.api.get_clouds()
+                    cloud_names = [c.get("name") for c in clouds if c.get("name")]
+                    if text:
+                        return [c for c in cloud_names if c.startswith(text)]
+                    return cloud_names
+                # Later args: hostnames or keywords
+                else:
+                    hosts = self.connection.api.get_hosts()
+                    hostnames = [h.get("name") for h in hosts]
+                    candidates = keywords + hostnames
+                    if text:
+                        return [c for c in candidates if c.startswith(text)]
+                    return candidates
+            except Exception:
+                pass
+
+        # SSM mode
+        try:
+            # First arg: available hostnames (can_self_schedule) or count suggestions
+            if len(parts) <= 2:
+                hosts = self.connection.api.filter_hosts({"can_self_schedule": True})
+                hostnames = [h.get("name") for h in hosts]
+                # Also suggest common counts
+                count_suggestions = ["1", "2", "3", "5", "10"]
+                candidates = hostnames + count_suggestions
+                if text:
+                    return [c for c in candidates if c.startswith(text)]
+                return candidates
+            # After first arg (count/hosts/host-list): only keywords
+            else:
+                if text:
+                    return [k for k in keywords if k.startswith(text)]
+                return keywords
+        except Exception:
+            pass
+
+        return keywords
+
+    def complete_release(self, text, line, begidx, endidx):
+        """Autocomplete for release command - assignment IDs and hostnames"""
+        if not self.connection or not self.connection.is_authenticated:
+            return []
+
+        parts = line.split()
+        try:
+            # If no args yet, suggest assignment IDs
+            if len(parts) <= 2:
+                username = self.connection.username.split("@")[0]
+                assignments = self.connection.api.filter_assignments({"owner": username, "active": True})
+                ids = [str(a.get("id", "")) for a in assignments]
+                if text:
+                    return [i for i in ids if i.startswith(text)]
+                return ids
+
+            # If assignment ID provided, suggest hostnames from that assignment
+            if len(parts) >= 2:
+                assignment_id = parts[1]
+                schedules = self.connection.api.get_schedules({"assignment": assignment_id})
+                hostnames = [s.get("host", {}).get("name", "") for s in schedules]
+                if text:
+                    return [h for h in hostnames if h.startswith(text)]
+                return hostnames
+        except Exception:
+            pass
+        return []
+
+    def complete_extend(self, text, line, begidx, endidx):
+        """Autocomplete for extend command - cloud names or hostnames, then weeks/date"""
+        if not self.connection or not self.connection.is_admin:
+            return []
+
+        parts = line.split()
+        try:
+            # First arg: cloud names or hostnames
+            if len(parts) <= 2:
+                clouds = self.connection.api.get_clouds()
+                cloud_names = [c.get("name") for c in clouds]
+                # Also get currently scheduled hostnames
+                schedules = self.connection.api.get_current_schedules({})
+                hostnames = list(set(s.get("host", {}).get("name", "") for s in schedules))
+                candidates = cloud_names + hostnames
+                if text:
+                    return [c for c in candidates if c.startswith(text)]
+                return candidates
+
+            # Second arg: "weeks" or "date"
+            if len(parts) == 3:
+                keywords = ["weeks", "date"]
+                if text:
+                    return [k for k in keywords if k.startswith(text)]
+                return keywords
+        except Exception:
+            pass
+        return []
+
+    def complete_shrink(self, text, line, begidx, endidx):
+        """Autocomplete for shrink command"""
+        if not self.connection or not self.connection.is_admin:
+            return []
+
+        parts = line.split()
+        try:
+            keywords = ["--host", "--weeks"]
+
+            # If looking for hostname after --host
+            if len(parts) > 1 and parts[-2] == "--host":
+                schedules = self.connection.api.get_current_schedules({})
+                hostnames = [s.get("host", {}).get("name", "") for s in schedules]
+                if text:
+                    return [h for h in hostnames if h.startswith(text)]
+                return hostnames
+
+            # Otherwise suggest keywords
+            if text:
+                return [k for k in keywords if k.startswith(text)]
+            return keywords
+        except Exception:
+            pass
+        return []
+
+    def complete_cloud_delete(self, text, line, begidx, endidx):
+        """Autocomplete for cloud-delete command"""
+        if not self.connection or not self.connection.is_admin:
+            return []
+
+        try:
+            clouds = self.connection.api.get_clouds()
+            cloud_names = [c.get("name") for c in clouds]
+            if text:
+                return [c for c in cloud_names if c.startswith(text)]
+            return cloud_names
+        except Exception:
+            pass
+        return []
+
+    def complete_mod_cloud(self, text, line, begidx, endidx):
+        """Autocomplete for mod-cloud command"""
+        if not self.connection or not self.connection.is_admin:
+            return []
+
+        parts = line.split()
+        try:
+            # First arg: cloud name
+            if len(parts) <= 2:
+                clouds = self.connection.api.get_clouds()
+                cloud_names = [c.get("name") for c in clouds]
+                if text:
+                    return [c for c in cloud_names if c.startswith(text)]
+                return cloud_names
+
+            # Subsequent args: attributes
+            keywords = ["--owner", "--description", "--ticket", "--wipe", "--ccusers"]
+            if text:
+                return [k for k in keywords if k.startswith(text)]
+            return keywords
+        except Exception:
+            pass
+        return []
+
+    def complete_cloud_list(self, text, line, begidx, endidx):
+        """Autocomplete for cloud-list command"""
+        if not self.connection or not self.connection.is_connected:
+            return []
+
+        parts = line.split()
+        try:
+            keywords = ["--cloud", "--detail"]
+
+            # If looking for cloud name after --cloud
+            if len(parts) > 1 and parts[-2] == "--cloud":
+                clouds = self.connection.api.get_clouds()
+                cloud_names = [c.get("name") for c in clouds]
+                if text:
+                    return [c for c in cloud_names if c.startswith(text)]
+                return cloud_names
+
+            # Otherwise suggest keywords
+            if text:
+                return [k for k in keywords if k.startswith(text)]
+            return keywords
+        except Exception:
+            pass
+        return []
+
+    def complete_mark_broken(self, text, line, begidx, endidx):
+        """Autocomplete for mark-broken command"""
+        if not self.connection or not self.connection.is_admin:
+            return []
+
+        try:
+            hosts = self.connection.api.get_hosts()
+            # Filter out already broken hosts
+            hostnames = [h.get("name") for h in hosts if not h.get("broken", False)]
+            if text:
+                return [h for h in hostnames if h.startswith(text)]
+            return hostnames
+        except Exception:
+            pass
+        return []
+
+    def complete_mark_repaired(self, text, line, begidx, endidx):
+        """Autocomplete for mark-repaired command"""
+        if not self.connection or not self.connection.is_admin:
+            return []
+
+        try:
+            # Only show broken hosts
+            hosts = self.connection.api.filter_hosts({"broken": True})
+            hostnames = [h.get("name") for h in hosts]
+            if text:
+                return [h for h in hostnames if h.startswith(text)]
+            return hostnames
+        except Exception:
+            pass
+        return []
+
+    def complete_retire(self, text, line, begidx, endidx):
+        """Autocomplete for retire command"""
+        if not self.connection or not self.connection.is_admin:
+            return []
+
+        try:
+            hosts = self.connection.api.get_hosts()
+            # Filter out already retired hosts
+            hostnames = [h.get("name") for h in hosts if not h.get("retired", False)]
+            if text:
+                return [h for h in hostnames if h.startswith(text)]
+            return hostnames
+        except Exception:
+            pass
+        return []
+
+    def complete_unretire(self, text, line, begidx, endidx):
+        """Autocomplete for unretire command"""
+        if not self.connection or not self.connection.is_admin:
+            return []
+
+        try:
+            # Only show retired hosts
+            hosts = self.connection.api.filter_hosts({"retired": True})
+            hostnames = [h.get("name") for h in hosts]
+            if text:
+                return [h for h in hostnames if h.startswith(text)]
+            return hostnames
+        except Exception:
+            pass
+        return []
+
+    def complete_ls_schedule(self, text, line, begidx, endidx):
+        """Autocomplete for ls-schedule command"""
+        if not self.connection or not self.connection.is_connected:
+            return []
+
+        parts = line.split()
+        try:
+            keywords = ["--host", "--cloud"]
+
+            # If looking for hostname after --host
+            if len(parts) > 1 and parts[-2] == "--host":
+                hosts = self.connection.api.get_hosts()
+                hostnames = [h.get("name") for h in hosts]
+                if text:
+                    return [h for h in hostnames if h.startswith(text)]
+                return hostnames
+
+            # If looking for cloud name after --cloud
+            if len(parts) > 1 and parts[-2] == "--cloud":
+                clouds = self.connection.api.get_clouds()
+                cloud_names = [c.get("name") for c in clouds]
+                if text:
+                    return [c for c in cloud_names if c.startswith(text)]
+                return cloud_names
+
+            # Otherwise suggest keywords
+            if text:
+                return [k for k in keywords if k.startswith(text)]
+            return keywords
+        except Exception:
+            pass
+        return []
+
+    def complete_add_schedule(self, text, line, begidx, endidx):
+        """Autocomplete for add-schedule command"""
+        if not self.connection or not self.connection.is_admin:
+            return []
+
+        parts = line.split()
+        try:
+            keywords = ["--host", "--cloud", "--start", "--end"]
+
+            # If looking for hostname after --host
+            if len(parts) > 1 and parts[-2] == "--host":
+                hosts = self.connection.api.get_hosts()
+                hostnames = [h.get("name") for h in hosts]
+                if text:
+                    return [h for h in hostnames if h.startswith(text)]
+                return hostnames
+
+            # If looking for cloud name after --cloud
+            if len(parts) > 1 and parts[-2] == "--cloud":
+                clouds = self.connection.api.get_clouds()
+                cloud_names = [c.get("name") for c in clouds]
+                if text:
+                    return [c for c in cloud_names if c.startswith(text)]
+                return cloud_names
+
+            # Otherwise suggest keywords
+            if text:
+                return [k for k in keywords if k.startswith(text)]
+            return keywords
+        except Exception:
+            pass
+        return []
+
+    def complete_mod_schedule(self, text, line, begidx, endidx):
+        """Autocomplete for mod-schedule command"""
+        if not self.connection or not self.connection.is_admin:
+            return []
+
+        parts = line.split()
+        try:
+            keywords = ["--id", "--start", "--end"]
+
+            # If looking for schedule ID after --id
+            if len(parts) > 1 and parts[-2] == "--id":
+                schedules = self.connection.api.get_schedules({})
+                schedule_ids = [str(s.get("id")) for s in schedules]
+                if text:
+                    return [i for i in schedule_ids if i.startswith(text)]
+                return schedule_ids
+
+            # Otherwise suggest keywords
+            if text:
+                return [k for k in keywords if k.startswith(text)]
+            return keywords
+        except Exception:
+            pass
+        return []
+
+    def complete_rm_schedule(self, text, line, begidx, endidx):
+        """Autocomplete for rm-schedule command"""
+        if not self.connection or not self.connection.is_admin:
+            return []
+
+        try:
+            schedules = self.connection.api.get_schedules({})
+            schedule_ids = [str(s.get("id")) for s in schedules]
+            if text:
+                return [i for i in schedule_ids if i.startswith(text)]
+            return schedule_ids
+        except Exception:
+            pass
+        return []
+
+    def complete_edit_server(self, text, line, begidx, endidx):
+        """Autocomplete for edit-server command"""
+        if not self.config:
+            return []
+
+        parts = line.split()
+        try:
+            # First arg: server name
+            if len(parts) <= 2:
+                servers = list(self.config.get_all_servers().keys())
+                if text:
+                    return [s for s in servers if s.startswith(text)]
+                return servers
+
+            # Subsequent args: attributes
+            keywords = ["--url", "--username", "--password", "--verify"]
+            if text:
+                return [k for k in keywords if k.startswith(text)]
+            return keywords
+        except Exception:
+            pass
+        return []
+
+    def complete_rm_server(self, text, line, begidx, endidx):
+        """Autocomplete for rm-server command"""
+        if not self.config:
+            return []
+
+        try:
+            servers = list(self.config.get_all_servers().keys())
+            # Exclude currently connected server
+            if self.connection and self.connection.current_server:
+                servers = [s for s in servers if s != self.connection.current_server]
+            if text:
+                return [s for s in servers if s.startswith(text)]
+            return servers
+        except Exception:
+            pass
+        return []
 
     def do_my_hosts(self, args):
-        """Show hosts scheduled by you"""
+        """Show your currently scheduled hosts"""
         self.user_commands.cmd_my_hosts(args)
+
+    def do_my_assignments(self, args):
+        """List your self-scheduled assignments"""
+        self.user_commands.cmd_my_assignments(args)
+
+    def do_release(self, args):
+        """Terminate assignment or release host"""
+        self.user_commands.cmd_release(args)
 
     def do_ls_hosts(self, args):
         """List all hosts"""

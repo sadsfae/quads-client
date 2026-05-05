@@ -12,7 +12,9 @@ QUADS Client is an interactive TUI (Text User Interface) shell for managing mult
 
 - **Multi-Server Support**: Connect to and manage multiple QUADS servers from a single interface
 - **Bearer Token Authentication**: Secure JWT-based authentication via python-quads-lib
-- **Interactive Shell**: Built on cmd2 with command history, tab completion, and help system
+- **Interactive Shell**: Built on cmd2 with command history and comprehensive tab completion
+- **Intelligent Tab Completion**: Context-aware autocompletion for all commands, arguments, cloud names, hostnames, assignment IDs, and server names
+- **Rich UI**: Beautiful terminal output with colors, tables, and status indicators powered by python-rich
 - **User Registration**: Non-admin users can register accounts and manage their own assignments
 - **Command History**: SQLite-based persistent command history per server
 - **Progress Tracking**: Real-time provisioning progress monitoring
@@ -32,7 +34,7 @@ QUADS Client is an interactive TUI (Text User Interface) shell for managing mult
   - [Connection Management](#connection-management)
   - [Server Management](#server-management)
   - [Cloud Management](#cloud-management)
-  - [User & Assignment Commands](#user--assignment-commands)
+  - [Self-Scheduling Mode (SSM)](#self-scheduling-mode-ssm)
   - [Host Management (Admin)](#host-management-admin)
   - [Schedule Management (Admin)](#schedule-management-admin)
   - [Available Hosts](#available-hosts)
@@ -121,6 +123,52 @@ quads-client cloud-list
 
 ## Commands
 
+### Tab Completion
+
+QUADS Client provides comprehensive tab completion for all commands and their arguments:
+
+**Command Completion**: Press `Tab` after typing partial command names
+```
+(quads1-dev) > clo<Tab>
+cloud-create  cloud-delete  cloud-list
+```
+
+**Context-Aware Argument Completion**: Press `Tab` to complete command arguments based on live server data
+
+- **Cloud names**: `cloud-delete <Tab>` → shows available clouds
+- **Hostnames**: `mark-broken <Tab>` → shows non-broken hosts
+- **Assignment IDs**: `release <Tab>` → shows your active assignment IDs
+- **Server names**: `connect <Tab>` → shows configured servers
+- **Keywords**: `schedule <Tab>` → shows options like `description`, `nowipe`, `vlan`, `qinq`, `model`, `ram`
+
+**Examples**:
+```
+# SSM mode - schedule command shows hostnames first, then keywords
+(quads1-dev) > schedule <Tab>
+host01.example.com  host02.example.com  host03.example.com  1  2  3  5  10
+
+(quads1-dev) > schedule 3 <Tab>
+description  nowipe  vlan  qinq  model  ram  host-list
+
+# Admin mode - schedule command shows cloud names first
+(quads1-dev) > schedule <Tab>
+cloud01  cloud02  cloud03
+
+# Cloud operations
+(quads1-dev) > cloud-list --cloud <Tab>
+cloud01  cloud02  cloud03
+
+# Release command
+(quads1-dev) > release <Tab>
+42  43  44
+
+# Host management
+(quads1-dev) > mark-broken <Tab>
+host01.example.com  host02.example.com  host03.example.com
+```
+
+Tab completion dynamically fetches data from the connected QUADS server, ensuring you always see up-to-date options.
+
 ### Connection Management
 
 ```
@@ -158,20 +206,60 @@ mod-cloud <name> [OPTIONS]         - Modify cloud attributes (admin only)
 
 ### Self-Scheduling Mode (SSM)
 
+Self-Scheduling Mode allows regular (non-admin) users to schedule hosts without admin intervention. The QUADS server automatically creates assignments and clouds - **no tickets required**.
+
 ```
-ssm-register <email> <password>              - Register a new user
-ssm-login                                     - Explicit login
-ssm-whoami                                    - Show current user information
-ssm-create --description <desc> [OPTIONS]    - Create a self-assignment
-  --wipe true|false                          - Enable/disable wipe
-  --qinq <vlan>                              - Set VLAN number
-ssm-list                                     - List user's assignments
-ssm-status <assignment_id>                   - Show assignment details
-ssm-terminate <assignment_id>                - Terminate an assignment
-ssm-available                                - Show available hosts for self-scheduling
-ssm-schedule <hostname> <cloud>              - Schedule a host for yourself
-ssm-my-hosts                                 - Show your scheduled hosts
+register <email> <password>                      - Register a new user
+login                                            - Explicit login
+whoami                                           - Show current user information
+schedule <count|hostname[,hostname...]|host-list path> description <desc> [OPTIONS]
+                                                 - Schedule hosts (SSM mode)
+  nowipe                                         - Disable wipe (default: wipe enabled)
+  vlan <id>                                      - VLAN ID
+  qinq <0|1>                                     - QinQ mode
+  model <model>                                  - Filter by model (count mode only)
+  ram <GB>                                       - Minimum RAM in GB (count mode only)
+my-assignments                                   - List your active assignments only
+my-hosts                                         - Show your currently scheduled hosts
+available [model M] [ram G]                      - Show available hosts for self-scheduling
+release <assignment-id> [hostname]               - Terminate assignment or release host
+assignment-list                                  - List all your assignments (including inactive)
 ```
+
+**SSM Syntax:**
+
+```bash
+# MODE 1: Count - just specify a NUMBER (QUADS picks hosts for you)
+schedule 3 description "Dev testing"
+schedule 5 description "Perf lab" model r640 ram 128  # With filters
+
+# MODE 2: Specific hosts - comma-separated hostnames (NO SPACES!)
+schedule host01.example.com,host02.example.com description "CI pipeline"
+
+# MODE 3: Host list file - one hostname per line
+schedule host-list ~/hosts.txt description "Batch test" vlan 1150 nowipe
+
+# View and manage assignments
+my-assignments
+my-hosts
+release 42
+release 42 host03.example.com
+```
+
+**Common Mistakes:**
+```bash
+# ❌ WRONG - "hosts" is not a keyword!
+schedule hosts 3 description "test"
+
+# ✅ CORRECT - just the number
+schedule 3 description "test"
+```
+
+**SSM Server Requirements:**
+- QUADS server must have `self_serve_enabled: true` in quads.yml
+- No ticketing system required for SSM mode
+- Server limits: max 10 hosts per assignment, max 3 active assignments per user
+- Auto-expiration: 5 days or Sunday 21:00 UTC (configurable server-side)
 
 ### Host Management (Admin)
 
@@ -188,12 +276,23 @@ ls-retired          - List all retired hosts
 ### Schedule Management (Admin)
 
 ```
-ls-schedule [--host hostname] [--cloud cloudname]  - List schedules
-add-schedule --host <hostname> --cloud <cloudname> --start <YYYY-MM-DD> --end <YYYY-MM-DD>
+schedule <cloud> <hosts|host-list path> <start> <end>  - Schedule hosts (admin mode)
+ls-schedule [--host hostname] [--cloud cloudname]      - List schedules
 mod-schedule --id <schedule_id> [--start <YYYY-MM-DD>] [--end <YYYY-MM-DD>]
-rm-schedule <schedule_id>     - Remove a schedule
-extend --host <hostname> --weeks <number>  - Extend a schedule
-shrink --host <hostname> --weeks <number>  - Shrink a schedule
+rm-schedule <schedule_id>                               - Remove a schedule
+extend <cloud|hostname> weeks <N>                       - Extend cloud/host by weeks
+extend <cloud|hostname> date <YYYY-MM-DD HH:MM>         - Extend cloud/host to date
+shrink --host <hostname> --weeks <number>               - Shrink a schedule
+```
+
+**Admin Examples:**
+
+```bash
+schedule cloud02 host01,host02,host03 2026-05-11 2026-06-11
+schedule cloud17 host-list ~/hosts.txt now 2026-07-01
+extend cloud02 weeks 2
+extend cloud02 date "2026-05-17 22:00"
+extend host01.example.com weeks 1
 ```
 
 ### Available Hosts
@@ -232,11 +331,16 @@ Users can register accounts directly from the CLI:
 3. Credentials are automatically saved to your config file
 4. **Login** with the `login` command or reconnect
 
-Assignments allow users to:
-- Create self-service cloud assignments with `assignment-create`
-- Schedule hosts to their assignments with `schedule`
-- View and manage their own resources with `assignment-list`, `my-hosts`
-- Terminate assignments when done with `assignment-terminate`
+SSM users can:
+- **Schedule** hosts with unified `schedule` command (count/hosts/host-list syntax)
+- **View** their own resources with `my-assignments` and `my-hosts` (ownership enforced)
+- **Terminate** assignments when done with `release` (own assignments only)
+- **Duration**: Server-controlled (5 days or Sunday 21:00 UTC, whichever first)
+- **Limits**: Max 10 hosts per assignment, max 3 active assignments per user
+
+Command visibility:
+- SSM users see only allowed commands (no `extend`, no admin commands)
+- Admin users see all commands
 
 The server controls which hosts can be self-scheduled via the `can_self_schedule` flag.
 
@@ -276,6 +380,7 @@ quads-client/
 - PyYAML >= 6.0.0
 - argcomplete >= 3.1.2
 - tabulate >= 0.9.0
+- rich >= 13.0.0 (for enhanced terminal UI)
 
 ## Development
 

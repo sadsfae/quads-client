@@ -74,4 +74,5 @@ def mock_shell(mock_config, mock_connection_manager):
     shell.pwarning = MagicMock()
     shell._update_prompt = MagicMock()
     shell._update_visible_commands = MagicMock()
+    shell.rich_console = None  # Rich console disabled in tests (use fallback)
     return shell

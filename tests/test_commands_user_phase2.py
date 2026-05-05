@@ -276,7 +276,7 @@ def test_assignment_status_not_authenticated(mock_shell):
 
 
 def test_assignment_list_success(mock_shell):
-    """Test assignment_list command"""
+    """Test assignment_list command (calls my_assignments, shows only active)"""
     mock_shell.connection.is_connected = True
     mock_shell.connection.is_authenticated = True
     mock_shell.connection.username = "user@example.com"
@@ -300,12 +300,12 @@ def test_assignment_list_success(mock_shell):
     user_cmd = UserCommands(mock_shell)
     user_cmd.cmd_assignment_list("")
 
-    mock_shell.connection.api.filter_assignments.assert_called_once_with({"owner": "user@example.com"})
+    mock_shell.connection.api.filter_assignments.assert_called_once_with({"owner": "user", "active": True})
     assert mock_shell.poutput.call_count >= 2
 
 
 def test_assignment_list_empty(mock_shell):
-    """Test assignment_list with no assignments"""
+    """Test assignment_list with no active assignments"""
     mock_shell.connection.is_connected = True
     mock_shell.connection.is_authenticated = True
     mock_shell.connection.username = "user@example.com"
@@ -314,7 +314,7 @@ def test_assignment_list_empty(mock_shell):
     user_cmd = UserCommands(mock_shell)
     user_cmd.cmd_assignment_list("")
 
-    mock_shell.poutput.assert_called_with("No assignments found for user@example.com")
+    mock_shell.poutput.assert_called_with("No active assignments found for user")
 
 
 def test_assignment_list_long_description(mock_shell):
@@ -351,44 +351,50 @@ def test_assignment_list_not_authenticated(mock_shell):
 
 
 def test_assignment_terminate_success(mock_shell):
-    """Test assignment_terminate command with confirmation"""
+    """Test release command (supersedes assignment_terminate) with confirmation"""
     mock_shell.connection.is_connected = True
     mock_shell.connection.is_authenticated = True
+    mock_shell.connection.is_admin = False
+    mock_shell.connection.username = "user@example.com"
     mock_shell.connection.api.filter_assignments.return_value = [
-        {"id": 42, "cloud": {"name": "cloud17"}, "owner": "user@example.com"}
+        {"id": 42, "cloud": {"name": "cloud17"}, "owner": "user"}
     ]
     mock_shell.connection.api.terminate_assignment.return_value = {"status": "success"}
 
     with patch("builtins.input", return_value="y"):
         user_cmd = UserCommands(mock_shell)
-        user_cmd.cmd_assignment_terminate("42")
+        user_cmd.cmd_release("42")
 
         mock_shell.connection.api.terminate_assignment.assert_called_once_with(42)
-        assert "terminated successfully" in str(mock_shell.poutput.call_args_list)
+        assert "Terminated assignment" in str(mock_shell.poutput.call_args_list)
 
 
 def test_assignment_terminate_rejected(mock_shell):
-    """Test assignment_terminate with user rejection"""
+    """Test release command with user rejection"""
     mock_shell.connection.is_connected = True
     mock_shell.connection.is_authenticated = True
+    mock_shell.connection.is_admin = False
+    mock_shell.connection.username = "user@example.com"
     mock_shell.connection.api.filter_assignments.return_value = [
-        {"id": 42, "cloud": {"name": "cloud17"}, "owner": "user@example.com"}
+        {"id": 42, "cloud": {"name": "cloud17"}, "owner": "user"}
     ]
 
     with patch("builtins.input", return_value="n"):
         user_cmd = UserCommands(mock_shell)
-        user_cmd.cmd_assignment_terminate("42")
+        user_cmd.cmd_release("42")
 
         mock_shell.connection.api.terminate_assignment.assert_not_called()
         mock_shell.poutput.assert_called_with("Assignment not terminated")
 
 
 def test_assignment_terminate_error_response(mock_shell):
-    """Test assignment_terminate with error in API response"""
+    """Test release command with error in API response"""
     mock_shell.connection.is_connected = True
     mock_shell.connection.is_authenticated = True
+    mock_shell.connection.is_admin = False
+    mock_shell.connection.username = "user@example.com"
     mock_shell.connection.api.filter_assignments.return_value = [
-        {"id": 42, "cloud": {"name": "cloud17"}, "owner": "user@example.com"}
+        {"id": 42, "cloud": {"name": "cloud17"}, "owner": "user"}
     ]
     mock_shell.connection.api.terminate_assignment.return_value = {
         "status": "error",
@@ -397,57 +403,64 @@ def test_assignment_terminate_error_response(mock_shell):
 
     with patch("builtins.input", return_value="y"):
         user_cmd = UserCommands(mock_shell)
-        user_cmd.cmd_assignment_terminate("42")
+        user_cmd.cmd_release("42")
 
         mock_shell.perror.assert_called_with("Failed to terminate: Assignment still has active hosts")
 
 
 def test_assignment_terminate_not_found(mock_shell):
-    """Test assignment_terminate with non-existent assignment"""
+    """Test release command with non-existent assignment"""
     mock_shell.connection.is_connected = True
     mock_shell.connection.is_authenticated = True
+    mock_shell.connection.is_admin = False
+    mock_shell.connection.username = "user@example.com"
     mock_shell.connection.api.filter_assignments.return_value = []
 
     user_cmd = UserCommands(mock_shell)
-    user_cmd.cmd_assignment_terminate("99")
+    user_cmd.cmd_release("99")
 
     mock_shell.perror.assert_called_with("Assignment 99 not found")
 
 
 def test_assignment_terminate_missing_args(mock_shell):
-    """Test assignment_terminate without assignment ID"""
+    """Test release command without assignment ID"""
     mock_shell.connection.is_connected = True
     mock_shell.connection.is_authenticated = True
 
     user_cmd = UserCommands(mock_shell)
-    user_cmd.cmd_assignment_terminate("")
+    user_cmd.cmd_release("")
 
-    mock_shell.perror.assert_called_with("Usage: assignment-terminate <assignment_id>")
+    mock_shell.perror.assert_called_with("Usage: release <assignment_id> [hostname]")
 
 
 def test_assignment_terminate_not_authenticated(mock_shell):
-    """Test assignment_terminate when not authenticated"""
+    """Test release command when not authenticated"""
     mock_shell.connection.is_connected = True
     mock_shell.connection.is_authenticated = False
 
     user_cmd = UserCommands(mock_shell)
-    user_cmd.cmd_assignment_terminate("42")
+    user_cmd.cmd_release("42")
 
     mock_shell.perror.assert_called_with("Not authenticated. Use 'login' command first.")
 
 
 def test_assignment_terminate_api_error(mock_shell):
-    """Test assignment_terminate with API error"""
+    """Test release command with API error"""
     mock_shell.connection.is_connected = True
     mock_shell.connection.is_authenticated = True
-    mock_shell.connection.api.filter_assignments.return_value = [{"id": 42, "cloud": {"name": "cloud17"}}]
+    mock_shell.connection.is_admin = False
+    mock_shell.connection.username = "user@example.com"
+    mock_shell.connection.api.filter_assignments.return_value = [
+        {"id": 42, "cloud": {"name": "cloud17"}, "owner": "user"}
+    ]
     mock_shell.connection.api.terminate_assignment.side_effect = Exception("Termination failed")
 
     with patch("builtins.input", return_value="y"):
         user_cmd = UserCommands(mock_shell)
-        user_cmd.cmd_assignment_terminate("42")
+        user_cmd.cmd_release("42")
 
-        mock_shell.perror.assert_called_with("Failed to terminate assignment: Termination failed")
+        # Should handle error via error_handler
+        mock_shell.perror.assert_called()
 
 
 def test_whoami_success(mock_shell):

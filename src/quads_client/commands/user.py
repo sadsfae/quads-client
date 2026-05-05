@@ -1,5 +1,8 @@
 from tabulate import tabulate
 
+from quads_client.arg_parser import parse_schedule_ssm_args
+from quads_client.error_handler import auto_refresh_on_auth_error, handle_api_error, require_auth, require_connection
+
 
 class UserCommands:
     def __init__(self, shell):
@@ -7,19 +10,11 @@ class UserCommands:
 
     def _require_connection(self):
         """Check if connected to a server"""
-        if not self.shell.connection or not self.shell.connection.is_connected:
-            self.shell.perror("Not connected to any server")
-            return False
-        return True
+        return require_connection(self.shell)
 
     def _require_auth(self):
         """Check if user is authenticated"""
-        if not self._require_connection():
-            return False
-        if not self.shell.connection.is_authenticated:
-            self.shell.perror("Not authenticated. Use 'login' command first.")
-            return False
-        return True
+        return require_auth(self.shell)
 
     def cmd_register(self, args):
         """Register a new user. Usage: register <email> <password>"""
@@ -39,7 +34,7 @@ class UserCommands:
             self.shell.connection.api.username = email
             self.shell.connection.api.password = password
             result = self.shell.connection.api.register()
-            self.shell.poutput(f"✓ User registered successfully: {email}")
+            self.shell.poutput(f"OK: User registered successfully: {email}")
             if isinstance(result, dict) and result.get("message"):
                 self.shell.poutput(f"  {result['message']}")
 
@@ -48,16 +43,16 @@ class UserCommands:
                 try:
                     server_name = self.shell.connection.current_server
                     self.shell.config.update_server_credentials(server_name, email, password)
-                    self.shell.poutput("✓ Credentials saved to configuration")
+                    self.shell.poutput("OK: Credentials saved to configuration")
 
                     # Automatically reconnect with new credentials
                     try:
-                        self.shell.poutput("✓ Logging in with new credentials...")
+                        self.shell.poutput("OK: Logging in with new credentials...")
                         self.shell.connection.disconnect()
                         self.shell.connection.connect(server_name)
                         self.shell._update_prompt()
                         self.shell._update_visible_commands()
-                        self.shell.poutput(f"✓ Logged in successfully as {email}")
+                        self.shell.poutput(f"OK: Logged in successfully as {email}")
                     except Exception as login_error:
                         self.shell.pwarning(f"Warning: Auto-login failed: {login_error}")
                         self.shell.pwarning("Please use 'connect' command to login")
@@ -75,7 +70,7 @@ class UserCommands:
         try:
             result = self.shell.connection.api.login()
             if isinstance(result, dict) and result.get("auth_token"):
-                self.shell.poutput("✓ Logged in successfully")
+                self.shell.poutput("OK: Logged in successfully")
                 # Update connection token
                 self.shell.connection._token = result["auth_token"]
                 # Try to decode role
@@ -86,7 +81,7 @@ class UserCommands:
                 # Update visible commands based on new authentication state
                 self.shell._update_visible_commands()
             else:
-                self.shell.poutput("✓ Logged in successfully")
+                self.shell.poutput("OK: Logged in successfully")
                 self.shell._update_visible_commands()
         except Exception as e:
             self.shell.perror(f"Failed to login: {e}")
@@ -158,7 +153,7 @@ class UserCommands:
             assignment_id = assignment.get("id", "unknown")
             cloud_name = assignment.get("cloud", {}).get("name", "unknown")
 
-            self.shell.poutput("✓ Assignment created successfully")
+            self.shell.poutput("OK: Assignment created successfully")
             self.shell.poutput(f"  Assignment ID: {assignment_id}")
             self.shell.poutput(f"  Cloud: {cloud_name}")
             self.shell.poutput(f"  Owner: {username}")
@@ -219,19 +214,24 @@ class UserCommands:
             self.shell.perror(f"Failed to get assignment status: {e}")
 
     def cmd_assignment_list(self, args):
-        """List user's assignments. Usage: assignment-list"""
+        """List user's assignments. Usage: assignment-list (deprecated, use my-assignments)"""
+        self.cmd_my_assignments(args)
+
+    def cmd_my_assignments(self, args):
+        """List your active self-scheduled assignments. Usage: my-assignments"""
         if not self._require_auth():
             return
 
         try:
-            username = self.shell.connection.username
-            assignments = self.shell.connection.api.filter_assignments({"owner": username})
+            username = self.shell.connection.username.split("@")[0]
+            # Filter for active assignments only
+            assignments = self.shell.connection.api.filter_assignments({"owner": username, "active": True})
 
             if not assignments:
-                self.shell.poutput(f"No assignments found for {username}")
+                self.shell.poutput(f"No active assignments found for {username}")
                 return
 
-            self.shell.poutput(f"\nAssignments for {username}:")
+            self.shell.poutput(f"\nActive assignments for {username}:")
             self.shell.poutput("=" * 80)
 
             table_data = []
@@ -241,25 +241,37 @@ class UserCommands:
                 description = assignment.get("description", "")
                 if len(description) > 40:
                     description = description[:37] + "..."
-                validated = "✓" if assignment.get("validated") else "○"
-                active = "✓" if assignment.get("active") else "○"
+                validated = "OK:" if assignment.get("validated") else "○"
 
-                table_data.append([assignment_id, cloud_name, description, validated, active])
+                table_data.append([assignment_id, cloud_name, description, validated])
 
-            headers = ["ID", "Cloud", "Description", "Validated", "Active"]
+            headers = ["ID", "Cloud", "Description", "Validated"]
             self.shell.poutput(tabulate(table_data, headers=headers, tablefmt="simple"))
         except Exception as e:
-            self.shell.perror(f"Failed to list assignments: {e}")
+            handle_api_error(self.shell, e, "Listing assignments")
 
     def cmd_assignment_terminate(self, args):
-        """Terminate an assignment. Usage: assignment-terminate <assignment_id>"""
+        """Terminate an assignment. Usage: assignment-terminate <assignment_id> (deprecated, use release)"""
+        self.cmd_release(args)
+
+    def cmd_release(self, args):
+        """
+        Terminate assignment or release host. Usage: release <assignment_id> [hostname]
+
+        Examples:
+          release 42                    # Terminate entire assignment
+          release 42 host03.example.com # Release specific host from assignment
+        """
         if not self._require_auth():
             return
 
-        assignment_id = args.strip()
-        if not assignment_id:
-            self.shell.perror("Usage: assignment-terminate <assignment_id>")
+        parts = args.strip().split()
+        if not parts:
+            self.shell.perror("Usage: release <assignment_id> [hostname]")
             return
+
+        assignment_id = parts[0]
+        hostname = parts[1] if len(parts) > 1 else None
 
         try:
             # Get assignment details first
@@ -269,33 +281,66 @@ class UserCommands:
                 return
 
             assignment = assignments[0]
-            # Handle both dict and object responses
+
+            # SSM users can only terminate their own assignments
+            if not self.shell.connection.is_admin:
+                owner = self.shell.connection.username.split("@")[0]
+
+                # Handle both dict and object responses for owner
+                if isinstance(assignment, dict):
+                    assignment_owner = assignment.get("owner", "")
+                else:
+                    assignment_owner = getattr(assignment, "owner", "")
+
+                if assignment_owner != owner:
+                    self.shell.perror("Permission denied: You can only terminate your own assignments")
+                    return
+
+            # Handle both dict and object responses for cloud
             if isinstance(assignment, dict):
                 cloud_name = assignment.get("cloud", {}).get("name", "N/A")
             else:
                 cloud = getattr(assignment, "cloud", None)
                 cloud_name = getattr(cloud, "name", "N/A") if cloud else "N/A"
 
-            response = input(f"Terminate assignment {assignment_id} (cloud: {cloud_name})? [y/N]: ")
-            if response.lower() != "y":
-                self.shell.poutput("Assignment not terminated")
-                return
-
-            # Call terminate and check response
-            result = self.shell.connection.api.terminate_assignment(int(assignment_id))
-
-            # Check if termination was successful
-            if isinstance(result, dict):
-                if result.get("status") == "error" or result.get("error"):
-                    self.shell.perror(
-                        f"Failed to terminate: {result.get('message', result.get('error', 'Unknown error'))}"
-                    )
+            if hostname:
+                # Release specific host
+                response = input(f"Release {hostname} from assignment {assignment_id} (cloud: {cloud_name})? [y/N]: ")
+                if response.lower() != "y":
+                    self.shell.poutput("Host not released")
                     return
 
-            self.shell.poutput(f"✓ Assignment {assignment_id} terminated successfully")
-            self.shell.poutput("  Note: It may take a few moments for the termination to complete")
+                schedules = self.shell.connection.api.get_schedules(
+                    {"assignment_id": int(assignment_id), "host": hostname}
+                )
+                if not schedules:
+                    self.shell.perror(f"No schedule found for {hostname} in assignment {assignment_id}")
+                    return
+
+                self.shell.connection.api.remove_schedule(schedules[0]["id"])
+                self.shell.poutput(f"OK: Released {hostname} from assignment #{assignment_id}")
+            else:
+                # Terminate entire assignment
+                response = input(f"Terminate assignment {assignment_id} (cloud: {cloud_name})? [y/N]: ")
+                if response.lower() != "y":
+                    self.shell.poutput("Assignment not terminated")
+                    return
+
+                result = self.shell.connection.api.terminate_assignment(int(assignment_id))
+
+                # Check if termination was successful
+                if isinstance(result, dict):
+                    if result.get("status") == "error" or result.get("error"):
+                        self.shell.perror(
+                            f"Failed to terminate: {result.get('message', result.get('error', 'Unknown error'))}"
+                        )
+                        return
+
+                self.shell.poutput(f"OK: Terminated assignment #{assignment_id}")
+                self.shell.poutput("  Note: It may take a few moments for the termination to complete")
+
         except Exception as e:
-            self.shell.perror(f"Failed to terminate assignment: {e}")
+            handle_api_error(self.shell, e, "Release")
 
     def cmd_available(self, args):
         """Show available hosts. Usage: available"""
@@ -322,48 +367,142 @@ class UserCommands:
             self.shell.perror(f"Failed to get available hosts: {e}")
 
     def cmd_schedule(self, args):
-        """Schedule a host. Usage: schedule <hostname> <cloud>"""
+        """
+        SSM Mode: Schedule hosts for self-service
+
+        Syntax:
+          schedule <NUMBER>                           description <desc> [options]
+          schedule <hostname[,hostname,...]>          description <desc> [options]
+          schedule host-list <file-path>              description <desc> [options]
+
+        Options: nowipe vlan <id> qinq <0|1> model <name> ram <GB>
+
+        Examples:
+          schedule 3 description "Dev testing"                        # Count: QUADS picks 3 hosts
+          schedule 5 description "Perf lab" model r640 ram 128        # Count with filters
+          schedule host01.example.com,host02.example.com description "CI pipeline"
+          schedule host-list ~/hosts.txt description "Batch test" vlan 1150 nowipe
+
+        Note: SSM mode does NOT require tickets - the server automatically creates the assignment.
+        """
         if not self._require_auth():
             return
 
-        parts = args.strip().split()
-        if len(parts) < 2:
-            self.shell.perror("Usage: schedule <hostname> <cloud>")
-            self.shell.perror("Example: schedule host01.example.com cloud02")
-            return
-
-        hostname, cloud = parts[0], parts[1]
         try:
-            # Server handles SSM logic (auto-calculates dates if SSM cloud)
-            self.shell.connection.api.create_schedule({"hostname": hostname, "cloud": cloud})
-            self.shell.poutput(f"Host '{hostname}' scheduled on {cloud}")
+            # Parse arguments
+            parsed = parse_schedule_ssm_args(args)
+
+            # Get host list (if count mode)
+            host_list = parsed["host_list"]
+            if host_list is None:
+                # Count mode: query available hosts
+                filters = {"can_self_schedule": True}
+                if parsed["model"]:
+                    filters["model"] = parsed["model"]
+                if parsed["ram"]:
+                    filters["memory__gte"] = parsed["ram"] * 1024
+
+                available = auto_refresh_on_auth_error(self.shell, self.shell.connection.api.filter_available, filters)
+
+                if len(available) < parsed["count"]:
+                    self.shell.perror(
+                        f"Not enough hosts available: found {len(available)}, requested {parsed['count']}"
+                    )
+                    self.shell.perror("Hint: Try removing filters or requesting fewer hosts")
+                    return
+
+                host_list = [h.get("name") for h in available[: parsed["count"]] if isinstance(h, dict)]
+
+            # Create self-assignment (server auto-assigns cloud, handles ticketing)
+            owner = self.shell.connection.username.split("@")[0]
+            assignment_data = {
+                "description": parsed["description"],
+                "owner": owner,
+                "wipe": parsed["wipe"],  # Default: True (wipe enabled)
+            }
+            # Optional fields - do NOT include cloud (let server auto-select)
+            if parsed["qinq"]:
+                assignment_data["qinq"] = parsed["qinq"]
+            if parsed["vlan"]:
+                assignment_data["vlan"] = parsed["vlan"]
+
+            # Step 1: Create self-assignment (SSM endpoint auto-assigns cloud)
+            assignment = auto_refresh_on_auth_error(
+                self.shell, self.shell.connection.api.create_self_assignment, assignment_data
+            )
+
+            # Extract cloud name from response
+            cloud = assignment.get("cloud", {})
+            cloud_name = cloud.get("name") if isinstance(cloud, dict) else cloud
+            assignment_id = assignment.get("id", "unknown")
+
+            # Step 2: Create schedules for each host separately (per QUADS API spec)
+            for hostname in host_list:
+                schedule_data = {
+                    "cloud": cloud_name,
+                    "hostname": hostname,  # API expects "hostname" not "host"
+                    # NO start/end - server controls duration via ssm_default_lifetime
+                }
+                auto_refresh_on_auth_error(self.shell, self.shell.connection.api.create_schedule, schedule_data)
+
+            self.shell.poutput(f"OK: Reserved {len(host_list)} host(s) - activated immediately")
+            self.shell.poutput(f"  Cloud: {cloud_name}")
+            self.shell.poutput(f"  Assignment: #{assignment_id}")
+            self.shell.poutput("  Duration: Automatic (5 days or Sunday 21:00 UTC)")
+
+        except ValueError as e:
+            self.shell.perror(f"Invalid arguments: {e}")
+            self.shell.perror("\nValid syntax:")
+            self.shell.perror('  schedule <NUMBER> description "..."                    # Count mode')
+            self.shell.perror('  schedule <hostname,hostname> description "..."         # Specific hosts')
+            self.shell.perror('  schedule host-list <file> description "..."            # Host list file')
+            self.shell.perror("\nExamples:")
+            self.shell.perror('  schedule 3 description "Dev testing"')
+            self.shell.perror('  schedule host01.example.com,host02.example.com description "CI"')
+            self.shell.perror('  schedule host-list ~/hosts.txt description "Batch"')
+        except ConnectionError:
+            self.shell.perror("Connection failed: unable to reach QUADS server")
+            self.shell.perror("Hint: Check 'status' or run 'connect <server>'")
         except Exception as e:
-            if "403" in str(e) or "Forbidden" in str(e):
-                self.shell.perror("Error: You don't have permission to schedule hosts")
-            else:
-                self.shell.perror(f"Failed to schedule host: {e}")
+            handle_api_error(self.shell, e, "Scheduling")
 
     def cmd_my_hosts(self, args):
-        """Show hosts scheduled by you. Usage: my-hosts"""
+        """Show your currently scheduled hosts. Usage: my-hosts"""
         if not self._require_auth():
             return
 
         try:
-            username = self.shell.connection.username
+            username = self.shell.connection.username.split("@")[0]
             # Get assignments by owner
             assignments = self.shell.connection.api.filter_assignments({"owner": username})
             if not assignments:
                 self.shell.poutput(f"No hosts scheduled by {username}")
                 return
 
-            self.shell.poutput(f"Hosts scheduled by {username}:")
+            self.shell.poutput(f"\nHosts scheduled by {username}:")
+            self.shell.poutput("=" * 80)
+
             for assignment in assignments:
+                assignment_id = assignment.get("id")
+                cloud_name = assignment.get("cloud", {}).get("name", "N/A")
+                description = assignment.get("description", "")
+
+                self.shell.poutput(f"\nAssignment #{assignment_id} - {description} ({cloud_name})")
+
                 # Get schedules for this assignment
-                schedules = self.shell.connection.api.get_schedules({"assignment_id": assignment["id"]})
-                for schedule in schedules:
-                    host_name = schedule.get("host", {}).get("name", "Unknown")
-                    start = schedule.get("start", "N/A")
-                    end = schedule.get("end", "N/A")
-                    self.shell.poutput(f"  {host_name} ({start} - {end})")
+                schedules = self.shell.connection.api.get_schedules({"assignment_id": assignment_id})
+                if schedules:
+                    table_data = []
+                    for schedule in schedules:
+                        host_name = schedule.get("host", {}).get("name", "Unknown")
+                        status = "Active"
+                        end = schedule.get("end", "N/A")
+                        table_data.append([host_name, status, f"Expires: {end}"])
+
+                    headers = ["Host", "Status", "Schedule"]
+                    self.shell.poutput(tabulate(table_data, headers=headers, tablefmt="simple"))
+                else:
+                    self.shell.poutput("  No hosts assigned")
+
         except Exception as e:
-            self.shell.perror(f"Failed to get schedules: {e}")
+            handle_api_error(self.shell, e, "Listing hosts")

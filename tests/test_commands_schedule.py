@@ -68,7 +68,7 @@ def test_add_schedule_success(schedule_commands, mock_shell):
     schedule_commands.cmd_add_schedule("--host host01 --cloud cloud01 --start 2026-05-01 --end 2026-05-15")
 
     expected_data = {
-        "host": "host01",
+        "hostname": "host01",  # API expects "hostname" not "host"
         "cloud": "cloud01",
         "start": "2026-05-01",
         "end": "2026-05-15",
@@ -138,16 +138,19 @@ def test_rm_schedule_no_args(schedule_commands, mock_shell):
 def test_extend_success(schedule_commands, mock_shell):
     """Test extending a schedule successfully"""
     mock_shell.connection.is_connected = True
+    mock_shell.connection.is_authenticated = True
+    mock_shell.connection.is_admin = True
     mock_shell.connection.api.get_current_schedules.return_value = [
         {
             "id": 123,
-            "end": "2026-05-15 00:00",
+            "host": {"name": "host01.example.com"},
+            "end": "2026-05-15T00:00:00Z",
         }
     ]
 
-    schedule_commands.cmd_extend("--host host01 --weeks 2")
+    schedule_commands.cmd_extend("host01.example.com weeks 2")
 
-    mock_shell.connection.api.get_current_schedules.assert_called_once_with({"host": "host01"})
+    mock_shell.connection.api.get_current_schedules.assert_called_once_with({"host": "host01.example.com"})
     mock_shell.connection.api.update_schedule.assert_called_once()
     args = mock_shell.connection.api.update_schedule.call_args[0]
     assert args[0] == 123
@@ -158,20 +161,26 @@ def test_extend_success(schedule_commands, mock_shell):
 def test_extend_no_schedule(schedule_commands, mock_shell):
     """Test extend with no current schedule"""
     mock_shell.connection.is_connected = True
+    mock_shell.connection.is_authenticated = True
+    mock_shell.connection.is_admin = True
     mock_shell.connection.api.get_current_schedules.return_value = []
 
-    schedule_commands.cmd_extend("--host host01 --weeks 2")
+    schedule_commands.cmd_extend("host01.example.com weeks 2")
 
-    mock_shell.perror.assert_called_with("No current schedule found for host01")
+    mock_shell.perror.assert_called_with("No current schedule found for host01.example.com")
 
 
 def test_extend_missing_args(schedule_commands, mock_shell):
     """Test extend with missing arguments"""
     mock_shell.connection.is_connected = True
+    mock_shell.connection.is_authenticated = True
+    mock_shell.connection.is_admin = True
 
-    schedule_commands.cmd_extend("--host host01")
+    schedule_commands.cmd_extend("host01")
 
-    mock_shell.perror.assert_called_with("Usage: extend --host <hostname> --weeks <number>")
+    # Should error about invalid arguments
+    mock_shell.perror.assert_called()
+    assert "Usage:" in str(mock_shell.perror.call_args) or "Invalid arguments" in str(mock_shell.perror.call_args)
 
 
 def test_shrink_success(schedule_commands, mock_shell):

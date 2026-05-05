@@ -6,6 +6,7 @@ from pathlib import Path
 class ServerCommands:
     def __init__(self, shell):
         self.shell = shell
+        self.rich_console = shell.rich_console if hasattr(shell, "rich_console") else None
 
     def _shorten_server_name(self, name):
         """Shorten server name by stripping last 2 segments (e.g. quads2-dev.rdu2.scalelab)"""
@@ -30,18 +31,23 @@ class ServerCommands:
             status, version = self._get_server_status(name, url, server_config)
             info = self._get_server_info(name, url, server_config)
 
-            is_default = "✓" if name == default else ""
+            is_default = "OK:" if name == default else ""
             is_connected = "Connected" if name == current else status
             short_name = self._shorten_server_name(name)
 
             table_data.append([i, short_name, version, info, is_connected, is_default])
 
-        headers = ["#", "Server Name", "Version", "Info", "Status", "Default"]
-        self.shell.poutput(tabulate(table_data, headers=headers, tablefmt="simple"))
-
-        if current:
-            short_current = self._shorten_server_name(current)
-            self.shell.poutput(f"\nCurrent connection: {short_current}")
+        headers = ["#", "Server Name", "Version", "Capacity", "Status", "Default"]
+        if self.rich_console:
+            self.rich_console.print_table(headers, table_data, title="Configured Servers")
+            if current:
+                short_current = self._shorten_server_name(current)
+                self.rich_console.print_info(f"\n[bold cyan]Current connection:[/bold cyan] {short_current}")
+        else:
+            self.shell.poutput(tabulate(table_data, headers=headers, tablefmt="simple"))
+            if current:
+                short_current = self._shorten_server_name(current)
+                self.shell.poutput(f"\nCurrent connection: {short_current}")
 
     def _get_server_status(self, name, url, server_config):
         """Check if server is online and get version"""
@@ -63,7 +69,7 @@ class ServerCommands:
             return "Offline", "N/A"
 
     def _get_server_info(self, name, url, server_config):
-        """Get server summary info"""
+        """Get server capacity info (% utilization + free/total)"""
         try:
             from quads_lib import QuadsApi
 
@@ -75,10 +81,23 @@ class ServerCommands:
                 return "N/A"
 
             api = QuadsApi(base_url=url, username=username, password=password, verify=verify)
-            summary = api.get_summary({})
 
-            clouds = len(summary) if isinstance(summary, list) else 0
-            return f"{clouds} clouds"
+            # Get total hosts (excluding broken/retired)
+            all_hosts = api.get_hosts()
+            total_hosts = sum(1 for h in all_hosts if not h.get("broken") and not h.get("retired"))
+
+            if total_hosts == 0:
+                return "0% (0/0)"
+
+            # Get currently scheduled hosts
+            current_schedules = api.get_current_schedules({})
+            scheduled_hosts = len(set(s.get("host", {}).get("name", "") for s in current_schedules if s.get("host")))
+
+            # Calculate percentage and free hosts
+            percent_used = int((scheduled_hosts / total_hosts) * 100)
+            free_hosts = total_hosts - scheduled_hosts
+
+            return f"{percent_used}% ({free_hosts}/{total_hosts})"
         except Exception:
             return "N/A"
 
@@ -118,7 +137,14 @@ class ServerCommands:
 
                 api = QuadsApi(base_url=url, username=username, password=password, verify=verify)
                 version = api.get_version()
-                self.shell.poutput(f"✓ Connected successfully (QUADS version: {version.get('version', 'unknown')})")
+                if self.rich_console:
+                    self.rich_console.print_success(
+                        f"Connected successfully (QUADS version: {version.get('version', 'unknown')})"
+                    )
+                else:
+                    self.shell.poutput(
+                        f"OK: Connected successfully (QUADS version: {version.get('version', 'unknown')})"
+                    )
             except Exception as e:
                 self.shell.pwarning(f"Warning: Could not connect to server: {e}")
                 response = input("Add server anyway? [y/N]: ")
@@ -136,8 +162,12 @@ class ServerCommands:
             with open(config_path, "w") as f:
                 yaml.dump(config_data, f, default_flow_style=False)
 
-            self.shell.poutput(f"✓ Server '{name}' added successfully")
-            self.shell.poutput("Reload configuration with: config-reload")
+            if self.rich_console:
+                self.rich_console.print_success(f"Server '{name}' added successfully")
+                self.rich_console.print_info("Reload configuration with: config-reload")
+            else:
+                self.shell.poutput(f"OK: Server '{name}' added successfully")
+                self.shell.poutput("Reload configuration with: config-reload")
 
         except Exception as e:
             self.shell.perror(f"Failed to add server: {e}")
@@ -199,7 +229,7 @@ class ServerCommands:
             with open(config_path, "w") as f:
                 yaml.dump(config_data, f, default_flow_style=False)
 
-            self.shell.poutput(f"✓ Server '{name}' updated successfully")
+            self.shell.poutput(f"OK: Server '{name}' updated successfully")
             self.shell.poutput("Reload configuration with: config-reload")
 
         except Exception as e:
@@ -244,7 +274,7 @@ class ServerCommands:
             with open(config_path, "w") as f:
                 yaml.dump(config_data, f, default_flow_style=False)
 
-            self.shell.poutput(f"✓ Server '{name}' removed successfully")
+            self.shell.poutput(f"OK: Server '{name}' removed successfully")
             self.shell.poutput("Reload configuration with: config-reload")
 
         except Exception as e:
@@ -258,6 +288,6 @@ class ServerCommands:
 
             self.shell.config = QuadsClientConfig()
             self.shell.connection = ConnectionManager(self.shell.config)
-            self.shell.poutput("✓ Configuration reloaded successfully")
+            self.shell.poutput("OK: Configuration reloaded successfully")
         except Exception as e:
             self.shell.perror(f"Failed to reload configuration: {e}")
