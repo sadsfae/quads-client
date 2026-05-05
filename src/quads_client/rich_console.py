@@ -4,6 +4,8 @@ from rich.console import Console
 from rich.table import Table
 from rich.panel import Panel
 
+from quads_client import __version__
+
 
 class RichConsole:
     """Wrapper for Rich console with QUADS-specific formatting"""
@@ -22,7 +24,7 @@ class RichConsole:
 """
         intro_panel = Panel(
             f"[bold cyan]{banner_text}[/bold cyan]\n\n"
-            "[bold white]QUADS Client v1.0.0 - Interactive TUI Shell[/bold white]\n"
+            f"[bold white]QUADS Client v{__version__} - Interactive TUI Shell[/bold white]\n"
             "[dim]https://quads.dev[/dim]\n\n"
             "[yellow]Type 'help' for available commands[/yellow]\n"
             "[yellow]Type 'connect' to connect to a server[/yellow]\n"
