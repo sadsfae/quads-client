@@ -489,11 +489,6 @@ quads-client/
 ├── conf/
 │   └── quads-client.yml.example - Example configuration
 ├── tests/                    - pytest test suite
-└── docs/
-    ├── INTEGRATION_ANALYSIS.md      - API integration details
-    ├── QUADS_CLIENT_RBAC_AUDIT.md   - RBAC audit report
-    ├── EXISTING_RBAC_ANALYSIS.md    - QUADS server RBAC analysis
-    └── THIN_WRAPPER_CHANGES.md      - Thin wrapper implementation
 ```
 
 ## Dependencies
