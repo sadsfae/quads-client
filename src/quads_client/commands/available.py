@@ -1,6 +1,7 @@
 from tabulate import tabulate
 
 from quads_client.error_handler import require_connection
+from quads_client.utils import extract_host_field
 
 
 class AvailableCommands:
@@ -99,36 +100,23 @@ class AvailableCommands:
 
             table_data = []
             for host in hosts:
-                # Handle both dict and object responses
-                if isinstance(host, dict):
-                    # Try different possible field names
-                    name = host.get("name") or host.get("hostname", "")
-                    model = host.get("model") or host.get("host_model", "")
-                    host_type = host.get("host_type") or host.get("type", "")
-                    can_self_schedule = host.get("can_self_schedule", False)
-                else:
-                    # If it's an object, try attribute access
-                    name = getattr(host, "name", None) or getattr(host, "hostname", "")
-                    model = getattr(host, "model", None) or getattr(host, "host_model", "")
-                    host_type = getattr(host, "host_type", None) or getattr(host, "type", "")
-                    can_self_schedule = getattr(host, "can_self_schedule", False)
+                # Extract fields using utility function - handles string, dict, and object responses
+                name = extract_host_field(host, "name", field_aliases=["hostname"], default="")
+                model = extract_host_field(host, "model", field_aliases=["host_model"], default="N/A")
+                host_type = extract_host_field(host, "host_type", field_aliases=["type"], default="N/A")
+                can_self_schedule = extract_host_field(host, "can_self_schedule", default=False)
 
                 # Debug: if we're still getting empty data, print what we received
-                if not name and not model and not host_type:
-                    # Object might be a simple hostname string
-                    if isinstance(host, str):
-                        name = host
-                        model = "N/A"
-                        host_type = "N/A"
-                        can_self_schedule = False
+                if not name and model == "N/A" and host_type == "N/A":
+                    # Show what fields are available for debugging
+                    if isinstance(host, dict):
+                        self.shell.perror(f"DEBUG: Host dict keys: {list(host.keys())[:10]}")
+                    elif isinstance(host, str):
+                        self.shell.perror("DEBUG: Host is empty string")
                     else:
-                        # Show what fields are available for debugging
-                        if isinstance(host, dict):
-                            self.shell.perror(f"DEBUG: Host dict keys: {list(host.keys())[:10]}")
-                        else:
-                            attrs = [a for a in dir(host) if not a.startswith("_")][:10]
-                            self.shell.perror(f"DEBUG: Host object attrs: {attrs}")
-                        continue
+                        attrs = [a for a in dir(host) if not a.startswith("_")][:10]
+                        self.shell.perror(f"DEBUG: Host object attrs: {attrs}")
+                    continue
 
                 table_data.append([name, model, host_type, "Yes" if can_self_schedule else "No"])
 
