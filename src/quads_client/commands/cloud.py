@@ -1,5 +1,4 @@
 from tabulate import tabulate
-from rich.table import Table
 
 from quads_client.error_handler import require_connection
 

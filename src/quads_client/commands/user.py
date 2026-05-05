@@ -293,7 +293,7 @@ class UserCommands:
                     assignment_owner = getattr(assignment, "owner", "")
 
                 if assignment_owner != owner:
-                    self.shell.perror(f"Permission denied: You can only terminate your own assignments")
+                    self.shell.perror("Permission denied: You can only terminate your own assignments")
                     return
 
             # Handle both dict and object responses for cloud
@@ -448,7 +448,7 @@ class UserCommands:
             self.shell.poutput(f"OK: Reserved {len(host_list)} host(s) - activated immediately")
             self.shell.poutput(f"  Cloud: {cloud_name}")
             self.shell.poutput(f"  Assignment: #{assignment_id}")
-            self.shell.poutput(f"  Duration: Automatic (5 days or Sunday 21:00 UTC)")
+            self.shell.poutput("  Duration: Automatic (5 days or Sunday 21:00 UTC)")
 
         except ValueError as e:
             self.shell.perror(f"Invalid arguments: {e}")
