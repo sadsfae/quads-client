@@ -1,9 +1,11 @@
 from tabulate import tabulate
+from rich.table import Table
 
 
 class CloudCommands:
     def __init__(self, shell):
         self.shell = shell
+        self.rich_console = shell.rich_console if hasattr(shell, "rich_console") else None
 
     def _require_connection(self):
         if not self.shell.connection or not self.shell.connection.is_connected:
@@ -52,7 +54,10 @@ class CloudCommands:
                     table_data.append([cloud.get("name", ""), owner, description[:50], vlan, wipe])
 
                 headers = ["Cloud", "Owner", "Description", "VLAN", "Wipe"]
-                self.shell.poutput(tabulate(table_data, headers=headers, tablefmt="simple"))
+                if self.rich_console:
+                    self.rich_console.print_table(headers, table_data)
+                else:
+                    self.shell.poutput(tabulate(table_data, headers=headers, tablefmt="simple"))
 
         except Exception as e:
             self.shell.perror(f"Failed to list clouds: {e}")
@@ -62,54 +67,99 @@ class CloudCommands:
         try:
             clouds = self.shell.connection.api.filter_clouds({"name": cloud_name})
             if not clouds:
-                self.shell.perror(f"Cloud '{cloud_name}' not found")
+                if self.rich_console:
+                    self.rich_console.print_error(f"Cloud '{cloud_name}' not found")
+                else:
+                    self.shell.perror(f"Cloud '{cloud_name}' not found")
                 return
 
             cloud = clouds[0]
 
-            self.shell.poutput(f"\nCloud: {cloud_name}")
-            self.shell.poutput("=" * 80)
+            if self.rich_console:
+                self.rich_console.print_section(f"Cloud: {cloud_name}")
 
-            properties = [
-                ["Name", cloud.get("name", "")],
-                ["Owner", cloud.get("owner", "") or "-"],
-                ["Description", cloud.get("description", "") or "-"],
-                ["Ticket", cloud.get("ticket", "") or "-"],
-                ["CC Users", cloud.get("ccusers", "") or "-"],
-                [
-                    "VLAN (QinQ)",
-                    cloud.get("vlan", {}).get("vlan_id", "-") if isinstance(cloud.get("vlan"), dict) else "-",
-                ],
-                ["Wipe", "Yes" if cloud.get("wipe", False) else "No"],
-                ["Validated", "Yes" if cloud.get("validated", False) else "No"],
-            ]
+                properties = [
+                    ["Name", cloud.get("name", "")],
+                    ["Owner", cloud.get("owner", "") or "-"],
+                    ["Description", cloud.get("description", "") or "-"],
+                    ["Ticket", cloud.get("ticket", "") or "-"],
+                    ["CC Users", cloud.get("ccusers", "") or "-"],
+                    [
+                        "VLAN (QinQ)",
+                        cloud.get("vlan", {}).get("vlan_id", "-") if isinstance(cloud.get("vlan"), dict) else "-",
+                    ],
+                    ["Wipe", "Yes" if cloud.get("wipe", False) else "No"],
+                    ["Validated", "Yes" if cloud.get("validated", False) else "No"],
+                ]
 
-            self.shell.poutput(tabulate(properties, tablefmt="simple"))
+                self.rich_console.print_table(["Property", "Value"], properties)
 
-            schedules = self.shell.connection.api.get_schedules({"cloud": cloud_name})
-            if schedules:
-                self.shell.poutput(f"\nAssigned Hosts ({len(schedules)}):")
-                self.shell.poutput("-" * 80)
+                schedules = self.shell.connection.api.get_schedules({"cloud": cloud_name})
+                if schedules:
+                    self.shell.poutput("")  # Blank line
+                    host_data = []
+                    for sched in schedules:
+                        host = sched.get("host", {})
+                        host_data.append(
+                            [
+                                host.get("name", ""),
+                                host.get("model", ""),
+                                sched.get("start", ""),
+                                sched.get("end", ""),
+                            ]
+                        )
 
-                host_data = []
-                for sched in schedules:
-                    host = sched.get("host", {})
-                    host_data.append(
-                        [
-                            host.get("name", ""),
-                            host.get("model", ""),
-                            sched.get("start", ""),
-                            sched.get("end", ""),
-                        ]
-                    )
-
-                headers = ["Hostname", "Model", "Start", "End"]
-                self.shell.poutput(tabulate(host_data, headers=headers, tablefmt="simple"))
+                    headers = ["Hostname", "Model", "Start", "End"]
+                    self.rich_console.print_table(headers, host_data, title=f"Assigned Hosts ({len(schedules)})")
+                else:
+                    self.rich_console.print_info("\nNo hosts assigned to this cloud")
             else:
-                self.shell.poutput("\nNo hosts assigned to this cloud")
+                self.shell.poutput(f"\nCloud: {cloud_name}")
+                self.shell.poutput("=" * 80)
+
+                properties = [
+                    ["Name", cloud.get("name", "")],
+                    ["Owner", cloud.get("owner", "") or "-"],
+                    ["Description", cloud.get("description", "") or "-"],
+                    ["Ticket", cloud.get("ticket", "") or "-"],
+                    ["CC Users", cloud.get("ccusers", "") or "-"],
+                    [
+                        "VLAN (QinQ)",
+                        cloud.get("vlan", {}).get("vlan_id", "-") if isinstance(cloud.get("vlan"), dict) else "-",
+                    ],
+                    ["Wipe", "Yes" if cloud.get("wipe", False) else "No"],
+                    ["Validated", "Yes" if cloud.get("validated", False) else "No"],
+                ]
+
+                self.shell.poutput(tabulate(properties, tablefmt="simple"))
+
+                schedules = self.shell.connection.api.get_schedules({"cloud": cloud_name})
+                if schedules:
+                    self.shell.poutput(f"\nAssigned Hosts ({len(schedules)}):")
+                    self.shell.poutput("-" * 80)
+
+                    host_data = []
+                    for sched in schedules:
+                        host = sched.get("host", {})
+                        host_data.append(
+                            [
+                                host.get("name", ""),
+                                host.get("model", ""),
+                                sched.get("start", ""),
+                                sched.get("end", ""),
+                            ]
+                        )
+
+                    headers = ["Hostname", "Model", "Start", "End"]
+                    self.shell.poutput(tabulate(host_data, headers=headers, tablefmt="simple"))
+                else:
+                    self.shell.poutput("\nNo hosts assigned to this cloud")
 
         except Exception as e:
-            self.shell.perror(f"Failed to get cloud details: {e}")
+            if self.rich_console:
+                self.rich_console.print_error(f"Failed to get cloud details: {e}")
+            else:
+                self.shell.perror(f"Failed to get cloud details: {e}")
 
     def cmd_cloud_create(self, args):
         """Create a new cloud (admin only). Usage: cloud-create <name>"""
@@ -123,12 +173,21 @@ class CloudCommands:
         cloud_name = args.strip()
         try:
             self.shell.connection.api.create_cloud({"cloud": cloud_name})
-            self.shell.poutput(f"Cloud '{cloud_name}' created successfully")
+            if self.rich_console:
+                self.rich_console.print_success(f"Cloud '{cloud_name}' created successfully")
+            else:
+                self.shell.poutput(f"Cloud '{cloud_name}' created successfully")
         except Exception as e:
             if "403" in str(e) or "Forbidden" in str(e):
-                self.shell.perror("Error: This command requires admin role")
+                if self.rich_console:
+                    self.rich_console.print_error("This command requires admin role")
+                else:
+                    self.shell.perror("Error: This command requires admin role")
             else:
-                self.shell.perror(f"Failed to create cloud: {e}")
+                if self.rich_console:
+                    self.rich_console.print_error(f"Failed to create cloud: {e}")
+                else:
+                    self.shell.perror(f"Failed to create cloud: {e}")
 
     def cmd_cloud_delete(self, args):
         """Delete a cloud (admin only). Usage: cloud-delete <name>"""
@@ -142,12 +201,21 @@ class CloudCommands:
         cloud_name = args.strip()
         try:
             self.shell.connection.api.remove_cloud(cloud_name)
-            self.shell.poutput(f"Cloud '{cloud_name}' deleted successfully")
+            if self.rich_console:
+                self.rich_console.print_success(f"Cloud '{cloud_name}' deleted successfully")
+            else:
+                self.shell.poutput(f"Cloud '{cloud_name}' deleted successfully")
         except Exception as e:
             if "403" in str(e) or "Forbidden" in str(e):
-                self.shell.perror("Error: This command requires admin role")
+                if self.rich_console:
+                    self.rich_console.print_error("This command requires admin role")
+                else:
+                    self.shell.perror("Error: This command requires admin role")
             else:
-                self.shell.perror(f"Failed to delete cloud: {e}")
+                if self.rich_console:
+                    self.rich_console.print_error(f"Failed to delete cloud: {e}")
+                else:
+                    self.shell.perror(f"Failed to delete cloud: {e}")
 
     def cmd_mod_cloud(self, args):
         """Modify cloud attributes.
@@ -197,13 +265,23 @@ class CloudCommands:
 
         try:
             self.shell.connection.api.update_cloud(cloud_name, updates)
-            self.shell.poutput(f"✓ Cloud '{cloud_name}' updated successfully")
-
-            for key, value in updates.items():
-                self.shell.poutput(f"  {key}: {value}")
+            if self.rich_console:
+                self.rich_console.print_success(f"Cloud '{cloud_name}' updated successfully")
+                for key, value in updates.items():
+                    self.rich_console.print_property(key, value)
+            else:
+                self.shell.poutput(f"✓ Cloud '{cloud_name}' updated successfully")
+                for key, value in updates.items():
+                    self.shell.poutput(f"  {key}: {value}")
 
         except Exception as e:
             if "403" in str(e) or "Forbidden" in str(e):
-                self.shell.perror("Error: This command requires admin role")
+                if self.rich_console:
+                    self.rich_console.print_error("This command requires admin role")
+                else:
+                    self.shell.perror("Error: This command requires admin role")
             else:
-                self.shell.perror(f"Failed to modify cloud: {e}")
+                if self.rich_console:
+                    self.rich_console.print_error(f"Failed to modify cloud: {e}")
+                else:
+                    self.shell.perror(f"Failed to modify cloud: {e}")

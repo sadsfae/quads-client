@@ -6,6 +6,7 @@ from pathlib import Path
 class ServerCommands:
     def __init__(self, shell):
         self.shell = shell
+        self.rich_console = shell.rich_console if hasattr(shell, "rich_console") else None
 
     def _shorten_server_name(self, name):
         """Shorten server name by stripping last 2 segments (e.g. quads2-dev.rdu2.scalelab)"""
@@ -37,11 +38,16 @@ class ServerCommands:
             table_data.append([i, short_name, version, info, is_connected, is_default])
 
         headers = ["#", "Server Name", "Version", "Info", "Status", "Default"]
-        self.shell.poutput(tabulate(table_data, headers=headers, tablefmt="simple"))
-
-        if current:
-            short_current = self._shorten_server_name(current)
-            self.shell.poutput(f"\nCurrent connection: {short_current}")
+        if self.rich_console:
+            self.rich_console.print_table(headers, table_data, title="Configured Servers")
+            if current:
+                short_current = self._shorten_server_name(current)
+                self.rich_console.print_info(f"\n[bold cyan]Current connection:[/bold cyan] {short_current}")
+        else:
+            self.shell.poutput(tabulate(table_data, headers=headers, tablefmt="simple"))
+            if current:
+                short_current = self._shorten_server_name(current)
+                self.shell.poutput(f"\nCurrent connection: {short_current}")
 
     def _get_server_status(self, name, url, server_config):
         """Check if server is online and get version"""
@@ -118,7 +124,10 @@ class ServerCommands:
 
                 api = QuadsApi(base_url=url, username=username, password=password, verify=verify)
                 version = api.get_version()
-                self.shell.poutput(f"✓ Connected successfully (QUADS version: {version.get('version', 'unknown')})")
+                if self.rich_console:
+                    self.rich_console.print_success(f"Connected successfully (QUADS version: {version.get('version', 'unknown')})")
+                else:
+                    self.shell.poutput(f"✓ Connected successfully (QUADS version: {version.get('version', 'unknown')})")
             except Exception as e:
                 self.shell.pwarning(f"Warning: Could not connect to server: {e}")
                 response = input("Add server anyway? [y/N]: ")
@@ -136,8 +145,12 @@ class ServerCommands:
             with open(config_path, "w") as f:
                 yaml.dump(config_data, f, default_flow_style=False)
 
-            self.shell.poutput(f"✓ Server '{name}' added successfully")
-            self.shell.poutput("Reload configuration with: config-reload")
+            if self.rich_console:
+                self.rich_console.print_success(f"Server '{name}' added successfully")
+                self.rich_console.print_info("Reload configuration with: config-reload")
+            else:
+                self.shell.poutput(f"✓ Server '{name}' added successfully")
+                self.shell.poutput("Reload configuration with: config-reload")
 
         except Exception as e:
             self.shell.perror(f"Failed to add server: {e}")
