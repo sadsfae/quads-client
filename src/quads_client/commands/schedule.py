@@ -249,9 +249,11 @@ class ScheduleCommands:
                     else:
                         end_date = datetime.strptime(parsed["date"], "%Y-%m-%d %H:%M")
 
-                    self.shell.connection.api.update_schedule(schedule["id"], {"end": end_date.strftime("%Y-%m-%d %H:%M")})
+                    self.shell.connection.api.update_schedule(
+                        schedule["id"], {"end": end_date.strftime("%Y-%m-%d %H:%M")}
+                    )
                     if self.rich_console:
-                        self.rich_console.print_success(schedule['host']['name'])
+                        self.rich_console.print_success(schedule["host"]["name"])
                     else:
                         self.shell.poutput(f"  OK: {schedule['host']['name']}")
 
@@ -291,7 +293,9 @@ class ScheduleCommands:
 
         except ValueError as e:
             self.shell.perror(f"Invalid arguments: {e}")
-            self.shell.perror("Usage: extend <cloud|hostname> weeks <N> OR extend <cloud|hostname> date <YYYY-MM-DD HH:MM>")
+            self.shell.perror(
+                "Usage: extend <cloud|hostname> weeks <N> OR extend <cloud|hostname> date <YYYY-MM-DD HH:MM>"
+            )
         except Exception as e:
             handle_api_error(self.shell, e, "Extending schedule")
 

@@ -138,9 +138,13 @@ class ServerCommands:
                 api = QuadsApi(base_url=url, username=username, password=password, verify=verify)
                 version = api.get_version()
                 if self.rich_console:
-                    self.rich_console.print_success(f"Connected successfully (QUADS version: {version.get('version', 'unknown')})")
+                    self.rich_console.print_success(
+                        f"Connected successfully (QUADS version: {version.get('version', 'unknown')})"
+                    )
                 else:
-                    self.shell.poutput(f"OK: Connected successfully (QUADS version: {version.get('version', 'unknown')})")
+                    self.shell.poutput(
+                        f"OK: Connected successfully (QUADS version: {version.get('version', 'unknown')})"
+                    )
             except Exception as e:
                 self.shell.pwarning(f"Warning: Could not connect to server: {e}")
                 response = input("Add server anyway? [y/N]: ")

@@ -450,7 +450,9 @@ def test_assignment_terminate_api_error(mock_shell):
     mock_shell.connection.is_authenticated = True
     mock_shell.connection.is_admin = False
     mock_shell.connection.username = "user@example.com"
-    mock_shell.connection.api.filter_assignments.return_value = [{"id": 42, "cloud": {"name": "cloud17"}, "owner": "user"}]
+    mock_shell.connection.api.filter_assignments.return_value = [
+        {"id": 42, "cloud": {"name": "cloud17"}, "owner": "user"}
+    ]
     mock_shell.connection.api.terminate_assignment.side_effect = Exception("Termination failed")
 
     with patch("builtins.input", return_value="y"):

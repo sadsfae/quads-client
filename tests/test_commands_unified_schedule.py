@@ -1,4 +1,5 @@
 """Tests for unified schedule command and related features"""
+
 import pytest
 from unittest.mock import MagicMock, patch
 from quads_client.commands.user import UserCommands
@@ -105,8 +106,12 @@ class TestUnifiedScheduleSSM:
         mock_shell.connection.is_authenticated = True
         mock_shell.connection.is_admin = False
         mock_shell.connection.username = "alice@example.com"
-        mock_shell.connection.api.filter_available.return_value = [{"name": f"host{i:02d}.example.com"} for i in range(15)]
-        mock_shell.connection.api.create_self_assignment.side_effect = Exception("Host limit exceeded: requested 15, limit is 10")
+        mock_shell.connection.api.filter_available.return_value = [
+            {"name": f"host{i:02d}.example.com"} for i in range(15)
+        ]
+        mock_shell.connection.api.create_self_assignment.side_effect = Exception(
+            "Host limit exceeded: requested 15, limit is 10"
+        )
 
         user_cmd = UserCommands(mock_shell)
         user_cmd.cmd_schedule('15 description "Test"')

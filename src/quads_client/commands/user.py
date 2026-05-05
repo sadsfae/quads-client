@@ -310,7 +310,9 @@ class UserCommands:
                     self.shell.poutput("Host not released")
                     return
 
-                schedules = self.shell.connection.api.get_schedules({"assignment_id": int(assignment_id), "host": hostname})
+                schedules = self.shell.connection.api.get_schedules(
+                    {"assignment_id": int(assignment_id), "host": hostname}
+                )
                 if not schedules:
                     self.shell.perror(f"No schedule found for {hostname} in assignment {assignment_id}")
                     return
@@ -400,12 +402,12 @@ class UserCommands:
                 if parsed["ram"]:
                     filters["memory__gte"] = parsed["ram"] * 1024
 
-                available = auto_refresh_on_auth_error(
-                    self.shell, self.shell.connection.api.filter_available, filters
-                )
+                available = auto_refresh_on_auth_error(self.shell, self.shell.connection.api.filter_available, filters)
 
                 if len(available) < parsed["count"]:
-                    self.shell.perror(f"Not enough hosts available: found {len(available)}, requested {parsed['count']}")
+                    self.shell.perror(
+                        f"Not enough hosts available: found {len(available)}, requested {parsed['count']}"
+                    )
                     self.shell.perror("Hint: Try removing filters or requesting fewer hosts")
                     return
 
@@ -441,9 +443,7 @@ class UserCommands:
                     "hostname": hostname,  # API expects "hostname" not "host"
                     # NO start/end - server controls duration via ssm_default_lifetime
                 }
-                auto_refresh_on_auth_error(
-                    self.shell, self.shell.connection.api.create_schedule, schedule_data
-                )
+                auto_refresh_on_auth_error(self.shell, self.shell.connection.api.create_schedule, schedule_data)
 
             self.shell.poutput(f"OK: Reserved {len(host_list)} host(s) - activated immediately")
             self.shell.poutput(f"  Cloud: {cloud_name}")
@@ -453,13 +453,13 @@ class UserCommands:
         except ValueError as e:
             self.shell.perror(f"Invalid arguments: {e}")
             self.shell.perror("\nValid syntax:")
-            self.shell.perror("  schedule <NUMBER> description \"...\"                    # Count mode")
-            self.shell.perror("  schedule <hostname,hostname> description \"...\"         # Specific hosts")
-            self.shell.perror("  schedule host-list <file> description \"...\"            # Host list file")
+            self.shell.perror('  schedule <NUMBER> description "..."                    # Count mode')
+            self.shell.perror('  schedule <hostname,hostname> description "..."         # Specific hosts')
+            self.shell.perror('  schedule host-list <file> description "..."            # Host list file')
             self.shell.perror("\nExamples:")
-            self.shell.perror("  schedule 3 description \"Dev testing\"")
-            self.shell.perror("  schedule host01.example.com,host02.example.com description \"CI\"")
-            self.shell.perror("  schedule host-list ~/hosts.txt description \"Batch\"")
+            self.shell.perror('  schedule 3 description "Dev testing"')
+            self.shell.perror('  schedule host01.example.com,host02.example.com description "CI"')
+            self.shell.perror('  schedule host-list ~/hosts.txt description "Batch"')
         except ConnectionError:
             self.shell.perror("Connection failed: unable to reach QUADS server")
             self.shell.perror("Hint: Check 'status' or run 'connect <server>'")
