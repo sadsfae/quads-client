@@ -68,7 +68,7 @@ def test_add_schedule_success(schedule_commands, mock_shell):
     schedule_commands.cmd_add_schedule("--host host01 --cloud cloud01 --start 2026-05-01 --end 2026-05-15")
 
     expected_data = {
-        "host": "host01",
+        "hostname": "host01",  # API expects "hostname" not "host"
         "cloud": "cloud01",
         "start": "2026-05-01",
         "end": "2026-05-15",

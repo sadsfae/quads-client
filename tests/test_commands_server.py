@@ -299,7 +299,7 @@ def test_config_reload_success(mock_shell):
 
             mock_config_class.assert_called_once()
             mock_conn_class.assert_called_once()
-            mock_shell.poutput.assert_called_with("✓ Configuration reloaded successfully")
+            mock_shell.poutput.assert_called_with("OK: Configuration reloaded successfully")
 
 
 def test_config_reload_failure(mock_shell):

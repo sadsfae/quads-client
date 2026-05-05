@@ -29,9 +29,10 @@ class TestUnifiedScheduleSSM:
         user_cmd = UserCommands(mock_shell)
         user_cmd.cmd_schedule('3 description "Dev testing"')
 
-        # Verify API calls
+        # Verify API calls per QUADS SSM spec
         mock_shell.connection.api.filter_available.assert_called_once()
         mock_shell.connection.api.create_self_assignment.assert_called_once()
+        # Schedules created separately (3 calls for 3 hosts)
         assert mock_shell.connection.api.create_schedule.call_count == 3
 
     def test_schedule_ssm_hosts_comma_separated(self, mock_shell):
@@ -50,7 +51,7 @@ class TestUnifiedScheduleSSM:
         user_cmd = UserCommands(mock_shell)
         user_cmd.cmd_schedule('host01,host02 description "CI pipeline"')
 
-        # Verify API calls
+        # Verify API calls per QUADS SSM spec
         mock_shell.connection.api.create_self_assignment.assert_called_once()
         assert mock_shell.connection.api.create_schedule.call_count == 2
 

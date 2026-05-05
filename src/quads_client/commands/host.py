@@ -1,5 +1,7 @@
 from tabulate import tabulate
 
+from quads_client.error_handler import require_connection
+
 
 class HostCommands:
     def __init__(self, shell):
@@ -7,10 +9,7 @@ class HostCommands:
         self.rich_console = shell.rich_console if hasattr(shell, "rich_console") else None
 
     def _require_connection(self):
-        if not self.shell.connection or not self.shell.connection.is_connected:
-            self.shell.perror("Not connected to any server")
-            return False
-        return True
+        return require_connection(self.shell)
 
     def cmd_ls_hosts(self, args):
         """List all hosts"""

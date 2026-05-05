@@ -54,6 +54,12 @@ def handle_api_error(shell, error, operation="operation"):
         shell.perror("Hint: You have 3 active assignments. Terminate one first with 'release'")
         shell.perror("Run 'my-assignments' to see your active assignments")
     # Handle ticketing system errors (SSM should not require tickets)
+    # Check for missing ticket first (more specific)
+    elif "missing" in error_msg and "ticket" in error_msg:
+        shell.perror(f"Server configuration issue: {error}")
+        shell.perror("Hint: The server requires a ticket number but auto-ticket creation is disabled.")
+        shell.perror("Server admin should enable: 'ssm_jira_create_ticket: true' in server config")
+    # Check for Jira errors
     elif "ticketing system not configured" in error_msg or "jira" in error_msg:
         shell.perror(f"Server configuration issue: {error}")
         shell.perror("Hint: The server has automatic ticket creation enabled but Jira is not configured.")
@@ -61,10 +67,6 @@ def handle_api_error(shell, error, operation="operation"):
         shell.perror("Server admin should either:")
         shell.perror("  1. Configure Jira credentials in QUADS config (jira_url, jira_username, jira_password), OR")
         shell.perror("  2. Disable automatic tickets: set 'ssm_jira_create_ticket: false' in server config")
-    elif "missing" in error_msg and "ticket" in error_msg:
-        shell.perror(f"Server configuration issue: {error}")
-        shell.perror("Hint: The server requires a ticket number but auto-ticket creation is disabled.")
-        shell.perror("Server admin should enable: 'ssm_jira_create_ticket: true' in server config")
     # Handle authentication errors
     elif "401" in str(error) or "unauthorized" in error_msg:
         shell.perror(f"Authentication failed: {error}")

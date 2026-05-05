@@ -160,3 +160,124 @@ def test_handle_api_error_connection():
     assert mock_shell.perror.call_count >= 2
     calls = [str(call) for call in mock_shell.perror.call_args_list]
     assert any("Connection failed" in str(call) for call in calls)
+
+
+def test_require_connection_connected():
+    """Test require_connection when connected"""
+    from quads_client.error_handler import require_connection
+
+    mock_shell = MagicMock()
+    mock_shell.connection.is_connected = True
+
+    result = require_connection(mock_shell)
+
+    assert result is True
+    mock_shell.perror.assert_not_called()
+
+
+def test_require_connection_not_connected():
+    """Test require_connection when not connected"""
+    from quads_client.error_handler import require_connection
+
+    mock_shell = MagicMock()
+    mock_shell.connection = None
+
+    result = require_connection(mock_shell)
+
+    assert result is False
+    mock_shell.perror.assert_called_with("Not connected to any server")
+
+
+def test_require_connection_connection_exists_but_not_connected():
+    """Test require_connection when connection exists but is_connected is False"""
+    from quads_client.error_handler import require_connection
+
+    mock_shell = MagicMock()
+    mock_shell.connection.is_connected = False
+
+    result = require_connection(mock_shell)
+
+    assert result is False
+    mock_shell.perror.assert_called_with("Not connected to any server")
+
+
+def test_require_auth_authenticated():
+    """Test require_auth when authenticated"""
+    from quads_client.error_handler import require_auth
+
+    mock_shell = MagicMock()
+    mock_shell.connection.is_connected = True
+    mock_shell.connection.is_authenticated = True
+
+    result = require_auth(mock_shell)
+
+    assert result is True
+
+
+def test_require_auth_not_authenticated():
+    """Test require_auth when not authenticated"""
+    from quads_client.error_handler import require_auth
+
+    mock_shell = MagicMock()
+    mock_shell.connection.is_connected = True
+    mock_shell.connection.is_authenticated = False
+
+    result = require_auth(mock_shell)
+
+    assert result is False
+    mock_shell.perror.assert_called_with("Not authenticated. Use 'login' command first.")
+
+
+def test_require_admin_is_admin():
+    """Test require_admin when user is admin"""
+    from quads_client.error_handler import require_admin
+
+    mock_shell = MagicMock()
+    mock_shell.connection.is_connected = True
+    mock_shell.connection.is_authenticated = True
+    mock_shell.connection.is_admin = True
+
+    result = require_admin(mock_shell)
+
+    assert result is True
+
+
+def test_require_admin_not_admin():
+    """Test require_admin when user is not admin"""
+    from quads_client.error_handler import require_admin
+
+    mock_shell = MagicMock()
+    mock_shell.connection.is_connected = True
+    mock_shell.connection.is_authenticated = True
+    mock_shell.connection.is_admin = False
+
+    result = require_admin(mock_shell)
+
+    assert result is False
+    mock_shell.perror.assert_called_with("Permission denied: This command requires admin role")
+
+
+def test_handle_api_error_jira_not_configured():
+    """Test handle_api_error for Jira not configured"""
+    mock_shell = MagicMock()
+    error = Exception("Ticketing system not configured")
+
+    handle_api_error(mock_shell, error, "Scheduling")
+
+    assert mock_shell.perror.call_count >= 5
+    calls = [str(call) for call in mock_shell.perror.call_args_list]
+    assert any("Server configuration issue" in str(call) for call in calls)
+    assert any("ssm_jira_create_ticket: false" in str(call) for call in calls)
+
+
+def test_handle_api_error_missing_ticket():
+    """Test handle_api_error for missing ticket"""
+    mock_shell = MagicMock()
+    error = Exception("Missing Jira ticket number")
+
+    handle_api_error(mock_shell, error, "Scheduling")
+
+    assert mock_shell.perror.call_count >= 3
+    calls = [str(call) for call in mock_shell.perror.call_args_list]
+    assert any("Server configuration issue" in str(call) for call in calls)
+    assert any("ssm_jira_create_ticket: true" in str(call) for call in calls)
