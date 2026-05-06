@@ -48,6 +48,13 @@ class SessionCommands:
             self.shell.perror("Usage: session-switch <session_id>")
             return
 
+        # Check if already on this session
+        if session_id == self.shell.session_manager.active_session_id:
+            session = self.shell.session_manager.get_session(session_id)
+            if session:
+                self.shell.poutput(f"Already on session {session_id} ({session.label})")
+            return
+
         try:
             self.shell.session_manager.switch_session(session_id)
             session = self.shell.session_manager.get_session(session_id)
@@ -64,8 +71,10 @@ class SessionCommands:
         """
         target = args.strip()
 
-        if not target:
-            self.shell.perror("Usage: session <session_id|label>")
+        if not target or target == "?":
+            self.shell.poutput("Usage: session <session_id|label>")
+            self.shell.poutput("\nQuick switch to a session by ID or label.")
+            self.shell.poutput("See also: session-list, session-switch")
             return
 
         # Try as session ID first
@@ -76,6 +85,11 @@ class SessionCommands:
             session = self.shell.session_manager.get_session_by_label(target)
 
         if session:
+            # Check if already on this session
+            if session.id == self.shell.session_manager.active_session_id:
+                self.shell.poutput(f"Already on session {session.id} ({session.label})")
+                return
+
             try:
                 self.shell.session_manager.switch_session(session.id)
                 self.shell._update_prompt()
