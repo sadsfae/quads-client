@@ -187,10 +187,10 @@ class TestSessionManager:
         """Test create_session sets new session as active"""
         with patch("quads_client.session_manager.ConnectionManager"):
             manager = SessionManager(mock_config)
-            session1 = manager.create_session("server1")
+            manager.create_session("server1")
             assert manager.active_session_id == "1"
 
-            session2 = manager.create_session("server2")
+            manager.create_session("server2")
             assert manager.active_session_id == "2"
 
     def test_switch_session_success(self, mock_config):
@@ -198,7 +198,7 @@ class TestSessionManager:
         with patch("quads_client.session_manager.ConnectionManager"):
             manager = SessionManager(mock_config)
             session1 = manager.create_session("server1")
-            session2 = manager.create_session("server2")
+            manager.create_session("server2")
 
             # Switch back to session 1
             manager.switch_session("1")
@@ -218,7 +218,7 @@ class TestSessionManager:
         """Test close_session removes session"""
         with patch("quads_client.session_manager.ConnectionManager"):
             manager = SessionManager(mock_config)
-            session = manager.create_session("test_server")
+            manager.create_session("test_server")
 
             manager.close_session("1")
 
@@ -248,8 +248,8 @@ class TestSessionManager:
         """Test close_session switches to another session when closing active"""
         with patch("quads_client.session_manager.ConnectionManager"):
             manager = SessionManager(mock_config)
-            session1 = manager.create_session("server1")
-            session2 = manager.create_session("server2")
+            manager.create_session("server1")
+            manager.create_session("server2")
 
             # Active is session 2, close it
             manager.close_session("2")
@@ -270,9 +270,9 @@ class TestSessionManager:
         """Test close_all_inactive closes non-active sessions"""
         with patch("quads_client.session_manager.ConnectionManager"):
             manager = SessionManager(mock_config)
-            session1 = manager.create_session("server1")
-            session2 = manager.create_session("server2")
-            session3 = manager.create_session("server3")
+            manager.create_session("server1")
+            manager.create_session("server2")
+            manager.create_session("server3")
 
             # Active is session 3
             count = manager.close_all_inactive()
@@ -286,7 +286,7 @@ class TestSessionManager:
         """Test close_all_inactive when only active session exists"""
         with patch("quads_client.session_manager.ConnectionManager"):
             manager = SessionManager(mock_config)
-            session1 = manager.create_session("server1")
+            manager.create_session("server1")
 
             count = manager.close_all_inactive()
 
@@ -305,9 +305,9 @@ class TestSessionManager:
         """Test list_sessions returns sessions ordered by ID"""
         with patch("quads_client.session_manager.ConnectionManager"):
             manager = SessionManager(mock_config)
-            session1 = manager.create_session("server1")
-            session2 = manager.create_session("server2")
-            session3 = manager.create_session("server3")
+            manager.create_session("server1")
+            manager.create_session("server2")
+            manager.create_session("server3")
 
             sessions = manager.list_sessions()
 
@@ -348,7 +348,7 @@ class TestSessionManager:
         """Test get_session_by_label returns None when not found"""
         with patch("quads_client.session_manager.ConnectionManager"):
             manager = SessionManager(mock_config)
-            session = manager.create_session("test_server", "dev")
+            manager.create_session("test_server", "dev")
 
             result = manager.get_session_by_label("prod")
 
@@ -358,9 +358,9 @@ class TestSessionManager:
         """Test get_session_by_label with multiple sessions"""
         with patch("quads_client.session_manager.ConnectionManager"):
             manager = SessionManager(mock_config)
-            session1 = manager.create_session("server1", "dev")
+            manager.create_session("server1", "dev")
             session2 = manager.create_session("server2", "prod")
-            session3 = manager.create_session("server3", "stage")
+            manager.create_session("server3", "stage")
 
             result = manager.get_session_by_label("prod")
 

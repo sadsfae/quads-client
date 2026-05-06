@@ -31,6 +31,10 @@ QUADS Client is an interactive TUI (Text User Interface) shell for managing mult
   <img src="images/quads-client-2.png" alt="QUADS Client Screenshot 2" width="600">
 </p>
 
+<p align="left">
+  <img src="images/quads-client-3.png" alt="QUADS Client Screenshot 3" width="600">
+</p>
+
 ## Table of Contents
 
 - [Installation](#installation)
