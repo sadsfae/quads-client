@@ -196,12 +196,94 @@ quads-client
 
 ### One-Shot Commands
 
-Execute a single command and exit:
+Execute a single command and exit without entering interactive mode. The client automatically connects to your default server (configured in `quads-client.yml`) and returns proper exit codes for scripting.
+
+**Basic Commands (no connection required):**
+```bash
+quads-client version                # Show client version
+quads-client help                   # Show available commands
+quads-client servers                # List configured servers
+```
+
+**Auto-Connect Commands:**
+
+One-shot commands requiring a connection will automatically connect to your default server (set `default_server` in `~/.config/quads/quads-client.yml`).
 
 ```bash
-quads-client connect quads1.rdu2.scalelab
-quads-client cloud-list
+# View resources
+quads-client cloud_list             # List all clouds
+quads-client my_hosts               # Show your scheduled hosts
+quads-client my_assignments         # List your assignments
+
+# Check available hosts
+quads-client ls_available model r650 ram 256
+quads-client ls_available start 2026-06-01 end 2026-06-15
 ```
+
+**Self-Schedule (SSM Mode):**
+
+Quick one-shot scheduling for regular users:
+
+```bash
+# Schedule hosts by count (QUADS picks hosts automatically)
+quads-client schedule 3 description "dev testing"
+quads-client schedule 5 description "perf lab" model r640 ram 128
+
+# Schedule specific hosts
+quads-client schedule host01.example.com,host02.example.com description "CI pipeline"
+
+# Schedule from host list file
+quads-client schedule host-list ~/hosts.txt description "batch test"
+
+# Terminate assignment when done
+quads-client terminate 42
+```
+
+**Admin Operations:**
+
+```bash
+# Extend schedules
+quads-client extend cloud05 weeks 2
+quads-client extend cloud17 date "2026-06-15 22:00"
+quads-client extend host01.example.com weeks 1
+
+# Create schedules
+quads-client schedule cloud02 host01.example.com,host02.example.com 2026-05-15 2026-06-15
+quads-client schedule cloud17 host-list ~/hosts.txt now 2026-07-01
+
+# Shrink schedules
+quads-client shrink host01.example.com weeks 2
+```
+
+**Exit Codes:**
+
+One-shot commands return standard exit codes for scripting:
+
+- `0` - Success
+- `1` - Command error (validation, API error)
+- `3` - Connection error (no default server, connection failed)
+- `130` - Interrupted (Ctrl+C)
+
+**Scripting Example:**
+
+```bash
+#!/bin/bash
+# Check if hosts are available before scheduling
+if quads-client ls_available model r650 ram 256 > /dev/null 2>&1; then
+    quads-client schedule 3 description "CI job ${BUILD_ID}" model r650 ram 256
+    echo "Scheduled hosts successfully"
+else
+    echo "No hosts available matching criteria"
+    exit 1
+fi
+```
+
+**Tips:**
+- Set `default_server` in your config to enable auto-connect
+- One-shot commands suppress banner and connection messages for clean output
+- Use `> /dev/null 2>&1` to suppress all output in scripts
+- Commands use underscores (e.g., `cloud_list`, `my_hosts`)
+- All table output goes to stdout for easy parsing
 
 ## How to Self-Schedule
 
@@ -263,7 +345,7 @@ description  nowipe  vlan  qinq  model  ram  host-list
 cloud01  cloud02  cloud03
 
 # Cloud operations
-(quads1-dev) > cloud-list --cloud <Tab>
+(quads1-dev) > cloud-list cloud <Tab>
 cloud01  cloud02  cloud03
 
 # Terminate command
@@ -280,7 +362,9 @@ Tab completion dynamically fetches data from the connected QUADS server, ensurin
 ### Connection Management
 
 ```
-connect [server|number] [--session <label>] - Connect to a QUADS server by name or number
+connect quads1.example.com                   - Connect to a QUADS server by name
+connect 2                                    - Connect by server number from 'servers' list
+connect quads-prod session prod              - Create a labeled session
 disconnect                                   - Disconnect from current server
 status                                       - Show connection status and active sessions
 ```
@@ -289,8 +373,27 @@ status                                       - Show connection status and active
 ```bash
 connect quads1.example.com  # Connect by server name
 connect 2                   # Connect by server number from 'servers' list
-connect quads-prod --session prod  # Create a labeled session
+connect quads-prod session prod  # Create a labeled session
 ```
+
+**Fuzzy Server Name Matching:**
+
+The `connect` command supports flexible server name matching for convenience:
+
+```bash
+# Config has: "quads2-dev.rdu2.scalelab" with URL "https://quads2-dev.rdu2.scalelab.example.com"
+
+connect quads2-dev.rdu2.scalelab                    # Exact match (config key)
+connect quads2-dev.rdu2.scalelab.example.com         # FQDN match (from URL)
+connect https://quads2-dev.rdu2.scalelab.example.com # Full URL match
+```
+
+The client will intelligently resolve:
+1. **Exact match** - Matches config keys exactly
+2. **URL matching** - Strips `https://` and trailing slashes to match server URLs
+3. **Prefix matching** - If unique, matches shortened names (e.g., `quads-prod`)
+
+This allows you to connect using the FQDN even if your config uses a shortened alias.
 
 ### Multi-Server Session Management
 
@@ -304,21 +407,21 @@ QUADS Client allows you to maintain multiple authenticated connections simultane
 
 **Session Commands:**
 ```
-session-create <server> [--label <name>]  - Create new session with optional label
-session <id|label>                        - Quick switch to session by ID or label  
-session-switch <id>                       - Switch to session by ID
+session-create quads-prod label prod      - Create new session with optional label
+session prod                              - Quick switch to session by ID or label  
+session-switch 2                          - Switch to session by ID
 session-list                              - Show all active sessions with status
-session-close <id>                        - Close specific session
+session-close 2                           - Close specific session
 session-close-all                         - Close all inactive sessions
 ```
 
 **Quick Start Example:**
 ```bash
 # Connect to multiple servers with labels
-> connect quads-prod.example.com --session prod
+> connect quads-prod.example.com session prod
 OK: Connected to quads-prod.example.com as user@example.com (session 1)
 
-> connect quads-dev.example.com --session dev
+> connect quads-dev.example.com session dev
 OK: Connected to quads-dev.example.com as user@example.com (session 2)
 
 # Prompt shows active sessions: [1:prod 2:dev*]
@@ -358,18 +461,18 @@ When you have multiple sessions, the prompt displays them for quick reference:
 
 Compare environments:
 ```bash
-> connect quads-prod --session prod
-> connect quads-dev --session dev
+> connect quads-prod session prod
+> connect quads-dev session dev
 > session prod
-> cloud-list --cloud cloud05 --detail  # Check prod state
+> cloud-list cloud cloud05 detail  # Check prod state
 > session dev  
-> cloud-list --cloud cloud05 --detail  # Compare with dev
+> cloud-list cloud cloud05 detail  # Compare with dev
 ```
 
 Work in dev, monitor prod:
 ```bash
-> connect quads-dev --session dev
-> connect quads-prod --session prod
+> connect quads-dev session dev
+> connect quads-prod session prod
 > session dev
 > schedule 3 description "Testing new feature"
 > session prod  # Quick check on production
@@ -388,11 +491,12 @@ Work in dev, monitor prod:
 ```
 servers              - List all configured servers with status
 add-quads-server     - Interactive wizard to add a new QUADS server
-add-server <name> <url> <username> <password> [--no-verify]  
+add-server quads3 https://quads3.example.com user@example.com password123 [noverify]  
                      - Add new server to configuration (advanced)
-edit-server <name> [--url URL] [--username USER] [--password PASS] [--verify true|false]
+edit-server quads3 [url https://new.example.com] [username newuser@example.com] 
+                   [password newpass] [verify true|false]
                      - Edit existing server configuration
-rm-server <name>     - Remove server from configuration
+rm-server quads3     - Remove server from configuration
 config-reload        - Reload configuration from file
 ```
 
@@ -409,16 +513,16 @@ add-quads-server
 ### Cloud Management
 
 ```
-cloud-list                         - List all clouds
-cloud-list --cloud <name> --detail - Show detailed cloud information with hosts
-cloud-create <name>                - Create a new cloud (admin only)
-cloud-delete <name>                - Delete a cloud (admin only)
-mod-cloud <name> [OPTIONS]         - Modify cloud attributes (admin only)
-  --owner OWNER                    - Set cloud owner
-  --description DESC               - Set cloud description
-  --ticket TICKET                  - Set ticket number
-  --wipe true|false                - Enable/disable wipe
-  --ccusers CCUSERS                - Set CC users list
+cloud-list                                         - List all clouds
+cloud-list cloud cloud05 detail                    - Show detailed cloud info with hosts
+cloud-create cloud10                               - Create a new cloud (admin only)
+cloud-delete cloud10                               - Delete a cloud (admin only)
+mod-cloud cloud02 [OPTIONS]                        - Modify cloud attributes (admin only)
+  owner alice@example.com                          - Set cloud owner
+  description "Production environment"             - Set cloud description
+  ticket JIRA-12345                                - Set ticket number
+  wipe true|false                                  - Enable/disable wipe
+  ccusers "alice@example.com,bob@example.com"      - Set CC users list
 ```
 
 ### Self-Scheduling Mode (SSM)
@@ -480,25 +584,27 @@ schedule 3 description "test"
 ### Host Management (Admin)
 
 ```
-ls-hosts            - List all hosts
-mark-broken <host>  - Mark a host as broken
-mark-repaired <host>- Mark a broken host as repaired
-retire <host>       - Mark a host as retired
-unretire <host>     - Mark a retired host as active
-ls-broken           - List all broken hosts
-ls-retired          - List all retired hosts
+ls-hosts                         - List all hosts
+mark-broken host01.example.com   - Mark a host as broken
+mark-repaired host01.example.com - Mark a broken host as repaired
+retire host01.example.com        - Mark a host as retired
+unretire host01.example.com      - Mark a retired host as active
+ls-broken                        - List all broken hosts
+ls-retired                       - List all retired hosts
 ```
 
 ### Schedule Management (Admin)
 
 ```
-schedule <cloud> <hosts|host-list path> <start> <end>  - Schedule hosts (admin mode)
-ls-schedule [--host hostname] [--cloud cloudname]      - List schedules
-mod-schedule --id <schedule_id> [--start <YYYY-MM-DD>] [--end <YYYY-MM-DD>]
-rm-schedule <schedule_id>                               - Remove a schedule
-extend <cloud|hostname> weeks <N>                       - Extend cloud/host by weeks
-extend <cloud|hostname> date <YYYY-MM-DD HH:MM>         - Extend cloud/host to date
-shrink --host <hostname> --weeks <number>               - Shrink a schedule
+schedule cloud02 host01,host02 "2026-05-15" "2026-06-15"  - Schedule hosts (admin mode)
+schedule cloud17 host-list ~/hosts.txt now "2026-07-01"   - Schedule with host list file
+ls-schedule [host host01.example.com] [cloud cloud02]     - List schedules
+mod-schedule id 123 [start "2026-05-15"] [end "2026-06-15"] - Modify schedule dates
+rm-schedule 123                                             - Remove a schedule
+extend cloud02 weeks 2                                      - Extend cloud by weeks
+extend cloud02 date "2026-05-17 22:00"                      - Extend cloud to specific date
+extend host01.example.com weeks 1                           - Extend single host
+shrink host01.example.com weeks 2                           - Shrink schedule by weeks
 ```
 
 **Admin Examples:**
@@ -612,7 +718,7 @@ quads-client/
 │       └── version.py        - Version command
 ├── conf/
 │   └── quads-client.yml.example - Example configuration
-├── tests/                    - pytest test suite (487 tests, 75% coverage)
+├── tests/                    - pytest test suite (511 tests, 75.6% coverage)
 ├── rpm/
 │   └── quads-client.spec     - RPM package specification
 ├── images/                   - Screenshots and documentation images

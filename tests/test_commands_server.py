@@ -141,7 +141,7 @@ def test_edit_server_success(mock_shell):
         with patch("quads_client.commands.server.yaml.safe_load", return_value=yaml_content):
             with patch("quads_client.commands.server.yaml.dump") as mock_dump:
                 server_cmd = ServerCommands(mock_shell)
-                server_cmd.cmd_edit_server("quads3 --url https://new.example.com")
+                server_cmd.cmd_edit_server("quads3 url https://new.example.com")
 
                 mock_dump.assert_called_once()
                 assert mock_shell.poutput.call_count >= 2
@@ -156,7 +156,7 @@ def test_edit_server_not_found(mock_shell):
     with patch("builtins.open", mock_open(read_data="servers: {}\n")):
         with patch("quads_client.commands.server.yaml.safe_load", return_value=yaml_content):
             server_cmd = ServerCommands(mock_shell)
-            server_cmd.cmd_edit_server("quads3 --url https://new.example.com")
+            server_cmd.cmd_edit_server("quads3 url https://new.example.com")
 
             mock_shell.perror.assert_called_with("Server 'quads3' not found")
 
@@ -184,7 +184,7 @@ def test_edit_server_missing_name(mock_shell):
 
 
 def test_edit_server_verify_flag(mock_shell):
-    """Test edit-server with --verify flag"""
+    """Test edit-server with verify flag"""
     mock_shell.config.config_path = "~/.config/quads/quads-client.yml"
 
     yaml_content = {"servers": {"quads3": {"url": "https://quads3.example.com", "verify": True}}}
@@ -193,7 +193,7 @@ def test_edit_server_verify_flag(mock_shell):
         with patch("quads_client.commands.server.yaml.safe_load", return_value=yaml_content):
             with patch("quads_client.commands.server.yaml.dump") as mock_dump:
                 server_cmd = ServerCommands(mock_shell)
-                server_cmd.cmd_edit_server("quads3 --verify false")
+                server_cmd.cmd_edit_server("quads3 verify false")
 
                 call_args = mock_dump.call_args[0][0]
                 assert call_args["servers"]["quads3"]["verify"] is False

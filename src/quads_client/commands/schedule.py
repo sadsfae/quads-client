@@ -14,7 +14,7 @@ class ScheduleCommands:
         return require_connection(self.shell)
 
     def cmd_ls_schedule(self, args):
-        """List schedules. Usage: ls-schedule [--host hostname] [--cloud cloudname]"""
+        """List schedules. Usage: ls-schedule [host <hostname>] [cloud <cloudname>]"""
         if not self._require_connection():
             return
 
@@ -23,10 +23,10 @@ class ScheduleCommands:
 
         i = 0
         while i < len(parts):
-            if parts[i] == "--host" and i + 1 < len(parts):
+            if parts[i] == "host" and i + 1 < len(parts):
                 filters["host"] = parts[i + 1]
                 i += 2
-            elif parts[i] == "--cloud" and i + 1 < len(parts):
+            elif parts[i] == "cloud" and i + 1 < len(parts):
                 filters["cloud"] = parts[i + 1]
                 i += 2
             else:
@@ -115,7 +115,7 @@ class ScheduleCommands:
 
     def cmd_add_schedule(self, args):
         """Add a schedule. (deprecated, use schedule command)
-        Usage: add-schedule --host <hostname> --cloud <cloudname> --start <YYYY-MM-DD> --end <YYYY-MM-DD>
+        Usage: add-schedule host <hostname> cloud <cloudname> start <YYYY-MM-DD> end <YYYY-MM-DD>
         """
         if not self._require_connection():
             return
@@ -125,16 +125,16 @@ class ScheduleCommands:
 
         i = 0
         while i < len(parts):
-            if parts[i] == "--host" and i + 1 < len(parts):
+            if parts[i] == "host" and i + 1 < len(parts):
                 data["hostname"] = parts[i + 1]  # API expects "hostname"
                 i += 2
-            elif parts[i] == "--cloud" and i + 1 < len(parts):
+            elif parts[i] == "cloud" and i + 1 < len(parts):
                 data["cloud"] = parts[i + 1]
                 i += 2
-            elif parts[i] == "--start" and i + 1 < len(parts):
+            elif parts[i] == "start" and i + 1 < len(parts):
                 data["start"] = parts[i + 1]
                 i += 2
-            elif parts[i] == "--end" and i + 1 < len(parts):
+            elif parts[i] == "end" and i + 1 < len(parts):
                 data["end"] = parts[i + 1]
                 i += 2
             else:
@@ -142,7 +142,7 @@ class ScheduleCommands:
 
         if not all(k in data for k in ["hostname", "cloud", "start", "end"]):
             self.shell.perror(
-                "Usage: add-schedule --host <hostname> --cloud <cloudname> --start <YYYY-MM-DD> --end <YYYY-MM-DD>"
+                "Usage: add-schedule host <hostname> cloud <cloudname> start <YYYY-MM-DD> end <YYYY-MM-DD>"
             )
             return
 
@@ -154,7 +154,7 @@ class ScheduleCommands:
             handle_api_error(self.shell, e, "Creating schedule")
 
     def cmd_mod_schedule(self, args):
-        """Modify a schedule. Usage: mod-schedule --id <schedule_id> [--start <YYYY-MM-DD>] [--end <YYYY-MM-DD>]"""
+        """Modify a schedule. Usage: mod-schedule id <schedule_id> [start <YYYY-MM-DD>] [end <YYYY-MM-DD>]"""
         if not self._require_connection():
             return
 
@@ -164,20 +164,20 @@ class ScheduleCommands:
 
         i = 0
         while i < len(parts):
-            if parts[i] == "--id" and i + 1 < len(parts):
+            if parts[i] == "id" and i + 1 < len(parts):
                 schedule_id = parts[i + 1]
                 i += 2
-            elif parts[i] == "--start" and i + 1 < len(parts):
+            elif parts[i] == "start" and i + 1 < len(parts):
                 updates["start"] = parts[i + 1]
                 i += 2
-            elif parts[i] == "--end" and i + 1 < len(parts):
+            elif parts[i] == "end" and i + 1 < len(parts):
                 updates["end"] = parts[i + 1]
                 i += 2
             else:
                 i += 1
 
         if not schedule_id:
-            self.shell.perror("Usage: mod-schedule --id <schedule_id> [--start <YYYY-MM-DD>] [--end <YYYY-MM-DD>]")
+            self.shell.perror("Usage: mod-schedule id <schedule_id> [start <YYYY-MM-DD>] [end <YYYY-MM-DD>]")
             return
 
         if not updates:
@@ -300,7 +300,7 @@ class ScheduleCommands:
             handle_api_error(self.shell, e, "Extending schedule")
 
     def cmd_shrink(self, args):
-        """Shrink a schedule. Usage: shrink --host <hostname> --weeks <number>"""
+        """Shrink a schedule. Usage: shrink <hostname> weeks <number>"""
         if not self._require_connection():
             return
 
@@ -310,10 +310,7 @@ class ScheduleCommands:
 
         i = 0
         while i < len(parts):
-            if parts[i] == "--host" and i + 1 < len(parts):
-                hostname = parts[i + 1]
-                i += 2
-            elif parts[i] == "--weeks" and i + 1 < len(parts):
+            if parts[i] == "weeks" and i + 1 < len(parts):
                 try:
                     weeks = int(parts[i + 1])
                 except ValueError:
@@ -321,10 +318,13 @@ class ScheduleCommands:
                     return
                 i += 2
             else:
+                # First non-keyword argument is the hostname
+                if hostname is None and parts[i] != "weeks":
+                    hostname = parts[i]
                 i += 1
 
         if not hostname or weeks is None:
-            self.shell.perror("Usage: shrink --host <hostname> --weeks <number>")
+            self.shell.perror("Usage: shrink <hostname> weeks <number>")
             return
 
         try:
