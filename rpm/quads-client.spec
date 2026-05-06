@@ -37,6 +37,8 @@ Requires: python3-argcomplete >= 3.1.2
 Requires: python3-PyYAML >= 6.0.0
 Requires: python3-jwt >= 2.8.0
 Requires: python3-rich >= 13.0.0
+Requires: python3-requests >= 2.31.0
+Requires: python3-urllib3 >= 2.0.0
 Requires: bash-completion
 
 AutoReq: no

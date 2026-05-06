@@ -2,6 +2,8 @@ from tabulate import tabulate
 import yaml
 from pathlib import Path
 
+from quads_client.utils import get_ssl_status_text
+
 
 class ServerCommands:
     def __init__(self, shell):
@@ -28,16 +30,18 @@ class ServerCommands:
         table_data = []
         for i, (name, server_config) in enumerate(servers.items(), 1):
             url = server_config.get("url", "")
+            verify = server_config.get("verify", True)
             # Get both status/version and info in one call to avoid double connection overhead
             status, version, info = self._get_server_info_combined(name, url, server_config)
 
             is_default = "✓" if name == default else ""
             is_connected = "Connected" if name == current else status
             short_name = self._shorten_server_name(name)
+            ssl_status = get_ssl_status_text(url, verify)
 
-            table_data.append([i, short_name, version, info, is_connected, is_default])
+            table_data.append([i, short_name, ssl_status, version, info, is_connected, is_default])
 
-        headers = ["#", "Server Name", "Version", "Capacity", "Status", "Default"]
+        headers = ["#", "Server Name", "SSL", "Version", "Capacity", "Status", "Default"]
         if self.rich_console:
             self.rich_console.print_table(headers, table_data, title="Configured Servers")
             if current:
@@ -53,6 +57,7 @@ class ServerCommands:
         """Get server status, version, and capacity in one API connection to avoid double overhead"""
         try:
             from quads_lib import QuadsApi
+            import urllib3
 
             username = server_config.get("username", "")
             password = server_config.get("password", "")
@@ -60,6 +65,10 @@ class ServerCommands:
 
             if not username or not password:
                 return "No credentials", "N/A", "N/A"
+
+            # Suppress SSL warnings when certificate verification is disabled
+            if not verify:
+                urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
             # Single API connection for all info
             api = QuadsApi(base_url=url, username=username, password=password, verify=verify)
@@ -263,6 +272,11 @@ class ServerCommands:
         self.shell.poutput(f"\nTesting connection to {server_url}...")
         try:
             import requests
+            import urllib3
+
+            # Suppress SSL warnings when certificate verification is disabled
+            if not verify:
+                urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
             response = requests.get(f"{server_url}/api/v3/version", verify=verify, timeout=5)
             if response.status_code in [200, 401, 403]:
