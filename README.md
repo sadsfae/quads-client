@@ -594,8 +594,13 @@ quads-client/
 │   ├── history.py            - SQLite command history
 │   ├── progress.py           - Provisioning progress tracker
 │   ├── rich_console.py       - Rich terminal UI
-│   ├── utils.py              - Shared utility functions
+│   ├── utils.py              - Shared utility functions (DRY helpers)
+│   ├── auth.py               - Authentication utilities
+│   ├── cli/
+│   │   ├── __init__.py
+│   │   └── main.py           - CLI entry point
 │   └── commands/             - Command modules
+│       ├── __init__.py
 │       ├── available.py      - Available hosts
 │       ├── cloud.py          - Cloud management
 │       ├── connection.py     - Connection commands
@@ -607,9 +612,15 @@ quads-client/
 │       └── version.py        - Version command
 ├── conf/
 │   └── quads-client.yml.example - Example configuration
-├── tests/                    - pytest test suite (391 tests)
+├── tests/                    - pytest test suite (487 tests, 75% coverage)
 ├── rpm/
 │   └── quads-client.spec     - RPM package specification
+├── images/                   - Screenshots and documentation images
+├── setup.py                  - Package setup configuration
+├── pyproject.toml            - Modern Python project metadata
+├── requirements.txt          - Production dependencies
+├── requirements-dev.txt      - Development dependencies
+└── pytest.ini                - pytest configuration
 ```
 
 ## Dependencies

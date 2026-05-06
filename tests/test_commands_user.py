@@ -161,6 +161,55 @@ def test_my_hosts_not_authenticated(mock_shell):
     mock_shell.perror.assert_called_with("Not authenticated. Use 'login' command first.")
 
 
+def test_my_hosts_duplicate_hosts_across_assignments(mock_shell):
+    """Test my_hosts deduplicates hosts that appear in multiple assignments"""
+    mock_shell.connection.is_connected = True
+    mock_shell.connection.is_authenticated = True
+    mock_shell.connection.username = "test@example.com"
+
+    # Three assignments with same 3 hosts in each (simulating the user's bug report)
+    mock_shell.connection.api.filter_assignments.return_value = [
+        {"id": 138, "owner": "test", "cloud": {"name": "cloud02"}, "description": "SSM QUADS Client Test2"},
+        {"id": 139, "owner": "test", "cloud": {"name": "cloud03"}, "description": "SSM QUADS Client Test3"},
+        {"id": 140, "owner": "test", "cloud": {"name": "cloud04"}, "description": "SSM QUADS Client Test4"},
+    ]
+
+    # Each assignment has the same 3 hosts (simulating duplicate schedules)
+    def mock_get_current_schedules(filters):
+        return [
+            {
+                "id": 1,
+                "host": {"name": "e28-h26-000-r650.stage.rdu2.scalelab.redhat.com"},
+                "end": "Sun, 10 May 2026 21:00:00 GMT",
+            },
+            {
+                "id": 2,
+                "host": {"name": "f07-h36-000-1029u.stage.rdu2.scalelab.redhat.com"},
+                "end": "Sun, 10 May 2026 21:00:00 GMT",
+            },
+            {
+                "id": 3,
+                "host": {"name": "f18-h29-000-1029p.stage.rdu2.scalelab.redhat.com"},
+                "end": "Sun, 10 May 2026 21:00:00 GMT",
+            },
+        ]
+
+    mock_shell.connection.api.get_current_schedules.side_effect = mock_get_current_schedules
+
+    user_cmd = UserCommands(mock_shell)
+    user_cmd.cmd_my_hosts("")
+
+    # Verify we queried for assignments
+    mock_shell.connection.api.filter_assignments.assert_called_once_with({"owner": "test", "active": True})
+
+    # Verify poutput was called (for header, table, and total)
+    assert mock_shell.poutput.call_count >= 3
+
+    # Verify the last call shows "Total unique hosts: 3" (not 9)
+    last_call = str(mock_shell.poutput.call_args_list[-1])
+    assert "Total unique hosts: 3" in last_call
+
+
 def test_schedule_not_authenticated(mock_shell):
     """Test schedule when not authenticated"""
     mock_shell.connection.is_connected = True
