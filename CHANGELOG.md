@@ -1,6 +1,31 @@
 # CHANGELOG
 
 
+## v0.3.0 (2026-05-06)
+
+### Chores
+
+- Fix further tests relating to sessionmanager
+  ([`692f78a`](https://github.com/quadsproject/quads-client/commit/692f78aa1dafcc4d355b1e2a6f4461255a82b6bf))
+
+- Fix tests, add session UI image
+  ([`0f48015`](https://github.com/quadsproject/quads-client/commit/0f480154f862df73e13d4d30b84402d623652ca0))
+
+- Update RPM %post install steps
+  ([`2a52feb`](https://github.com/quadsproject/quads-client/commit/2a52feb37eaa18b4de02ca69210302a7f44903b6))
+
+- Update RPM spec version to 0.2.1
+  ([`8c664ba`](https://github.com/quadsproject/quads-client/commit/8c664ba3e34479614aab2b891120e8e4e25cef4d))
+
+### Features
+
+- Multi-server session management implementation
+  ([`7000f20`](https://github.com/quadsproject/quads-client/commit/7000f2098c4cd73fa9394ef225187d9a2ed2ebbb))
+
+- Session manager fixes, docs
+  ([`cd2cc6d`](https://github.com/quadsproject/quads-client/commit/cd2cc6df22f35d8447e9da953d63f06ce39e3fbc))
+
+
 ## v0.2.1 (2026-05-06)
 
 ### Bug Fixes
