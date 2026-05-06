@@ -19,29 +19,29 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Merge main into development
+      - name: Configure Git
         run: |
           git config --global user.name 'github-actions[bot]'
           git config --global user.email 'github-actions[bot]@users.noreply.github.com'
           git fetch origin
-          git checkout development
-          git merge origin/main
-          git push origin development
 
-      - name: Update RPM spec version
+      - name: Update RPM spec version on main
         run: |
-          # Extract version from __init__.py
+          git checkout main
           VERSION=$(grep -oP "^__version__ = ['\"]([^'\"]+)['\"]" src/quads_client/__init__.py | grep -oP "[0-9]+\.[0-9]+\.[0-9]+")
           echo "Extracted version: $VERSION"
-
-          # Update the spec file
           sed -i "s/^%define version.*/%define version $VERSION/" rpm/quads-client.spec
-
-          # Commit and push if there are changes
           git add rpm/quads-client.spec
-          if git diff --staged --quiet; then
-            echo "No version changes to commit"
-          else
+          if ! git diff --staged --quiet; then
             git commit -m "chore: update RPM spec version to $VERSION"
-            git push origin development
+            git push origin main
+            echo "Updated RPM spec to version $VERSION on main"
+          else
+            echo "No version changes to commit"
           fi
+
+      - name: Merge main into development
+        run: |
+          git checkout development
+          git merge origin/main --no-edit
+          git push origin development
