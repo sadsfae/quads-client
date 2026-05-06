@@ -1,6 +1,21 @@
 # CHANGELOG
 
 
+## v0.2.0 (2026-05-06)
+
+### Chores
+
+- Update RPM spec version to 0.1.2
+  ([`1e8f7c0`](https://github.com/quadsproject/quads-client/commit/1e8f7c0c25f69ae884374992bda8f4deeb781c60))
+
+### Features
+
+- Further TLS/SSL awareness, features, checks.
+  ([`50af215`](https://github.com/quadsproject/quads-client/commit/50af21511ff42251858f84f2bf7d6dc70c6f034e))
+
+* Fixes: https://github.com/quadsproject/quads-client/issues/33
+
+
 ## v0.1.2 (2026-05-05)
 
 ### Bug Fixes
