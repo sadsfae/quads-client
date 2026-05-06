@@ -1,6 +1,24 @@
 # CHANGELOG
 
 
+## v0.3.2 (2026-05-06)
+
+### Bug Fixes
+
+- Make sure one-shot commands work.
+  ([`b17d07a`](https://github.com/quadsproject/quads-client/commit/b17d07ad0f119016c1e96b3436b38cb35c690c65))
+
+* fixes: https://github.com/quadsproject/quads-client/issues/45
+
+- One-shot connections to non-default server
+  ([`16abb6e`](https://github.com/quadsproject/quads-client/commit/16abb6e4453ba5b37cf0b1cdacb35b9896c7c838))
+
+### Chores
+
+- Update RPM spec version to 0.3.1
+  ([`5753a9f`](https://github.com/quadsproject/quads-client/commit/5753a9f11184557d76b925947adaa3e23fedb27e))
+
+
 ## v0.3.1 (2026-05-06)
 
 ### Bug Fixes
