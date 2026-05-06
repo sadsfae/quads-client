@@ -1,7 +1,7 @@
 from tabulate import tabulate
 
 from quads_client.error_handler import require_connection
-from quads_client.utils import extract_host_field
+from quads_client.utils import extract_host_field, get_available_hosts_filter
 
 
 class AvailableCommands:
@@ -54,8 +54,8 @@ class AvailableCommands:
                 filters["end"] = parts[i + 1]
                 i += 2
             elif parts[i] == "model" and i + 1 < len(parts):
-                # Case-insensitive model matching
-                filters["model"] = parts[i + 1].lower()
+                # Models are stored as uppercase in QUADS
+                filters["model"] = parts[i + 1].upper()
                 i += 2
             elif parts[i] == "ram" and i + 1 < len(parts):
                 filters["memory__gte"] = int(parts[i + 1]) * 1024
@@ -82,9 +82,13 @@ class AvailableCommands:
                 i += 1
 
         try:
-            hosts = self.shell.connection.api.filter_available(filters)
+            # Get available hosts using filter_hosts for cloud01 (available pool)
+            # This returns full host objects with all fields populated
+            host_filters = get_available_hosts_filter(**filters)
 
-            # Check if API returned an error string instead of a list
+            hosts = self.shell.connection.api.filter_hosts(host_filters)
+
+            # Check if API returned an error
             if isinstance(hosts, str):
                 self.shell.perror(f"API error: {hosts}")
                 return
@@ -100,22 +104,12 @@ class AvailableCommands:
 
             table_data = []
             for host in hosts:
-                # Extract fields using utility function - handles string, dict, and object responses
                 name = extract_host_field(host, "name", field_aliases=["hostname"], default="")
                 model = extract_host_field(host, "model", field_aliases=["host_model"], default="N/A")
                 host_type = extract_host_field(host, "host_type", field_aliases=["type"], default="N/A")
                 can_self_schedule = extract_host_field(host, "can_self_schedule", default=False)
 
-                # Debug: if we're still getting empty data, print what we received
-                if not name and model == "N/A" and host_type == "N/A":
-                    # Show what fields are available for debugging
-                    if isinstance(host, dict):
-                        self.shell.perror(f"DEBUG: Host dict keys: {list(host.keys())[:10]}")
-                    elif isinstance(host, str):
-                        self.shell.perror("DEBUG: Host is empty string")
-                    else:
-                        attrs = [a for a in dir(host) if not a.startswith("_")][:10]
-                        self.shell.perror(f"DEBUG: Host object attrs: {attrs}")
+                if not name:
                     continue
 
                 table_data.append([name, model, host_type, "Yes" if can_self_schedule else "No"])

@@ -1,5 +1,15 @@
 import pytest
-from quads_client.utils import extract_host_field, extract_hostname
+from quads_client.utils import (
+    AVAILABLE_HOSTS_BASE_FILTER,
+    extract_assignment_id,
+    extract_cloud_name,
+    extract_host_field,
+    extract_hostname,
+    get_available_hosts_filter,
+    get_ssl_indicator,
+    get_ssl_status_text,
+    get_username_short,
+)
 
 
 def test_extract_hostname_from_string():
@@ -144,3 +154,273 @@ def test_extract_host_field_none_aliases():
     host = {"model": "r640"}
     result = extract_host_field(host, "model")
     assert result == "r640"
+
+
+# Tests for get_username_short()
+def test_get_username_short_with_email():
+    """Test extracting username from email address"""
+    result = get_username_short("testuser@example.com")
+    assert result == "testuser"
+
+
+def test_get_username_short_with_complex_email():
+    """Test extracting username from email with subdomain"""
+    result = get_username_short("john.doe@mail.example.com")
+    assert result == "john.doe"
+
+
+def test_get_username_short_without_domain():
+    """Test extracting username when already short"""
+    result = get_username_short("testuser")
+    assert result == "testuser"
+
+
+def test_get_username_short_with_multiple_at_signs():
+    """Test extracting username with multiple @ signs (takes first part)"""
+    result = get_username_short("user@domain@extra")
+    assert result == "user"
+
+
+# Tests for get_available_hosts_filter()
+def test_get_available_hosts_filter_no_additional():
+    """Test getting base filter without additional filters"""
+    result = get_available_hosts_filter()
+    expected = {"cloud": "cloud01", "retired": False, "broken": False}
+    assert result == expected
+
+
+def test_get_available_hosts_filter_with_model():
+    """Test getting filter with model addition"""
+    result = get_available_hosts_filter(model="R640")
+    expected = {"cloud": "cloud01", "retired": False, "broken": False, "model": "R640"}
+    assert result == expected
+
+
+def test_get_available_hosts_filter_with_multiple_additions():
+    """Test getting filter with multiple additional filters"""
+    result = get_available_hosts_filter(model="R640", memory__gte=262144)
+    expected = {"cloud": "cloud01", "retired": False, "broken": False, "model": "R640", "memory__gte": 262144}
+    assert result == expected
+
+
+def test_get_available_hosts_filter_does_not_modify_original():
+    """Test that adding filters doesn't modify the base constant"""
+    original_base = AVAILABLE_HOSTS_BASE_FILTER.copy()
+    get_available_hosts_filter(model="R640", extra_field="value")
+    assert AVAILABLE_HOSTS_BASE_FILTER == original_base
+
+
+def test_get_available_hosts_filter_override_base():
+    """Test that additional filters can override base filters"""
+    result = get_available_hosts_filter(cloud="cloud99", retired=True)
+    assert result["cloud"] == "cloud99"
+    assert result["retired"] is True
+    assert result["broken"] is False
+
+
+# Tests for extract_cloud_name()
+def test_extract_cloud_name_from_dict():
+    """Test extracting cloud name from dict assignment"""
+    assignment = {"id": 1, "cloud": {"name": "cloud02"}}
+    result = extract_cloud_name(assignment)
+    assert result == "cloud02"
+
+
+def test_extract_cloud_name_from_dict_with_default():
+    """Test extracting cloud name with custom default"""
+    assignment = {"id": 1}
+    result = extract_cloud_name(assignment, default="unknown")
+    assert result == "unknown"
+
+
+def test_extract_cloud_name_from_dict_empty_cloud():
+    """Test extracting cloud name when cloud dict is empty"""
+    assignment = {"id": 1, "cloud": {}}
+    result = extract_cloud_name(assignment)
+    assert result == "N/A"
+
+
+def test_extract_cloud_name_from_dict_cloud_is_string():
+    """Test extracting cloud name when cloud is already a string"""
+    assignment = {"id": 1, "cloud": "cloud02"}
+    result = extract_cloud_name(assignment)
+    assert result == "cloud02"
+
+
+def test_extract_cloud_name_from_dict_cloud_is_none():
+    """Test extracting cloud name when cloud is None"""
+    assignment = {"id": 1, "cloud": None}
+    result = extract_cloud_name(assignment)
+    assert result == "N/A"
+
+
+def test_extract_cloud_name_from_object():
+    """Test extracting cloud name from object assignment"""
+
+    class Cloud:
+        def __init__(self):
+            self.name = "cloud03"
+
+    class Assignment:
+        def __init__(self):
+            self.id = 1
+            self.cloud = Cloud()
+
+    assignment = Assignment()
+    result = extract_cloud_name(assignment)
+    assert result == "cloud03"
+
+
+def test_extract_cloud_name_from_object_no_cloud():
+    """Test extracting cloud name from object without cloud attribute"""
+
+    class Assignment:
+        def __init__(self):
+            self.id = 1
+
+    assignment = Assignment()
+    result = extract_cloud_name(assignment)
+    assert result == "N/A"
+
+
+def test_extract_cloud_name_from_object_cloud_no_name():
+    """Test extracting cloud name from object where cloud has no name"""
+
+    class Cloud:
+        def __init__(self):
+            self.id = 2
+
+    class Assignment:
+        def __init__(self):
+            self.id = 1
+            self.cloud = Cloud()
+
+    assignment = Assignment()
+    result = extract_cloud_name(assignment, default="missing")
+    assert result == "missing"
+
+
+def test_extract_cloud_name_from_object_cloud_is_none():
+    """Test extracting cloud name from object where cloud is None"""
+
+    class Assignment:
+        def __init__(self):
+            self.id = 1
+            self.cloud = None
+
+    assignment = Assignment()
+    result = extract_cloud_name(assignment)
+    assert result == "N/A"
+
+
+# Tests for extract_assignment_id()
+def test_extract_assignment_id_from_dict():
+    """Test extracting assignment ID from dict"""
+    assignment = {"id": 42, "owner": "test"}
+    result = extract_assignment_id(assignment)
+    assert result == 42
+
+
+def test_extract_assignment_id_from_dict_with_default():
+    """Test extracting assignment ID with custom default"""
+    assignment = {"owner": "test"}
+    result = extract_assignment_id(assignment, default="unknown")
+    assert result == "unknown"
+
+
+def test_extract_assignment_id_from_dict_zero_id():
+    """Test extracting assignment ID when ID is 0 (valid ID)"""
+    assignment = {"id": 0, "owner": "test"}
+    result = extract_assignment_id(assignment)
+    assert result == 0
+
+
+def test_extract_assignment_id_from_object():
+    """Test extracting assignment ID from object"""
+
+    class Assignment:
+        def __init__(self):
+            self.id = 99
+            self.owner = "test"
+
+    assignment = Assignment()
+    result = extract_assignment_id(assignment)
+    assert result == 99
+
+
+def test_extract_assignment_id_from_object_no_id():
+    """Test extracting assignment ID from object without id attribute"""
+
+    class Assignment:
+        def __init__(self):
+            self.owner = "test"
+
+    assignment = Assignment()
+    result = extract_assignment_id(assignment)
+    assert result == "N/A"
+
+
+def test_extract_assignment_id_from_object_custom_default():
+    """Test extracting assignment ID from object with custom default"""
+
+    class Assignment:
+        def __init__(self):
+            self.owner = "test"
+
+    assignment = Assignment()
+    result = extract_assignment_id(assignment, default=-1)
+    assert result == -1
+
+
+# Tests for get_ssl_indicator()
+def test_get_ssl_indicator_https_verified():
+    """Test SSL indicator for HTTPS with verification"""
+    symbol, color = get_ssl_indicator("https://example.com", True)
+    assert symbol == "✓"
+    assert color == "\033[1;32m"
+
+
+def test_get_ssl_indicator_https_unverified():
+    """Test SSL indicator for HTTPS without verification"""
+    symbol, color = get_ssl_indicator("https://example.com", False)
+    assert symbol == "!"
+    assert color == "\033[1;32m"
+
+
+def test_get_ssl_indicator_http():
+    """Test SSL indicator for HTTP"""
+    symbol, color = get_ssl_indicator("http://example.com", True)
+    assert symbol == "✗"
+    assert color == "\033[1;33m"
+
+
+def test_get_ssl_indicator_http_unverified():
+    """Test SSL indicator for HTTP (verify flag doesn't matter)"""
+    symbol, color = get_ssl_indicator("http://example.com", False)
+    assert symbol == "✗"
+    assert color == "\033[1;33m"
+
+
+# Tests for get_ssl_status_text()
+def test_get_ssl_status_text_https_verified():
+    """Test SSL status text for HTTPS with verification"""
+    result = get_ssl_status_text("https://example.com", True)
+    assert result == "HTTPS (verified)"
+
+
+def test_get_ssl_status_text_https_unverified():
+    """Test SSL status text for HTTPS without verification"""
+    result = get_ssl_status_text("https://example.com", False)
+    assert result == "HTTPS (unverified)"
+
+
+def test_get_ssl_status_text_http():
+    """Test SSL status text for HTTP"""
+    result = get_ssl_status_text("http://example.com", True)
+    assert result == "HTTP"
+
+
+def test_get_ssl_status_text_http_unverified():
+    """Test SSL status text for HTTP (verify flag doesn't matter)"""
+    result = get_ssl_status_text("http://example.com", False)
+    assert result == "HTTP"
