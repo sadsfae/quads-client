@@ -547,7 +547,8 @@ class UserCommands:
             self.shell.poutput(f"\nHosts scheduled by {username}:")
             self.shell.poutput("=" * 80)
 
-            total_hosts = 0
+            # Collect all unique hosts across all assignments
+            unique_hosts = {}
             for assignment in assignments:
                 assignment_id = assignment.get("id")
                 cloud_name = assignment.get("cloud", {}).get("name", "N/A")
@@ -556,20 +557,31 @@ class UserCommands:
                 # Get current schedules for this assignment
                 schedules = self.shell.connection.api.get_current_schedules({"assignment_id": assignment_id})
                 if schedules:
-                    self.shell.poutput(f"\nAssignment #{assignment_id} - {description} ({cloud_name})")
-                    table_data = []
                     for schedule in schedules:
                         host_name = schedule.get("host", {}).get("name", "Unknown")
-                        status = "Active"
                         end = schedule.get("end", "N/A")
-                        table_data.append([host_name, status, f"Expires: {end}"])
-                        total_hosts += 1
+                        # Use hostname as key to ensure uniqueness
+                        if host_name not in unique_hosts:
+                            unique_hosts[host_name] = {
+                                "status": "Active",
+                                "end": end,
+                                "assignment_id": assignment_id,
+                                "cloud": cloud_name,
+                                "description": description,
+                            }
 
-                    headers = ["Host", "Status", "Schedule"]
-                    self.shell.poutput(tabulate(table_data, headers=headers, tablefmt="simple"))
-
-            if total_hosts == 0:
+            if not unique_hosts:
                 self.shell.poutput(f"\nNo active hosts scheduled by {username}")
+                return
+
+            # Display unique hosts in a single table
+            table_data = []
+            for host_name, info in sorted(unique_hosts.items()):
+                table_data.append([host_name, info["status"], f"Expires: {info['end']}"])
+
+            headers = ["Host", "Status", "Schedule"]
+            self.shell.poutput(tabulate(table_data, headers=headers, tablefmt="simple"))
+            self.shell.poutput(f"\nTotal unique hosts: {len(unique_hosts)}")
 
         except Exception as e:
             handle_api_error(self.shell, e, "Listing hosts")
