@@ -120,7 +120,19 @@ pip install -e .
 
 ## Configuration
 
+### Configuration File Location
+
+| Operating System | Config File Location | Notes |
+|-----------------|---------------------|-------|
+| Linux | `~/.config/quads/quads-client.yml` | Follows XDG Base Directory spec; directory auto-created on first run |
+| macOS | `~/.config/quads/quads-client.yml` | Standard CLI tool convention; directory auto-created on first run |
+| Windows | `~/.config/quads/quads-client.yml` | Expands to `%USERPROFILE%\.config\quads\quads-client.yml` |
+| FreeBSD | `~/.config/quads/quads-client.yml` | Follows XDG Base Directory spec; directory auto-created on first run |
+
 ### Quick Setup (Recommended)
+
+> [!TIP]
+> The `add-quads-server` command creates the configuration file interactively. This is the easiest way to get started.
 
 Use the interactive `add-quads-server` command:
 
@@ -135,30 +147,36 @@ register your.email@example.com YourPassword123
 
 ### Manual Configuration (Advanced)
 
-Alternatively, manually create `~/.config/quads/quads-client.yml`:
-
-```yaml
-servers:
-  quads1.rdu2.scalelab:
-    url: https://quads1.rdu2.scalelab.example.com
-    username: ""
-    password: ""
-    verify: true
-
-  quads2.rdu2.scalelab:
-    url: https://quads2.rdu2.scalelab.example.com
-    username: ""
-    password: ""
-    verify: true
-
-default_server: quads1.rdu2.scalelab
-```
+Alternatively, manually create the configuration file using the provided [example configuration](conf/quads-client.yml.example) as a template.
 
 **Configuration Notes**:
 - For new users: Leave `username` and `password` blank. Use the `register` command after connecting.
 - For existing users: Fill in credentials to login automatically on connect.
 - Specify the base URL only (no `/api/v3/` path, no port `:5000`). The client automatically appends the API path.
 - `verify: true` enables SSL certificate verification (recommended). Set to `false` only for development/testing with self-signed certificates.
+
+### SSL/TLS Security Indicator
+
+The client displays a visual security indicator in the prompt showing the SSL/TLS status of your connection:
+
+| Indicator | Color | Meaning |
+|-----------|-------|---------|
+| ✓ | Green | HTTPS with SSL certificate verification (trusted CA) |
+| ! | Green | HTTPS without SSL certificate verification (self-signed or verification disabled) |
+| ✗ | Yellow | HTTP (no encryption) |
+
+**Example prompts:**
+```
+✓ (quads1.rdu2.scalelab) >    ← Secure HTTPS with verified certificate
+! (quads2-dev.rdu2.scalelab) > ← HTTPS with self-signed certificate
+✗ (quads-test.local) >         ← Insecure HTTP connection
+```
+
+> [!WARNING]
+> Using `verify: false` or HTTP connections exposes your credentials and data to potential interception. For production use, always configure your QUADS server with valid SSL/TLS certificates.
+> 
+> **Setting up SSL/TLS on your QUADS server:**  
+> See the [QUADS SSL configuration guide](https://github.com/quadsproject/quads#using-ssl-with-flask-api-and-quads) for instructions on configuring nginx with SSL certificates.
 
 ## Usage
 
