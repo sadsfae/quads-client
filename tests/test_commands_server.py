@@ -293,13 +293,16 @@ def test_rm_server_no_args(mock_shell):
 def test_config_reload_success(mock_shell):
     """Test config-reload command"""
     with patch("quads_client.config.QuadsClientConfig") as mock_config_class:
-        with patch("quads_client.connection.ConnectionManager") as mock_conn_class:
-            server_cmd = ServerCommands(mock_shell)
-            server_cmd.cmd_config_reload("")
+        mock_new_config = MagicMock()
+        mock_config_class.return_value = mock_new_config
 
-            mock_config_class.assert_called_once()
-            mock_conn_class.assert_called_once()
-            mock_shell.poutput.assert_called_with("OK: Configuration reloaded successfully")
+        server_cmd = ServerCommands(mock_shell)
+        server_cmd.cmd_config_reload("")
+
+        mock_config_class.assert_called_once()
+        assert mock_shell.config == mock_new_config
+        assert mock_shell.connection.config == mock_new_config
+        mock_shell.poutput.assert_called_with("OK: Configuration reloaded successfully")
 
 
 def test_config_reload_failure(mock_shell):
@@ -309,6 +312,21 @@ def test_config_reload_failure(mock_shell):
         server_cmd.cmd_config_reload("")
 
         mock_shell.perror.assert_called_with("Failed to reload configuration: Config error")
+
+
+def test_config_reload_no_connection(mock_shell):
+    """Test config-reload when connection is None"""
+    mock_shell.connection = None
+    with patch("quads_client.config.QuadsClientConfig") as mock_config_class:
+        mock_new_config = MagicMock()
+        mock_config_class.return_value = mock_new_config
+
+        server_cmd = ServerCommands(mock_shell)
+        server_cmd.cmd_config_reload("")
+
+        mock_config_class.assert_called_once()
+        assert mock_shell.config == mock_new_config
+        mock_shell.poutput.assert_called_with("OK: Configuration reloaded successfully")
 
 
 def test_add_quads_server_success(mock_shell):
