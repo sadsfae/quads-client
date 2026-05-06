@@ -501,10 +501,10 @@ class ServerCommands:
         """Reload configuration from file"""
         try:
             from quads_client.config import QuadsClientConfig
-            from quads_client.connection import ConnectionManager
 
             self.shell.config = QuadsClientConfig()
-            self.shell.connection = ConnectionManager(self.shell.config)
+            if self.shell.connection:
+                self.shell.connection.config = self.shell.config
             self.shell.poutput("OK: Configuration reloaded successfully")
         except Exception as e:
             self.shell.perror(f"Failed to reload configuration: {e}")
