@@ -827,21 +827,49 @@ class QuadsClientShell(cmd2.Cmd):
         """
         Execute a single command in one-shot mode and return exit code.
 
+        Supports special syntax: "connect <server> <command> <args>"
+        This allows specifying a non-default server for one-shot commands.
+
         Args:
             cmd_str: Command string to execute
 
         Returns:
             int: Exit code (0 for success, non-zero for failure)
         """
-        # Auto-connect if needed (based on command type)
-        if not self._auto_connect_for_oneshot(cmd_str):
+        # Check for "connect <server> <command>" pattern in one-shot mode
+        actual_command = cmd_str
+        if cmd_str.startswith("connect "):
+            parts = cmd_str.split(None, 2)  # Split into at most 3 parts: ["connect", server, rest]
+
+            # If there are 3+ parts and the third part doesn't look like a connect keyword
+            if len(parts) >= 3:
+                # Check if third part is a keyword for connect command
+                third_word = parts[2].split()[0] if parts[2] else ""
+                if third_word not in ["session", "label"]:
+                    # Pattern: connect <server> <command> <args>
+                    # Execute connect first, then the subsequent command
+                    server_name = parts[1]
+                    next_command = parts[2]
+
+                    try:
+                        # Don't use auto-connect; connect explicitly to specified server
+                        self.connection_commands.cmd_connect(server_name)
+                    except Exception as e:
+                        self.perror(f"Connection failed: {e}")
+                        return 3
+
+                    # Now execute the actual command
+                    actual_command = next_command
+
+        # Auto-connect if needed (for commands without explicit connect)
+        if not actual_command.startswith("connect") and not self._auto_connect_for_oneshot(actual_command):
             return 3  # Exit code 3: Connection error
 
         # Execute the command
         try:
             # onecmd returns True if the command wants to stop cmdloop, False otherwise
             # We don't care about the return value for one-shot mode
-            self.onecmd(cmd_str)
+            self.onecmd(actual_command)
             return 0  # Success
         except KeyboardInterrupt:
             return 130  # Standard exit code for Ctrl+C

@@ -173,8 +173,8 @@ The client displays a visual security indicator in the prompt showing the SSL/TL
 
 **Example prompts:**
 ```
-✓ (quads1.rdu2.scalelab) >    ← Secure HTTPS with verified certificate
-! (quads2-dev.rdu2.scalelab) > ← HTTPS with self-signed certificate
+✓ (quads-prod.example.com) >   ← Secure HTTPS with verified certificate
+! (quads-dev.example.com) >    ← HTTPS with self-signed certificate
 ✗ (quads-test.local) >         ← Insecure HTTP connection
 ```
 
@@ -210,7 +210,7 @@ quads-client servers                # List configured servers
 One-shot commands requiring a connection will automatically connect to your default server (set `default_server` in `~/.config/quads/quads-client.yml`).
 
 ```bash
-# View resources
+# View resources (uses default server)
 quads-client cloud_list             # List all clouds
 quads-client my_hosts               # Show your scheduled hosts
 quads-client my_assignments         # List your assignments
@@ -218,6 +218,20 @@ quads-client my_assignments         # List your assignments
 # Check available hosts
 quads-client ls_available model r650 ram 256
 quads-client ls_available start 2026-06-01 end 2026-06-15
+```
+
+**Specify Non-Default Server:**
+
+To run a one-shot command against a non-default server, use `connect <server> <command>`:
+
+```bash
+# Connect to specific server and run command
+quads-client connect quads-prod my_assignments
+quads-client connect quads-stage cloud_list
+quads-client connect quads-dev.dc1.example.com available
+
+# Works with fuzzy server matching (FQDN, short names)
+quads-client connect quads-stage.dc2.example.com ls_available
 ```
 
 **Self-Schedule (SSM Mode):**
@@ -292,7 +306,7 @@ Quick start for regular users:
 ```bash
 # 1. Connect and register
 quads-client
-connect quads1.rdu2.scalelab
+connect quads-prod.example.com
 register your.email@example.com YourPassword123
 
 # 2. Schedule hosts (automatic for 5 days or until Sunday 21:00 UTC)
@@ -381,11 +395,11 @@ connect quads-prod session prod  # Create a labeled session
 The `connect` command supports flexible server name matching for convenience:
 
 ```bash
-# Config has: "quads2-dev.rdu2.scalelab" with URL "https://quads2-dev.rdu2.scalelab.example.com"
+# Config has: "quads-dev.dc1" with URL "https://quads-dev.dc1.example.com"
 
-connect quads2-dev.rdu2.scalelab                    # Exact match (config key)
-connect quads2-dev.rdu2.scalelab.example.com         # FQDN match (from URL)
-connect https://quads2-dev.rdu2.scalelab.example.com # Full URL match
+connect quads-dev.dc1                    # Exact match (config key)
+connect quads-dev.dc1.example.com        # FQDN match (from URL)
+connect https://quads-dev.dc1.example.com # Full URL match
 ```
 
 The client will intelligently resolve:
@@ -658,7 +672,7 @@ quads-client is a thin wrapper around the QUADS API via python-quads-lib. All au
 The QUADS server implements two roles:
 
 - **admin**: Full access to create/delete clouds, manage all schedules, and perform administrative operations
-- **user**: Can view resources, create schedules, manage assignments, and schedule hosts
+- **user**: Can view and filter available resources; limited to self-scheduling for creating assignments
 
 When a command requires elevated permissions, the server will return a 403 Forbidden error, which quads-client displays to the user.
 

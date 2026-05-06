@@ -218,6 +218,67 @@ class TestExecuteOneshot:
         assert exit_code == 1
         shell.perror.assert_called()
 
+    def test_execute_oneshot_connect_with_command(self, mock_shell):
+        """Test connect <server> <command> splits into two operations"""
+        from quads_client.shell import QuadsClientShell
+
+        shell = QuadsClientShell.__new__(QuadsClientShell)
+        shell._auto_connect_for_oneshot = MagicMock(return_value=True)
+        shell.onecmd = MagicMock(return_value=False)
+        shell.perror = mock_shell.perror
+        shell.connection_commands = MagicMock()
+
+        exit_code = shell.execute_oneshot_command("connect test_server my_assignments")
+
+        assert exit_code == 0
+        shell.connection_commands.cmd_connect.assert_called_once_with("test_server")
+        shell.onecmd.assert_called_once_with("my_assignments")
+
+    def test_execute_oneshot_connect_with_command_and_args(self, mock_shell):
+        """Test connect <server> <command> <args> splits correctly"""
+        from quads_client.shell import QuadsClientShell
+
+        shell = QuadsClientShell.__new__(QuadsClientShell)
+        shell._auto_connect_for_oneshot = MagicMock(return_value=True)
+        shell.onecmd = MagicMock(return_value=False)
+        shell.perror = mock_shell.perror
+        shell.connection_commands = MagicMock()
+
+        exit_code = shell.execute_oneshot_command("connect test_server cloud_list cloud cloud05")
+
+        assert exit_code == 0
+        shell.connection_commands.cmd_connect.assert_called_once_with("test_server")
+        shell.onecmd.assert_called_once_with("cloud_list cloud cloud05")
+
+    def test_execute_oneshot_connect_with_session_keyword(self, mock_shell):
+        """Test connect <server> session <label> is NOT split"""
+        from quads_client.shell import QuadsClientShell
+
+        shell = QuadsClientShell.__new__(QuadsClientShell)
+        shell._auto_connect_for_oneshot = MagicMock(return_value=True)
+        shell.onecmd = MagicMock(return_value=False)
+        shell.perror = mock_shell.perror
+
+        exit_code = shell.execute_oneshot_command("connect test_server session mylabel")
+
+        assert exit_code == 0
+        # Should execute the full connect command, not split it
+        shell.onecmd.assert_called_once_with("connect test_server session mylabel")
+
+    def test_execute_oneshot_connect_failure_returns_exit_3(self, mock_shell):
+        """Test connect failure in connect <server> <command> returns exit code 3"""
+        from quads_client.shell import QuadsClientShell
+
+        shell = QuadsClientShell.__new__(QuadsClientShell)
+        shell.perror = mock_shell.perror
+        shell.connection_commands = MagicMock()
+        shell.connection_commands.cmd_connect.side_effect = Exception("Connection failed")
+
+        exit_code = shell.execute_oneshot_command("connect bad_server my_assignments")
+
+        assert exit_code == 3
+        shell.perror.assert_called()
+
 
 class TestConnectionQuietMode:
     """Tests for connection message suppression in quiet mode"""
@@ -311,4 +372,5 @@ class TestCommandsAllowlist:
 
         result = shell._auto_connect_for_oneshot("cloud_list")
 
+        assert result is True
         mock_shell.config.get_default_server.assert_called()
