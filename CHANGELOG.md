@@ -1,6 +1,19 @@
 # CHANGELOG
 
 
+## v0.2.1 (2026-05-06)
+
+### Bug Fixes
+
+- Settr issue with RPM only.
+  ([`0d337b8`](https://github.com/quadsproject/quads-client/commit/0d337b89b3034011213d5bbc26d836c04df6ea66))
+
+### Chores
+
+- Update RPM spec version to 0.2.0
+  ([`f9ee277`](https://github.com/quadsproject/quads-client/commit/f9ee277480945dd086d0d1366e6972b28500f529))
+
+
 ## v0.2.0 (2026-05-06)
 
 ### Chores
