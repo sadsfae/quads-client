@@ -1,5 +1,74 @@
 """Utility functions for quads-client"""
 
+AVAILABLE_HOSTS_BASE_FILTER = {
+    "cloud": "cloud01",
+    "retired": False,
+    "broken": False,
+}
+
+
+def get_username_short(full_username: str) -> str:
+    """Extract username without email domain.
+
+    Args:
+        full_username: Email address (e.g., "user@example.com")
+
+    Returns:
+        Username without domain (e.g., "user")
+    """
+    return full_username.split("@")[0]
+
+
+def get_available_hosts_filter(**additional_filters):
+    """Get base filter for available hosts with optional additions.
+
+    Args:
+        **additional_filters: Additional filter key-value pairs
+
+    Returns:
+        Combined filter dict for available hosts
+    """
+    base_filter = AVAILABLE_HOSTS_BASE_FILTER.copy()
+    base_filter.update(additional_filters)
+    return base_filter
+
+
+def extract_cloud_name(assignment, default="N/A"):
+    """Extract cloud name from assignment (dict or object).
+
+    Args:
+        assignment: Assignment dict or object
+        default: Default value if cloud name not found
+
+    Returns:
+        Cloud name string
+    """
+    if isinstance(assignment, dict):
+        cloud = assignment.get("cloud", {})
+        if isinstance(cloud, dict):
+            return cloud.get("name", default)
+        return cloud or default
+    else:
+        cloud = getattr(assignment, "cloud", None)
+        if cloud:
+            return getattr(cloud, "name", default)
+        return default
+
+
+def extract_assignment_id(assignment, default="N/A"):
+    """Extract assignment ID from assignment (dict or object).
+
+    Args:
+        assignment: Assignment dict or object
+        default: Default value if ID not found
+
+    Returns:
+        Assignment ID (int or default)
+    """
+    if isinstance(assignment, dict):
+        return assignment.get("id", default)
+    return getattr(assignment, "id", default)
+
 
 def extract_host_field(host, field_name, field_aliases=None, default=""):
     """

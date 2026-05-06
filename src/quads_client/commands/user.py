@@ -2,7 +2,13 @@ from tabulate import tabulate
 
 from quads_client.arg_parser import parse_schedule_ssm_args
 from quads_client.error_handler import auto_refresh_on_auth_error, handle_api_error, require_auth, require_connection
-from quads_client.utils import extract_hostname
+from quads_client.utils import (
+    extract_assignment_id,
+    extract_cloud_name,
+    extract_hostname,
+    get_available_hosts_filter,
+    get_username_short,
+)
 
 
 class UserCommands:
@@ -151,8 +157,8 @@ class UserCommands:
             data["owner"] = username
 
             assignment = self.shell.connection.api.create_self_assignment(data)
-            assignment_id = assignment.get("id", "unknown")
-            cloud_name = assignment.get("cloud", {}).get("name", "unknown")
+            assignment_id = extract_assignment_id(assignment, default="unknown")
+            cloud_name = extract_cloud_name(assignment, default="unknown")
 
             self.shell.poutput("OK: Assignment created successfully")
             self.shell.poutput(f"  Assignment ID: {assignment_id}")
@@ -224,7 +230,7 @@ class UserCommands:
             return
 
         try:
-            username = self.shell.connection.username.split("@")[0]
+            username = get_username_short(self.shell.connection.username)
             # Filter for active assignments only
             assignments = self.shell.connection.api.filter_assignments({"owner": username, "active": True})
 
@@ -237,8 +243,8 @@ class UserCommands:
 
             table_data = []
             for assignment in assignments:
-                assignment_id = assignment.get("id", "N/A")
-                cloud_name = assignment.get("cloud", {}).get("name", "N/A")
+                assignment_id = extract_assignment_id(assignment)
+                cloud_name = extract_cloud_name(assignment)
                 description = assignment.get("description", "")
                 if len(description) > 40:
                     description = description[:37] + "..."
@@ -291,7 +297,7 @@ class UserCommands:
 
             # SSM users can only terminate their own assignments
             if not self.shell.connection.is_admin:
-                owner = self.shell.connection.username.split("@")[0]
+                owner = get_username_short(self.shell.connection.username)
 
                 # Handle both dict and object responses for owner
                 if isinstance(assignment, dict):
@@ -303,12 +309,7 @@ class UserCommands:
                     self.shell.perror("Permission denied: You can only terminate your own assignments")
                     return
 
-            # Handle both dict and object responses for cloud
-            if isinstance(assignment, dict):
-                cloud_name = assignment.get("cloud", {}).get("name", "N/A")
-            else:
-                cloud = getattr(assignment, "cloud", None)
-                cloud_name = getattr(cloud, "name", "N/A") if cloud else "N/A"
+            cloud_name = extract_cloud_name(assignment)
 
             if hostname:
                 # Release specific host
@@ -362,7 +363,7 @@ class UserCommands:
 
         try:
             # Get hosts that can be self-scheduled
-            hosts = self.shell.connection.api.filter_hosts({"cloud": "cloud01", "retired": False, "broken": False})
+            hosts = self.shell.connection.api.filter_hosts(get_available_hosts_filter())
             if not hosts:
                 self.shell.poutput("No available hosts")
                 return
@@ -462,7 +463,7 @@ class UserCommands:
                     return
 
             # Create self-assignment (server auto-assigns cloud, handles ticketing)
-            owner = self.shell.connection.username.split("@")[0]
+            owner = get_username_short(self.shell.connection.username)
             assignment_data = {
                 "description": parsed["description"],
                 "owner": owner,
@@ -480,9 +481,8 @@ class UserCommands:
             )
 
             # Extract cloud name from response
-            cloud = assignment.get("cloud", {})
-            cloud_name = cloud.get("name") if isinstance(cloud, dict) else cloud
-            assignment_id = assignment.get("id", "unknown")
+            cloud_name = extract_cloud_name(assignment, default="unknown")
+            assignment_id = extract_assignment_id(assignment, default="unknown")
 
             # Step 2: Create schedules for each host separately (per QUADS API spec)
             created_schedules = 0
@@ -537,7 +537,7 @@ class UserCommands:
             return
 
         try:
-            username = self.shell.connection.username.split("@")[0]
+            username = get_username_short(self.shell.connection.username)
             # Get assignments by owner
             assignments = self.shell.connection.api.filter_assignments({"owner": username, "active": True})
             if not assignments:
@@ -550,8 +550,8 @@ class UserCommands:
             # Collect all unique hosts across all assignments
             unique_hosts = {}
             for assignment in assignments:
-                assignment_id = assignment.get("id")
-                cloud_name = assignment.get("cloud", {}).get("name", "N/A")
+                assignment_id = extract_assignment_id(assignment)
+                cloud_name = extract_cloud_name(assignment)
                 description = assignment.get("description", "")
 
                 # Get current schedules for this assignment

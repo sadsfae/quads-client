@@ -1,7 +1,7 @@
 from tabulate import tabulate
 
 from quads_client.error_handler import require_connection
-from quads_client.utils import extract_host_field
+from quads_client.utils import extract_host_field, get_available_hosts_filter
 
 
 class AvailableCommands:
@@ -84,10 +84,7 @@ class AvailableCommands:
         try:
             # Get available hosts using filter_hosts for cloud01 (available pool)
             # This returns full host objects with all fields populated
-            host_filters = {"cloud": "cloud01", "retired": False, "broken": False}
-
-            # Add user's hardware filters
-            host_filters.update(filters)
+            host_filters = get_available_hosts_filter(**filters)
 
             hosts = self.shell.connection.api.filter_hosts(host_filters)
 
