@@ -1,6 +1,31 @@
 # CHANGELOG
 
 
+## v0.3.1 (2026-05-06)
+
+### Bug Fixes
+
+- Ls_available returning N/A, filtering.
+  ([`9f9a450`](https://github.com/quadsproject/quads-client/commit/9f9a450ede50a083bdc24cdee4a59c18b21db15b))
+
+* Changed from filter_available (returns hostnames only) to filter_hosts (returns full objects) *
+  Fixed ls_available from not matching properly.
+
+- Major refactor
+  ([`20bdf4b`](https://github.com/quadsproject/quads-client/commit/20bdf4b85f5bbe9ecda66a77766e223a806d9616))
+
+### Chores
+
+- Fix black formatting
+  ([`b00272d`](https://github.com/quadsproject/quads-client/commit/b00272d3529fcbdb26fb15edd71ea87a07a877b9))
+
+- Update readme
+  ([`f84eecc`](https://github.com/quadsproject/quads-client/commit/f84eeccff798499d8098769a74b86adefbc51eb7))
+
+- Update RPM spec version to 0.3.0
+  ([`9c35ffa`](https://github.com/quadsproject/quads-client/commit/9c35ffacd5899a3ebeeba455e0765b81eae45123))
+
+
 ## v0.3.0 (2026-05-06)
 
 ### Chores
