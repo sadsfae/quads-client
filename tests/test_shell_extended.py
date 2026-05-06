@@ -1,5 +1,5 @@
 import pytest
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock, patch, PropertyMock
 from quads_client.shell import QuadsClientShell
 from quads_client.config import ConfigError
 
@@ -15,7 +15,7 @@ def test_shell_init_no_config():
 def test_shell_shorten_server_name():
     """Test server name shortening"""
     with patch("quads_client.shell.QuadsClientConfig"):
-        with patch("quads_client.shell.ConnectionManager"):
+        with patch("quads_client.shell.SessionManager"):
             shell = QuadsClientShell()
 
             # Test with long name (more than 3 segments)
@@ -30,10 +30,10 @@ def test_shell_shorten_server_name():
 def test_shell_update_prompt_disconnected():
     """Test prompt update when disconnected"""
     with patch("quads_client.shell.QuadsClientConfig"):
-        with patch("quads_client.shell.ConnectionManager") as mock_conn:
+        with patch("quads_client.shell.SessionManager"):
             shell = QuadsClientShell()
-            shell.connection = mock_conn.return_value
-            shell.connection.is_connected = False
+            # Mock session manager to return None for active_connection
+            shell.session_manager.active_connection = None
 
             shell._update_prompt()
             assert "(disconnected)" in shell.prompt
@@ -42,11 +42,16 @@ def test_shell_update_prompt_disconnected():
 def test_shell_update_prompt_connected():
     """Test prompt update when connected"""
     with patch("quads_client.shell.QuadsClientConfig"):
-        with patch("quads_client.shell.ConnectionManager") as mock_conn:
+        with patch("quads_client.shell.SessionManager"):
             shell = QuadsClientShell()
-            shell.connection = mock_conn.return_value
-            shell.connection.is_connected = True
-            shell.connection.current_server = "quads1.rdu2.scalelab.redhat.com"
+            # Mock session manager with active connection
+            mock_conn = MagicMock()
+            mock_conn.is_connected = True
+            mock_conn.current_server = "quads1.rdu2.scalelab.redhat.com"
+            shell.session_manager.active_connection = mock_conn
+            shell.config.get_server_url.return_value = "https://quads1.rdu2.scalelab.redhat.com"
+            shell.config.get_server_verify.return_value = True
+            shell.session_manager.list_sessions.return_value = []
 
             shell._update_prompt()
             assert "quads1.rdu2.scalelab" in shell.prompt
@@ -55,11 +60,13 @@ def test_shell_update_prompt_connected():
 def test_shell_update_visible_commands_not_authenticated():
     """Test command visibility when not authenticated"""
     with patch("quads_client.shell.QuadsClientConfig"):
-        with patch("quads_client.shell.ConnectionManager") as mock_conn:
+        with patch("quads_client.shell.SessionManager"):
             shell = QuadsClientShell()
-            shell.connection = mock_conn.return_value
-            shell.connection.is_authenticated = False
-            shell.connection.is_admin = False
+            # Mock active connection
+            mock_conn = MagicMock()
+            mock_conn.is_authenticated = False
+            mock_conn.is_admin = False
+            shell.session_manager.active_connection = mock_conn
 
             shell._update_visible_commands()
 
@@ -71,11 +78,13 @@ def test_shell_update_visible_commands_not_authenticated():
 def test_shell_update_visible_commands_user():
     """Test command visibility for authenticated non-admin user"""
     with patch("quads_client.shell.QuadsClientConfig"):
-        with patch("quads_client.shell.ConnectionManager") as mock_conn:
+        with patch("quads_client.shell.SessionManager"):
             shell = QuadsClientShell()
-            shell.connection = mock_conn.return_value
-            shell.connection.is_authenticated = True
-            shell.connection.is_admin = False
+            # Mock active connection
+            mock_conn = MagicMock()
+            mock_conn.is_authenticated = True
+            mock_conn.is_admin = False
+            shell.session_manager.active_connection = mock_conn
 
             shell._update_visible_commands()
 
@@ -87,11 +96,13 @@ def test_shell_update_visible_commands_user():
 def test_shell_update_visible_commands_admin():
     """Test command visibility for admin user"""
     with patch("quads_client.shell.QuadsClientConfig"):
-        with patch("quads_client.shell.ConnectionManager") as mock_conn:
+        with patch("quads_client.shell.SessionManager"):
             shell = QuadsClientShell()
-            shell.connection = mock_conn.return_value
-            shell.connection.is_authenticated = True
-            shell.connection.is_admin = True
+            # Mock active connection
+            mock_conn = MagicMock()
+            mock_conn.is_authenticated = True
+            mock_conn.is_admin = True
+            shell.session_manager.active_connection = mock_conn
 
             shell._update_visible_commands()
 
@@ -102,7 +113,7 @@ def test_shell_update_visible_commands_admin():
 def test_shell_exit_command():
     """Test that exit command returns True to exit the shell"""
     with patch("quads_client.shell.QuadsClientConfig"):
-        with patch("quads_client.shell.ConnectionManager"):
+        with patch("quads_client.shell.SessionManager"):
             shell = QuadsClientShell()
             result = shell.do_exit("")
             assert result is True

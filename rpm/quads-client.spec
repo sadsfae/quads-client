@@ -13,7 +13,7 @@
 %define name quads-client
 %define reponame quads-client
 %define branch main
-%define version 0.2.0
+%define version 0.2.1
 %define build_timestamp %{lua: print(os.date("%Y%m%d"))}
 
 Summary: QUADS Client TUI Shell for managing multiple QUADS server instances
@@ -100,11 +100,12 @@ echo " QUADS Client installed successfully                   "
 echo "======================================================="
 echo "                                                       "
 echo " To get started:                                       "
-echo "   1. Copy example config:                             "
-echo "      cp /usr/share/doc/quads-client/quads-client.yml.example ~/.quads-client.yml"
-echo "   2. Edit ~/.quads-client.yml with your QUADS servers "
-echo "   3. Run: quads-client                                "
-echo "                                                       "
+echo " Use the interactive add-quads-server command:         "
+echo "  quads-client                                         " 
+echo "  add-quads-server                                     "
+echo "  (follow prompts)                                     "
+echo "  connect <server_name>                                "
+echo "  register your.email@example.com YourPassword123      "
 echo "======================================================="
 fi
 :;

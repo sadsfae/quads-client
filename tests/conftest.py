@@ -64,11 +64,40 @@ def mock_connection_manager(mock_config, mock_api):
 
 
 @pytest.fixture
-def mock_shell(mock_config, mock_connection_manager):
+def mock_session_manager(mock_config, mock_connection_manager):
+    """Mock SessionManager"""
+    from datetime import datetime
+
+    # Mock session
+    mock_session = MagicMock()
+    mock_session.id = "1"
+    mock_session.server_name = "test_server"
+    mock_session.label = "test_server"
+    mock_session.connection = mock_connection_manager
+    mock_session.created_at = datetime.now()
+    mock_session.last_active = datetime.now()
+    mock_session.get_version.return_value = "2.2.6"
+
+    # Mock session manager
+    session_manager = MagicMock()
+    session_manager.config = mock_config
+    session_manager.sessions = {"1": mock_session}
+    session_manager.active_session_id = "1"
+    session_manager.active_connection = mock_connection_manager
+    session_manager.active_session = mock_session
+    session_manager.list_sessions.return_value = [mock_session]
+    session_manager.get_session.return_value = mock_session
+    session_manager.create_session.return_value = mock_session
+    return session_manager
+
+
+@pytest.fixture
+def mock_shell(mock_config, mock_connection_manager, mock_session_manager):
     """Mock QuadsClientShell"""
     shell = MagicMock()
     shell.config = mock_config
-    shell.connection = mock_connection_manager
+    shell.session_manager = mock_session_manager
+    shell.connection = mock_connection_manager  # Backward compatibility
     shell.poutput = MagicMock()
     shell.perror = MagicMock()
     shell.pwarning = MagicMock()

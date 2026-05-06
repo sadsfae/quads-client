@@ -12,6 +12,7 @@ QUADS Client is an interactive TUI (Text User Interface) shell for managing mult
 ## Features
 
 - **Multi-Server Support**: Connect to and manage multiple QUADS servers from a single interface
+- **Session Management**: Maintain multiple authenticated connections simultaneously and switch between them instantly
 - **Bearer Token Authentication**: Secure JWT-based authentication via python-quads-lib
 - **Interactive Shell**: Built on cmd2 with command history and comprehensive tab completion
 - **Intelligent Tab Completion**: Context-aware autocompletion for all commands, arguments, cloud names, hostnames, assignment IDs, and server names
@@ -30,6 +31,10 @@ QUADS Client is an interactive TUI (Text User Interface) shell for managing mult
   <img src="images/quads-client-2.png" alt="QUADS Client Screenshot 2" width="600">
 </p>
 
+<p align="left">
+  <img src="images/quads-client-3.png" alt="QUADS Client Screenshot 3" width="600">
+</p>
+
 ## Table of Contents
 
 - [Installation](#installation)
@@ -43,6 +48,7 @@ QUADS Client is an interactive TUI (Text User Interface) shell for managing mult
   - [One-Shot Commands](#one-shot-commands)
 - [Commands](#commands)
   - [Connection Management](#connection-management)
+  - [Multi-Server Session Management](#multi-server-session-management)
   - [Server Management](#server-management)
   - [Cloud Management](#cloud-management)
   - [Self-Scheduling Mode (SSM)](#self-scheduling-mode-ssm)
@@ -274,16 +280,108 @@ Tab completion dynamically fetches data from the connected QUADS server, ensurin
 ### Connection Management
 
 ```
-connect [server|number] - Connect to a QUADS server by name or number from servers list
-disconnect              - Disconnect from current server
-status                  - Show connection status and user roles
+connect [server|number] [--session <label>] - Connect to a QUADS server by name or number
+disconnect                                   - Disconnect from current server
+status                                       - Show connection status and active sessions
 ```
 
 **Examples**:
 ```bash
 connect quads1.example.com  # Connect by server name
 connect 2                   # Connect by server number from 'servers' list
+connect quads-prod --session prod  # Create a labeled session
 ```
+
+### Multi-Server Session Management
+
+QUADS Client allows you to maintain multiple authenticated connections simultaneously. This is useful when working across multiple environments (dev, staging, production) or comparing data between servers.
+
+**Key Benefits:**
+- **No re-authentication**: Sessions stay authenticated when you switch between them
+- **Instant switching**: Move between servers without reconnecting
+- **Labeled sessions**: Use memorable names instead of full server hostnames
+- **Session visibility**: See all active connections at a glance
+
+**Session Commands:**
+```
+session-create <server> [--label <name>]  - Create new session with optional label
+session <id|label>                        - Quick switch to session by ID or label  
+session-switch <id>                       - Switch to session by ID
+session-list                              - Show all active sessions with status
+session-close <id>                        - Close specific session
+session-close-all                         - Close all inactive sessions
+```
+
+**Quick Start Example:**
+```bash
+# Connect to multiple servers with labels
+> connect quads-prod.example.com --session prod
+OK: Connected to quads-prod.example.com as user@example.com (session 1)
+
+> connect quads-dev.example.com --session dev
+OK: Connected to quads-dev.example.com as user@example.com (session 2)
+
+# Prompt shows active sessions: [1:prod 2:dev*]
+✓ [1:prod 2:dev*] (quads-dev) >
+
+# Quick switch between environments
+> session prod
+Switched to session 1 (prod)
+✓ [1:prod* 2:dev] (quads-prod) > cloud-list
+[shows production clouds]
+
+> session dev
+Switched to session 1 (dev)
+✓ [1:prod 2:dev*] (quads-dev) >
+
+# View all sessions
+> session-list
+┏━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━┳━━━━━━━━━┳━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━┓
+┃ Session  ┃ Server                   ┃ Label   ┃ Version ┃ Status       ┃ Last Active  ┃
+┡━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━╇━━━━━━━━━╇━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━┩
+│ 1        │ quads-prod.example.com   │ prod    │ 2.2.6   │ ● Idle       │ 2m ago       │
+│ 2        │ quads-dev.example.com    │ dev     │ 2.2.6   │ ● Active ✓   │ now          │
+└──────────┴──────────────────────────┴─────────┴─────────┴──────────────┴──────────────┘
+```
+
+**Session Indicators in Prompt:**
+
+When you have multiple sessions, the prompt displays them for quick reference:
+```
+✓ [1:prod 2:dev* 3:stage] (quads-dev) >
+   │       │       └─ Asterisk marks active session
+   │       └───────── Session IDs with labels
+   └─────────────────── SSL status indicator
+```
+
+**Common Workflows:**
+
+Compare environments:
+```bash
+> connect quads-prod --session prod
+> connect quads-dev --session dev
+> session prod
+> cloud-list --cloud cloud05 --detail  # Check prod state
+> session dev  
+> cloud-list --cloud cloud05 --detail  # Compare with dev
+```
+
+Work in dev, monitor prod:
+```bash
+> connect quads-dev --session dev
+> connect quads-prod --session prod
+> session dev
+> schedule 3 description "Testing new feature"
+> session prod  # Quick check on production
+> my-hosts      # Verify prod assignments
+> session dev   # Back to development work
+```
+
+**Tips:**
+- Sessions remain authenticated even when inactive
+- Use `session-close-all` to clean up when switching projects
+- The `status` command shows all sessions when you have multiple connections
+- Configuration changes with `config-reload` update all active sessions
 
 ### Server Management
 
@@ -489,12 +587,14 @@ quads-client/
 ├── src/quads_client/
 │   ├── shell.py              - Main cmd2 shell
 │   ├── config.py             - YAML configuration loader
-│   ├── connection.py         - Multi-server connection manager
+│   ├── connection.py         - Server connection manager
+│   ├── session_manager.py    - Multi-session management
 │   ├── error_handler.py      - Error handling and auth retry
 │   ├── arg_parser.py         - Command argument parsing
 │   ├── history.py            - SQLite command history
 │   ├── progress.py           - Provisioning progress tracker
 │   ├── rich_console.py       - Rich terminal UI
+│   ├── utils.py              - Shared utility functions
 │   └── commands/             - Command modules
 │       ├── available.py      - Available hosts
 │       ├── cloud.py          - Cloud management
@@ -502,11 +602,14 @@ quads-client/
 │       ├── host.py           - Host management (admin)
 │       ├── schedule.py       - Schedule management (admin)
 │       ├── server.py         - Server configuration
+│       ├── session.py        - Session management
 │       ├── user.py           - User registration & self-scheduling
 │       └── version.py        - Version command
 ├── conf/
 │   └── quads-client.yml.example - Example configuration
-├── tests/                    - pytest test suite
+├── tests/                    - pytest test suite (391 tests)
+├── rpm/
+│   └── quads-client.spec     - RPM package specification
 ```
 
 ## Dependencies

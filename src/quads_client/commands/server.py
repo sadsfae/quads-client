@@ -503,8 +503,13 @@ class ServerCommands:
             from quads_client.config import QuadsClientConfig
 
             self.shell.config = QuadsClientConfig()
-            if self.shell.connection:
-                self.shell.connection.config = self.shell.config
+
+            # Update config for all sessions
+            if self.shell.session_manager:
+                self.shell.session_manager.config = self.shell.config
+                for session in self.shell.session_manager.sessions.values():
+                    session.connection.config = self.shell.config
+
             self.shell.poutput("OK: Configuration reloaded successfully")
         except Exception as e:
             self.shell.perror(f"Failed to reload configuration: {e}")
