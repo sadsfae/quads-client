@@ -296,12 +296,18 @@ def test_config_reload_success(mock_shell):
         mock_new_config = MagicMock()
         mock_config_class.return_value = mock_new_config
 
+        # Mock session with connection
+        mock_session = MagicMock()
+        mock_session.connection = MagicMock()
+        mock_shell.session_manager.sessions = {"1": mock_session}
+
         server_cmd = ServerCommands(mock_shell)
         server_cmd.cmd_config_reload("")
 
         mock_config_class.assert_called_once()
         assert mock_shell.config == mock_new_config
-        assert mock_shell.connection.config == mock_new_config
+        assert mock_shell.session_manager.config == mock_new_config
+        assert mock_session.connection.config == mock_new_config
         mock_shell.poutput.assert_called_with("OK: Configuration reloaded successfully")
 
 
@@ -315,8 +321,8 @@ def test_config_reload_failure(mock_shell):
 
 
 def test_config_reload_no_connection(mock_shell):
-    """Test config-reload when connection is None"""
-    mock_shell.connection = None
+    """Test config-reload when session_manager is None"""
+    mock_shell.session_manager = None
     with patch("quads_client.config.QuadsClientConfig") as mock_config_class:
         mock_new_config = MagicMock()
         mock_config_class.return_value = mock_new_config

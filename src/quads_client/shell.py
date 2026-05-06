@@ -6,12 +6,13 @@ from quads_client.commands.connection import ConnectionCommands
 from quads_client.commands.host import HostCommands
 from quads_client.commands.schedule import ScheduleCommands
 from quads_client.commands.server import ServerCommands
+from quads_client.commands.session import SessionCommands
 from quads_client.commands.user import UserCommands
 from quads_client.commands.version import VersionCommands
 from quads_client.config import ConfigError, QuadsClientConfig
-from quads_client.connection import ConnectionManager
 from quads_client.history import CommandHistory
 from quads_client.rich_console import RichConsole
+from quads_client.session_manager import SessionManager
 from quads_client.utils import get_ssl_indicator
 
 
@@ -25,7 +26,7 @@ class QuadsClientShell(cmd2.Cmd):
             persistent_history_length=1000,
         )
         self.config = None
-        self.connection = None
+        self.session_manager = None
         self.command_history = CommandHistory()
         self.rich_console = RichConsole()
 
@@ -38,7 +39,7 @@ class QuadsClientShell(cmd2.Cmd):
 
         try:
             self.config = QuadsClientConfig()
-            self.connection = ConnectionManager(self.config)
+            self.session_manager = SessionManager(self.config)
         except ConfigError as e:
             self.pwarning(f"Configuration error: {e}")
             self.pwarning("Please create ~/.config/quads/quads-client.yml")
@@ -51,9 +52,17 @@ class QuadsClientShell(cmd2.Cmd):
         self.schedule_commands = ScheduleCommands(self)
         self.available_commands = AvailableCommands(self)
         self.server_commands = ServerCommands(self)
+        self.session_commands = SessionCommands(self)
 
         self._update_prompt()
         self._update_visible_commands()
+
+    @property
+    def connection(self):
+        """Active session's connection for backward compatibility"""
+        if self.session_manager:
+            return self.session_manager.active_connection
+        return None
 
     def do_exit(self, args):
         """Exit the application"""
@@ -76,9 +85,31 @@ class QuadsClientShell(cmd2.Cmd):
             verify = self.config.get_server_verify(server)
             symbol, color = get_ssl_indicator(url, verify)
 
-            self.prompt = f"{color}{symbol} ({short_name})\033[0m > "
+            # Add session indicators
+            session_info = self._get_session_indicators()
+            self.prompt = f"{color}{symbol} {session_info}({short_name})\033[0m > "
         else:
             self.prompt = "\033[1;31m(disconnected)\033[0m > "
+
+    def _get_session_indicators(self) -> str:
+        """Generate session indicator string like '[1:dev* 2:prod]'"""
+        if not self.session_manager:
+            return ""
+
+        sessions = self.session_manager.list_sessions()
+        if len(sessions) <= 1:
+            return ""
+
+        indicators = []
+        for session in sessions[:4]:  # Max 4 visible
+            label = session.label[:8]  # Truncate long labels
+            active = "*" if session.id == self.session_manager.active_session_id else ""
+            indicators.append(f"{session.id}:{label}{active}")
+
+        if len(sessions) > 4:
+            indicators.append(f"+{len(sessions)-4}")
+
+        return f"[{' '.join(indicators)}] "
 
     def _update_visible_commands(self):
         """Update visible commands based on user role"""
@@ -728,6 +759,30 @@ class QuadsClientShell(cmd2.Cmd):
     def do_config_reload(self, args):
         """Reload configuration from file"""
         self.server_commands.cmd_config_reload(args)
+
+    def do_session_create(self, args):
+        """Create new session"""
+        self.session_commands.cmd_session_create(args)
+
+    def do_session_switch(self, args):
+        """Switch active session"""
+        self.session_commands.cmd_session_switch(args)
+
+    def do_session(self, args):
+        """Quick switch to session by ID or label"""
+        self.session_commands.cmd_session(args)
+
+    def do_session_list(self, args):
+        """List all sessions"""
+        self.session_commands.cmd_session_list(args)
+
+    def do_session_close(self, args):
+        """Close session"""
+        self.session_commands.cmd_session_close(args)
+
+    def do_session_close_all(self, args):
+        """Close all inactive sessions"""
+        self.session_commands.cmd_session_close_all(args)
 
     def do_mod_cloud(self, args):
         """Modify cloud attributes"""

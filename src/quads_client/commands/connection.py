@@ -3,29 +3,44 @@ class ConnectionCommands:
         self.shell = shell
 
     def cmd_connect(self, args):
-        """Connect to a QUADS server. Usage: connect [server_name | number]"""
-        if not self.shell.connection:
+        """Connect to a QUADS server. Usage: connect [server_name | number] [--session <label>]"""
+        if not self.shell.session_manager:
             self.shell.perror("Configuration not loaded")
             return
 
-        if not args.strip():
+        parts = args.split()
+        session_label = None
+
+        # Parse --session flag
+        if "--session" in parts:
+            idx = parts.index("--session")
+            if idx + 1 < len(parts):
+                session_label = parts[idx + 1]
+                # Remove --session and its value from parts
+                parts.pop(idx)  # Remove --session
+                parts.pop(idx)  # Remove the label value
+
+        # Determine server name
+        if not parts:
             default = self.shell.config.get_default_server() if self.shell.config else None
             if default:
                 server_name = default
                 self.shell.poutput(f"Connecting to default server: {default}")
             else:
-                servers = self.shell.connection.get_available_servers()
+                all_servers = self.shell.config.get_all_servers() if self.shell.config else {}
+                servers = list(all_servers.keys())
                 self.shell.poutput("Available servers:")
                 for i, server in enumerate(servers, 1):
                     self.shell.poutput(f"  {i}. {server}")
-                self.shell.poutput("\nUsage: connect <server_name|number>")
+                self.shell.poutput("\nUsage: connect <server_name|number> [--session <label>]")
                 return
         else:
-            arg = args.strip()
+            arg = parts[0]
             # Check if arg is a number (server index)
             if arg.isdigit():
                 server_index = int(arg)
-                servers = self.shell.connection.get_available_servers()
+                all_servers = self.shell.config.get_all_servers() if self.shell.config else {}
+                servers = list(all_servers.keys())
                 if server_index < 1 or server_index > len(servers):
                     self.shell.perror(f"Invalid server number: {server_index}")
                     self.shell.perror(f"Available servers: 1-{len(servers)}")
@@ -34,21 +49,24 @@ class ConnectionCommands:
                 server_name = servers[server_index - 1]
             else:
                 server_name = arg
+
         try:
             from quads_client.connection import ConnectionError
 
-            self.shell.connection.connect(server_name)
+            # Create session
+            session = self.shell.session_manager.create_session(server_name, session_label)
+            session.connection.connect(server_name)
 
             self.shell._update_prompt()
             self.shell._update_visible_commands()
 
             # Check if we're in registration mode (no credentials)
-            if self.shell.connection._registration_mode:
-                self.shell.poutput(f"OK: Connected to {server_name}")
+            if session.connection._registration_mode:
+                self.shell.poutput(f"OK: Connected to {server_name} (session {session.id})")
                 self.shell.poutput("  No credentials configured - use 'register' to create an account")
             else:
-                username = self.shell.connection.username
-                self.shell.poutput(f"OK: Connected to {server_name} as {username}")
+                username = session.connection.username
+                self.shell.poutput(f"OK: Connected to {server_name} as {username} (session {session.id})")
         except ConnectionError as e:
             self.shell.perror(str(e))
 
@@ -65,19 +83,56 @@ class ConnectionCommands:
         self.shell.poutput(f"Disconnected from {server}")
 
     def cmd_status(self, args):
-        """Show current connection status"""
-        if not self.shell.connection:
+        """Show current connection status and all active sessions"""
+        if not self.shell.session_manager:
             self.shell.perror("Configuration not loaded")
             return
 
-        if self.shell.connection.is_connected:
-            server = self.shell.connection.current_server
+        # Get active session info
+        active_session = self.shell.session_manager.active_session
+
+        if active_session and active_session.connection.is_connected:
+            server = active_session.connection.current_server
             url = self.shell.config.get_server_url(server)
-            username = self.shell.connection.username
-            self.shell.poutput(f"Connected to: {server}")
-            self.shell.poutput(f"URL: {url}")
-            self.shell.poutput(f"User: {username}")
+            username = active_session.connection.username
+            version = active_session.get_version()
+
+            from quads_client.utils import get_ssl_status_text
+
+            ssl_status = get_ssl_status_text(url, self.shell.config.get_server_verify(server))
+
+            self.shell.poutput(f"Current Session: {active_session.id} ({active_session.label})")
+            self.shell.poutput(f"Server: {server}")
+            self.shell.poutput(f"Version: {version}")
+            self.shell.poutput(f"Status: Connected (authenticated as {username})")
+            self.shell.poutput(f"SSL: {ssl_status}")
         else:
             self.shell.poutput("Not connected")
-            servers = self.shell.connection.get_available_servers()
-            self.shell.poutput(f"\nAvailable servers: {', '.join(servers)}")
+
+        # Show all sessions if more than one exists
+        sessions = self.shell.session_manager.list_sessions()
+        if len(sessions) > 1:
+            self.shell.poutput("\nAll Sessions:")
+            for session in sessions:
+                active_marker = " *" if session.id == self.shell.session_manager.active_session_id else ""
+                status = "connected" if session.connection.is_connected else "offline"
+
+                # Format last active time
+                from datetime import datetime
+
+                now = datetime.now()
+                delta = now - session.last_active
+                if delta.total_seconds() < 60:
+                    last_active = "active"
+                elif delta.total_seconds() < 3600:
+                    minutes = int(delta.total_seconds() / 60)
+                    last_active = f"{minutes}m ago"
+                else:
+                    hours = int(delta.total_seconds() / 3600)
+                    last_active = f"{hours}h ago"
+
+                session_line = (
+                    f"  {session.id}. {session.label:10} - {session.server_name} "
+                    f"({status}, {last_active}){active_marker}"
+                )
+                self.shell.poutput(session_line)
