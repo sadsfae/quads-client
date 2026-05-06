@@ -125,7 +125,7 @@ def test_assignment_create_success(mock_shell):
     }
 
     user_cmd = UserCommands(mock_shell)
-    user_cmd.cmd_assignment_create("--description My test environment --wipe true --qinq 1234")
+    user_cmd.cmd_assignment_create("description My test environment wipe true qinq 1234")
 
     mock_shell.connection.api.create_self_assignment.assert_called_once()
     assert mock_shell.poutput.call_count >= 4
@@ -143,7 +143,7 @@ def test_assignment_create_multiword_description(mock_shell):
     }
 
     user_cmd = UserCommands(mock_shell)
-    user_cmd.cmd_assignment_create("--description CI/CD pipeline testing environment --wipe false")
+    user_cmd.cmd_assignment_create("description CI/CD pipeline testing environment wipe false")
 
     call_args = mock_shell.connection.api.create_self_assignment.call_args[0][0]
     assert call_args["description"] == "CI/CD pipeline testing environment"
@@ -156,7 +156,7 @@ def test_assignment_create_missing_description(mock_shell):
     mock_shell.connection.is_authenticated = True
 
     user_cmd = UserCommands(mock_shell)
-    user_cmd.cmd_assignment_create("--wipe true")
+    user_cmd.cmd_assignment_create("wipe true")
 
     mock_shell.perror.assert_called()
 
@@ -167,7 +167,7 @@ def test_assignment_create_not_authenticated(mock_shell):
     mock_shell.connection.is_authenticated = False
 
     user_cmd = UserCommands(mock_shell)
-    user_cmd.cmd_assignment_create("--description Test")
+    user_cmd.cmd_assignment_create("description Test")
 
     mock_shell.perror.assert_called_with("Not authenticated. Use 'login' command first.")
 
@@ -180,7 +180,7 @@ def test_assignment_create_api_error(mock_shell):
     mock_shell.connection.api.create_self_assignment.side_effect = Exception("Creation failed")
 
     user_cmd = UserCommands(mock_shell)
-    user_cmd.cmd_assignment_create("--description Test environment")
+    user_cmd.cmd_assignment_create("description Test environment")
 
     mock_shell.perror.assert_called_with("Failed to create assignment: Creation failed")
 

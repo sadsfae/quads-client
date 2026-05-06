@@ -3,7 +3,7 @@ class ConnectionCommands:
         self.shell = shell
 
     def cmd_connect(self, args):
-        """Connect to a QUADS server. Usage: connect [server_name | number] [--session <label>]"""
+        """Connect to a QUADS server. Usage: connect [server_name | number] [session <label>]"""
         if not self.shell.session_manager:
             self.shell.perror("Configuration not loaded")
             return
@@ -11,17 +11,19 @@ class ConnectionCommands:
         parts = args.split()
         session_label = None
 
-        # Parse --session flag
-        if "--session" in parts:
-            idx = parts.index("--session")
-            if idx + 1 < len(parts):
-                session_label = parts[idx + 1]
-                # Remove --session and its value from parts
-                parts.pop(idx)  # Remove --session
-                parts.pop(idx)  # Remove the label value
+        # Parse session keyword
+        i = 0
+        server_parts = []
+        while i < len(parts):
+            if parts[i] == "session" and i + 1 < len(parts):
+                session_label = parts[i + 1]
+                i += 2
+            else:
+                server_parts.append(parts[i])
+                i += 1
 
         # Determine server name
-        if not parts:
+        if not server_parts:
             default = self.shell.config.get_default_server() if self.shell.config else None
             if default:
                 server_name = default
@@ -32,10 +34,10 @@ class ConnectionCommands:
                 self.shell.poutput("Available servers:")
                 for i, server in enumerate(servers, 1):
                     self.shell.poutput(f"  {i}. {server}")
-                self.shell.poutput("\nUsage: connect <server_name|number> [--session <label>]")
+                self.shell.poutput("\nUsage: connect <server_name|number> [session <label>]")
                 return
         else:
-            arg = parts[0]
+            arg = server_parts[0]
             # Check if arg is a number (server index)
             if arg.isdigit():
                 server_index = int(arg)
@@ -61,12 +63,14 @@ class ConnectionCommands:
             self.shell._update_visible_commands()
 
             # Check if we're in registration mode (no credentials)
-            if session.connection._registration_mode:
-                self.shell.poutput(f"OK: Connected to {server_name} (session {session.id})")
-                self.shell.poutput("  No credentials configured - use 'register' to create an account")
-            else:
-                username = session.connection.username
-                self.shell.poutput(f"OK: Connected to {server_name} as {username} (session {session.id})")
+            # Suppress connection messages in quiet mode (one-shot commands)
+            if not self.shell.quiet:
+                if session.connection._registration_mode:
+                    self.shell.poutput(f"OK: Connected to {server_name} (session {session.id})")
+                    self.shell.poutput("  No credentials configured - use 'register' to create an account")
+                else:
+                    username = session.connection.username
+                    self.shell.poutput(f"OK: Connected to {server_name} as {username} (session {session.id})")
         except ConnectionError as e:
             self.shell.perror(str(e))
 

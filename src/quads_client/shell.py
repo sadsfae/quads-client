@@ -19,7 +19,7 @@ from quads_client.utils import get_ssl_indicator
 class QuadsClientShell(cmd2.Cmd):
     intro = ""  # We'll use rich console for the banner
 
-    def __init__(self):
+    def __init__(self, quiet=False):
         super().__init__(
             multiline_commands=[],
             persistent_history_file="~/.config/quads/.quads-client_readline_history",
@@ -29,9 +29,11 @@ class QuadsClientShell(cmd2.Cmd):
         self.session_manager = None
         self.command_history = CommandHistory()
         self.rich_console = RichConsole()
+        self.quiet = quiet
 
-        # Print rich banner
-        self.rich_console.print_banner()
+        # Only print banner in interactive mode
+        if not quiet:
+            self.rich_console.print_banner()
 
         # Hide unwanted cmd2 built-in commands
         self.permanently_hidden = ["macro", "run_script", "edit", "run_pyscript", "shortcuts", "_relative_run_script"]
@@ -787,3 +789,90 @@ class QuadsClientShell(cmd2.Cmd):
     def do_mod_cloud(self, args):
         """Modify cloud attributes"""
         self.cloud_commands.cmd_mod_cloud(args)
+
+    def _auto_connect_for_oneshot(self, cmd_str):
+        """Auto-connect to default server for one-shot commands that need it"""
+        # Commands that don't require connection
+        no_connection_cmds = ["version", "help", "servers", "exit", "quit"]
+        cmd_name = cmd_str.split()[0] if cmd_str else ""
+
+        # Skip auto-connect for commands that don't need it
+        if cmd_name in no_connection_cmds:
+            return True
+
+        if not self.config:
+            self.perror("Configuration not loaded")
+            return False
+
+        # Check if already connected (active_session is a property, not a method)
+        if self.session_manager and self.session_manager.active_session:
+            return True
+
+        # Get default server
+        default_server = self.config.get_default_server()
+        if not default_server:
+            self.perror("No default server configured")
+            self.perror("Hint: Set default_server in ~/.config/quads/quads-client.yml")
+            return False
+
+        # Connect to default server (silent)
+        try:
+            self.connection_commands.cmd_connect(default_server)
+            return True
+        except Exception as e:
+            self.perror(f"Auto-connect failed: {e}")
+            return False
+
+    def execute_oneshot_command(self, cmd_str):
+        """
+        Execute a single command in one-shot mode and return exit code.
+
+        Supports special syntax: "connect <server> <command> <args>"
+        This allows specifying a non-default server for one-shot commands.
+
+        Args:
+            cmd_str: Command string to execute
+
+        Returns:
+            int: Exit code (0 for success, non-zero for failure)
+        """
+        # Check for "connect <server> <command>" pattern in one-shot mode
+        actual_command = cmd_str
+        if cmd_str.startswith("connect "):
+            parts = cmd_str.split(None, 2)  # Split into at most 3 parts: ["connect", server, rest]
+
+            # If there are 3+ parts and the third part doesn't look like a connect keyword
+            if len(parts) >= 3:
+                # Check if third part is a keyword for connect command
+                third_word = parts[2].split()[0] if parts[2] else ""
+                if third_word not in ["session", "label"]:
+                    # Pattern: connect <server> <command> <args>
+                    # Execute connect first, then the subsequent command
+                    server_name = parts[1]
+                    next_command = parts[2]
+
+                    try:
+                        # Don't use auto-connect; connect explicitly to specified server
+                        self.connection_commands.cmd_connect(server_name)
+                    except Exception as e:
+                        self.perror(f"Connection failed: {e}")
+                        return 3
+
+                    # Now execute the actual command
+                    actual_command = next_command
+
+        # Auto-connect if needed (for commands without explicit connect)
+        if not actual_command.startswith("connect") and not self._auto_connect_for_oneshot(actual_command):
+            return 3  # Exit code 3: Connection error
+
+        # Execute the command
+        try:
+            # onecmd returns True if the command wants to stop cmdloop, False otherwise
+            # We don't care about the return value for one-shot mode
+            self.onecmd(actual_command)
+            return 0  # Success
+        except KeyboardInterrupt:
+            return 130  # Standard exit code for Ctrl+C
+        except Exception as e:
+            self.perror(f"Error: {e}")
+            return 1  # General error

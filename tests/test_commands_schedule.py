@@ -35,7 +35,7 @@ def test_ls_schedule_with_filters(schedule_commands, mock_shell):
     mock_shell.connection.is_connected = True
     mock_shell.connection.api.get_schedules.return_value = []
 
-    schedule_commands.cmd_ls_schedule("--host host01.example.com")
+    schedule_commands.cmd_ls_schedule("host host01.example.com")
 
     mock_shell.connection.api.get_schedules.assert_called_once_with({"host": "host01.example.com"})
 
@@ -45,7 +45,7 @@ def test_ls_schedule_with_cloud_filter(schedule_commands, mock_shell):
     mock_shell.connection.is_connected = True
     mock_shell.connection.api.get_schedules.return_value = []
 
-    schedule_commands.cmd_ls_schedule("--cloud cloud01")
+    schedule_commands.cmd_ls_schedule("cloud cloud01")
 
     mock_shell.connection.api.get_schedules.assert_called_once_with({"cloud": "cloud01"})
 
@@ -65,7 +65,7 @@ def test_add_schedule_success(schedule_commands, mock_shell):
     mock_shell.connection.is_connected = True
     mock_shell.connection.api.create_schedule.return_value = {"id": 123}
 
-    schedule_commands.cmd_add_schedule("--host host01 --cloud cloud01 --start 2026-05-01 --end 2026-05-15")
+    schedule_commands.cmd_add_schedule("host host01 cloud cloud01 start 2026-05-01 end 2026-05-15")
 
     expected_data = {
         "hostname": "host01",  # API expects "hostname" not "host"
@@ -81,7 +81,7 @@ def test_add_schedule_missing_args(schedule_commands, mock_shell):
     """Test add-schedule with missing arguments"""
     mock_shell.connection.is_connected = True
 
-    schedule_commands.cmd_add_schedule("--host host01")
+    schedule_commands.cmd_add_schedule("host host01")
 
     mock_shell.perror.assert_called()
     assert "Usage:" in mock_shell.perror.call_args[0][0]
@@ -91,7 +91,7 @@ def test_mod_schedule_success(schedule_commands, mock_shell):
     """Test modifying a schedule successfully"""
     mock_shell.connection.is_connected = True
 
-    schedule_commands.cmd_mod_schedule("--id 123 --end 2026-06-01")
+    schedule_commands.cmd_mod_schedule("id 123 end 2026-06-01")
 
     mock_shell.connection.api.update_schedule.assert_called_once_with("123", {"end": "2026-06-01"})
     mock_shell.poutput.assert_called_with("Schedule 123 updated successfully")
@@ -101,7 +101,7 @@ def test_mod_schedule_no_id(schedule_commands, mock_shell):
     """Test mod-schedule without schedule ID"""
     mock_shell.connection.is_connected = True
 
-    schedule_commands.cmd_mod_schedule("--end 2026-06-01")
+    schedule_commands.cmd_mod_schedule("end 2026-06-01")
 
     mock_shell.perror.assert_called()
     assert "Usage:" in mock_shell.perror.call_args[0][0]
@@ -111,7 +111,7 @@ def test_mod_schedule_no_updates(schedule_commands, mock_shell):
     """Test mod-schedule with no updates specified"""
     mock_shell.connection.is_connected = True
 
-    schedule_commands.cmd_mod_schedule("--id 123")
+    schedule_commands.cmd_mod_schedule("id 123")
 
     mock_shell.perror.assert_called_with("No updates specified")
 
@@ -193,7 +193,7 @@ def test_shrink_success(schedule_commands, mock_shell):
         }
     ]
 
-    schedule_commands.cmd_shrink("--host host01 --weeks 1")
+    schedule_commands.cmd_shrink("host01 weeks 1")
 
     mock_shell.connection.api.get_current_schedules.assert_called_once_with({"host": "host01"})
     mock_shell.connection.api.update_schedule.assert_called_once()

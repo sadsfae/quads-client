@@ -391,12 +391,12 @@ class ServerCommands:
 
     def cmd_edit_server(self, args):
         """Edit an existing server.
-        Usage: edit-server <name> [--url URL] [--username USER] [--password PASS] [--verify true|false]
+        Usage: edit-server <name> [url URL] [username USER] [password PASS] [verify true|false]
         """
         parts = args.split()
         if len(parts) < 1:
             self.shell.perror(
-                "Usage: edit-server <name> [--url URL] [--username USER] [--password PASS] [--verify true|false]"
+                "Usage: edit-server <name> [url URL] [username USER] [password PASS] [verify true|false]"
             )
             return
 
@@ -421,16 +421,16 @@ class ServerCommands:
 
             i = 1
             while i < len(parts):
-                if parts[i] == "--url" and i + 1 < len(parts):
+                if parts[i] == "url" and i + 1 < len(parts):
                     updates["url"] = parts[i + 1]
                     i += 2
-                elif parts[i] == "--username" and i + 1 < len(parts):
+                elif parts[i] == "username" and i + 1 < len(parts):
                     updates["username"] = parts[i + 1]
                     i += 2
-                elif parts[i] == "--password" and i + 1 < len(parts):
+                elif parts[i] == "password" and i + 1 < len(parts):
                     updates["password"] = parts[i + 1]
                     i += 2
-                elif parts[i] == "--verify" and i + 1 < len(parts):
+                elif parts[i] == "verify" and i + 1 < len(parts):
                     updates["verify"] = parts[i + 1].lower() == "true"
                     i += 2
                 else:
