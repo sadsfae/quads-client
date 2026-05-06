@@ -13,7 +13,7 @@
 %define name quads-client
 %define reponame quads-client
 %define branch main
-%define version 0.1.1
+%define version 0.1.2
 %define build_timestamp %{lua: print(os.date("%Y%m%d"))}
 
 Summary: QUADS Client TUI Shell for managing multiple QUADS server instances
@@ -37,6 +37,8 @@ Requires: python3-argcomplete >= 3.1.2
 Requires: python3-PyYAML >= 6.0.0
 Requires: python3-jwt >= 2.8.0
 Requires: python3-rich >= 13.0.0
+Requires: python3-requests >= 2.31.0
+Requires: python3-urllib3 >= 2.0.0
 Requires: bash-completion
 
 AutoReq: no

@@ -67,3 +67,49 @@ def extract_hostname(host):
         The hostname string or empty string if not found
     """
     return extract_host_field(host, "name", field_aliases=["hostname"], default="")
+
+
+def get_ssl_indicator(url: str, verify: bool) -> tuple[str, str]:
+    """
+    Get SSL security indicator symbol and ANSI color for prompt display.
+
+    Args:
+        url: Server URL (http:// or https://)
+        verify: Whether SSL verification is enabled
+
+    Returns:
+        tuple: (symbol, ansi_color_code)
+            - ✓ (green) for HTTPS with verification
+            - ! (green) for HTTPS without verification
+            - ✗ (yellow) for HTTP
+    """
+    if url.startswith("https://"):
+        if verify:
+            return "✓", "\033[1;32m"
+        else:
+            return "!", "\033[1;32m"
+    else:
+        return "✗", "\033[1;33m"
+
+
+def get_ssl_status_text(url: str, verify: bool) -> str:
+    """
+    Get SSL status text for table display.
+
+    Args:
+        url: Server URL (http:// or https://)
+        verify: Whether SSL verification is enabled
+
+    Returns:
+        str: SSL status description
+            - "HTTPS (verified)" for HTTPS with verification
+            - "HTTPS (unverified)" for HTTPS without verification
+            - "HTTP" for plain HTTP
+    """
+    if url.startswith("https://"):
+        if verify:
+            return "HTTPS (verified)"
+        else:
+            return "HTTPS (unverified)"
+    else:
+        return "HTTP"

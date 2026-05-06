@@ -12,6 +12,7 @@ from quads_client.config import ConfigError, QuadsClientConfig
 from quads_client.connection import ConnectionManager
 from quads_client.history import CommandHistory
 from quads_client.rich_console import RichConsole
+from quads_client.utils import get_ssl_indicator
 
 
 class QuadsClientShell(cmd2.Cmd):
@@ -69,7 +70,13 @@ class QuadsClientShell(cmd2.Cmd):
         if self.connection and self.connection.is_connected:
             server = self.connection.current_server
             short_name = self._shorten_server_name(server)
-            self.prompt = f"\033[1;32m({short_name})\033[0m > "
+
+            # Get SSL indicator
+            url = self.config.get_server_url(server)
+            verify = self.config.get_server_verify(server)
+            symbol, color = get_ssl_indicator(url, verify)
+
+            self.prompt = f"{color}{symbol} ({short_name})\033[0m > "
         else:
             self.prompt = "\033[1;31m(disconnected)\033[0m > "
 

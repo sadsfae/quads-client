@@ -1,5 +1,6 @@
 from typing import Optional
 import jwt
+import urllib3
 
 from quads_lib import QuadsApi
 
@@ -80,6 +81,10 @@ class ConnectionManager:
         url = self.config.get_server_url(server_name)
         username, password = self.config.get_server_credentials(server_name)
         verify = self.config.get_server_verify(server_name)
+
+        # Suppress SSL warnings when certificate verification is disabled
+        if not verify:
+            urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
         try:
             # Automatically use registration mode if credentials are missing
