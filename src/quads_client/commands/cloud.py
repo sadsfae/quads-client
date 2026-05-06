@@ -12,7 +12,7 @@ class CloudCommands:
         return require_connection(self.shell)
 
     def cmd_cloud_list(self, args):
-        """List all clouds. Usage: cloud-list [--cloud <name>] [--detail]"""
+        """List all clouds. Usage: cloud-list [cloud <name>] [detail]"""
         if not self._require_connection():
             return
 
@@ -22,10 +22,10 @@ class CloudCommands:
 
         i = 0
         while i < len(parts):
-            if parts[i] == "--cloud" and i + 1 < len(parts):
+            if parts[i] == "cloud" and i + 1 < len(parts):
                 cloud_name = parts[i + 1]
                 i += 2
-            elif parts[i] == "--detail":
+            elif parts[i] == "detail":
                 show_detail = True
                 i += 1
             else:
@@ -35,7 +35,7 @@ class CloudCommands:
             if cloud_name:
                 self._show_cloud_detail(cloud_name)
             elif show_detail and not cloud_name:
-                self.shell.perror("--detail requires --cloud <name>")
+                self.shell.perror("detail requires cloud <name>")
             else:
                 clouds = self.shell.connection.api.get_clouds()
                 if not clouds:
@@ -217,7 +217,7 @@ class CloudCommands:
 
     def cmd_mod_cloud(self, args):
         """Modify cloud attributes.
-        Usage: mod-cloud <cloud_name> [--owner OWNER] [--description DESC] [--ticket TICKET] [--wipe true|false]
+        Usage: mod-cloud <cloud_name> [owner OWNER] [description DESC] [ticket TICKET] [wipe true|false]
         """
         if not self._require_connection():
             return
@@ -225,33 +225,34 @@ class CloudCommands:
         parts = args.split()
         if len(parts) < 1:
             self.shell.perror(
-                "Usage: mod-cloud <cloud_name> [--owner OWNER] [--description DESC] "
-                "[--ticket TICKET] [--wipe true|false] [--ccusers CCUSERS]"
+                "Usage: mod-cloud <cloud_name> [owner OWNER] [description DESC] "
+                "[ticket TICKET] [wipe true|false] [ccusers CCUSERS]"
             )
             return
 
         cloud_name = parts[0]
         updates = {}
+        keywords = ["owner", "description", "ticket", "wipe", "ccusers"]
 
         i = 1
         while i < len(parts):
-            if parts[i] == "--owner" and i + 1 < len(parts):
+            if parts[i] == "owner" and i + 1 < len(parts):
                 updates["owner"] = parts[i + 1]
                 i += 2
-            elif parts[i] == "--description" and i + 1 < len(parts):
+            elif parts[i] == "description" and i + 1 < len(parts):
                 desc_parts = []
                 i += 1
-                while i < len(parts) and not parts[i].startswith("--"):
+                while i < len(parts) and parts[i] not in keywords:
                     desc_parts.append(parts[i])
                     i += 1
                 updates["description"] = " ".join(desc_parts)
-            elif parts[i] == "--ticket" and i + 1 < len(parts):
+            elif parts[i] == "ticket" and i + 1 < len(parts):
                 updates["ticket"] = parts[i + 1]
                 i += 2
-            elif parts[i] == "--wipe" and i + 1 < len(parts):
+            elif parts[i] == "wipe" and i + 1 < len(parts):
                 updates["wipe"] = parts[i + 1].lower() == "true"
                 i += 2
-            elif parts[i] == "--ccusers" and i + 1 < len(parts):
+            elif parts[i] == "ccusers" and i + 1 < len(parts):
                 updates["ccusers"] = parts[i + 1]
                 i += 2
             else:

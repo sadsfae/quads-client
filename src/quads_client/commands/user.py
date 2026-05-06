@@ -123,30 +123,31 @@ class UserCommands:
             self.shell.perror(f"Failed to get user info: {e}")
 
     def cmd_assignment_create(self, args):
-        """Create an assignment. Usage: assignment-create --description <desc> [--wipe true|false] [--qinq <vlan>]"""
+        """Create an assignment. Usage: assignment-create description <desc> [wipe true|false] [qinq <vlan>]"""
         if not self._require_auth():
             return
 
         parts = args.strip().split()
-        if not parts or "--description" not in args:
-            self.shell.perror("Usage: assignment-create --description <desc> [--wipe true|false] [--qinq <vlan>]")
+        if not parts or "description" not in args:
+            self.shell.perror("Usage: assignment-create description <desc> [wipe true|false] [qinq <vlan>]")
             return
 
         data = {}
+        keywords = ["description", "wipe", "qinq"]
         i = 0
         while i < len(parts):
-            if parts[i] == "--description" and i + 1 < len(parts):
+            if parts[i] == "description" and i + 1 < len(parts):
                 # Handle multi-word descriptions
                 desc_parts = []
                 i += 1
-                while i < len(parts) and not parts[i].startswith("--"):
+                while i < len(parts) and parts[i] not in keywords:
                     desc_parts.append(parts[i])
                     i += 1
                 data["description"] = " ".join(desc_parts)
-            elif parts[i] == "--wipe" and i + 1 < len(parts):
+            elif parts[i] == "wipe" and i + 1 < len(parts):
                 data["wipe"] = parts[i + 1].lower() == "true"
                 i += 2
-            elif parts[i] == "--qinq" and i + 1 < len(parts):
+            elif parts[i] == "qinq" and i + 1 < len(parts):
                 data["qinq"] = int(parts[i + 1])
                 i += 2
             else:

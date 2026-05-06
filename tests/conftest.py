@@ -104,4 +104,5 @@ def mock_shell(mock_config, mock_connection_manager, mock_session_manager):
     shell._update_prompt = MagicMock()
     shell._update_visible_commands = MagicMock()
     shell.rich_console = None  # Rich console disabled in tests (use fallback)
+    shell.quiet = False  # Default to interactive mode (not quiet)
     return shell

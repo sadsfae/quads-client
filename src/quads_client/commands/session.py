@@ -12,21 +12,31 @@ class SessionCommands:
     def cmd_session_create(self, args):
         """
         Create new session.
-        Usage: session-create <server_name> [--label <name>]
+        Usage: session-create <server_name> [label <name>]
         """
         if not args.strip():
-            self.shell.perror("Usage: session-create <server_name> [--label <name>]")
+            self.shell.perror("Usage: session-create <server_name> [label <name>]")
             return
 
         parts = args.split()
-        server_name = parts[0]
+        server_name = None
         label = None
 
-        # Parse --label flag
-        if "--label" in parts:
-            idx = parts.index("--label")
-            if idx + 1 < len(parts):
-                label = parts[idx + 1]
+        # Parse arguments (server_name is positional, label is keyword)
+        i = 0
+        while i < len(parts):
+            if parts[i] == "label" and i + 1 < len(parts):
+                label = parts[i + 1]
+                i += 2
+            else:
+                # First non-keyword argument is server name
+                if server_name is None:
+                    server_name = parts[i]
+                i += 1
+
+        if not server_name:
+            self.shell.perror("Usage: session-create <server_name> [label <name>]")
+            return
 
         try:
             session = self.shell.session_manager.create_session(server_name, label)

@@ -73,11 +73,55 @@ class ConnectionManager:
         except Exception:
             return None
 
+    def _resolve_server_name(self, input_name: str) -> Optional[str]:
+        """
+        Resolve a server name using fuzzy matching.
+
+        Tries in order:
+        1. Exact match with config keys
+        2. Match against server URLs (strip https://)
+        3. Prefix match with config keys
+
+        Returns the matched config key or None.
+        """
+        all_servers = self.config.get_all_servers()
+
+        # 1. Exact match
+        if input_name in all_servers:
+            return input_name
+
+        # 2. Match against URLs (strip protocol)
+        # Normalize input by stripping protocol and trailing slashes
+        input_normalized = input_name.replace("https://", "").replace("http://", "").rstrip("/")
+
+        for server_key in all_servers:
+            server_url = self.config.get_server_url(server_key)
+            # Strip protocol and trailing slashes from config URL
+            url_host = server_url.replace("https://", "").replace("http://", "").rstrip("/")
+            if input_normalized == url_host:
+                return server_key
+
+        # 3. Prefix match (e.g., "quads2-dev" matches "quads2-dev.rdu2.scalelab")
+        matches = [key for key in all_servers if key.startswith(input_name)]
+        if len(matches) == 1:
+            return matches[0]
+        elif len(matches) > 1:
+            # Multiple matches - try to find exact substring match
+            for key in matches:
+                if input_name in key:
+                    return key
+
+        return None
+
     def connect(self, server_name: str, registration_mode: bool = False) -> None:
         """Connect to a server. Automatically enters registration mode if credentials are blank."""
-        if server_name not in self.config.get_all_servers():
+        # Resolve server name with fuzzy matching
+        resolved_name = self._resolve_server_name(server_name)
+        if not resolved_name:
             raise ConnectionError(f"Unknown server: {server_name}")
 
+        # Use resolved name for all operations
+        server_name = resolved_name
         url = self.config.get_server_url(server_name)
         username, password = self.config.get_server_credentials(server_name)
         verify = self.config.get_server_verify(server_name)

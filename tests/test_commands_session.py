@@ -14,7 +14,7 @@ class TestSessionCreate:
         session_cmd = SessionCommands(mock_shell)
         session_cmd.cmd_session_create("")
 
-        mock_shell.perror.assert_called_with("Usage: session-create <server_name> [--label <name>]")
+        mock_shell.perror.assert_called_with("Usage: session-create <server_name> [label <name>]")
 
     def test_session_create_server_only(self, mock_shell):
         """Test session-create with server name only"""
@@ -33,7 +33,7 @@ class TestSessionCreate:
         mock_shell.poutput.assert_called_with("Created session 2 (test_server)")
 
     def test_session_create_with_label(self, mock_shell):
-        """Test session-create with --label flag"""
+        """Test session-create with label flag"""
         mock_session = MagicMock()
         mock_session.id = "2"
         mock_session.label = "dev"
@@ -41,7 +41,7 @@ class TestSessionCreate:
         mock_shell.session_manager.create_session.return_value = mock_session
 
         session_cmd = SessionCommands(mock_shell)
-        session_cmd.cmd_session_create("test_server --label dev")
+        session_cmd.cmd_session_create("test_server label dev")
 
         mock_shell.session_manager.create_session.assert_called_once_with("test_server", "dev")
         mock_shell.poutput.assert_called_with("Created session 2 (dev)")
