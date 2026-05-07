@@ -1,6 +1,54 @@
 # CHANGELOG
 
 
+## v0.3.3 (2026-05-07)
+
+### Bug Fixes
+
+- Fully test and fix admin scheduling mode.
+  ([`768780a`](https://github.com/quadsproject/quads-client/commit/768780a22719e26eb7912243a1851dd37ae850c4))
+
+* Admin scheduling fully tested * Major refactor * Relied on changes to python-quads-lib and quads.
+
+- Improve onboard first time xp, tests
+  ([`bc83a1e`](https://github.com/quadsproject/quads-client/commit/bc83a1e8f2fa94224737f098a63b77921d1038ef))
+
+- User onboarding fixes, tests
+  ([`162ec5a`](https://github.com/quadsproject/quads-client/commit/162ec5aab0d573f981029ed396f36a0ed9522ded))
+
+### Chores
+
+- Add images
+  ([`3842218`](https://github.com/quadsproject/quads-client/commit/38422183613350b9ee30042fc36bbf06685780c7))
+
+- Add SSM and admin scheduling images, tests
+  ([`276af50`](https://github.com/quadsproject/quads-client/commit/276af508f8dd3b770465c67531cf420add4e3bd5))
+
+- Fix tests
+  ([`d43b7e2`](https://github.com/quadsproject/quads-client/commit/d43b7e2878581ed12833f1d858ea828f41ec3995))
+
+- Fix tests
+  ([`5451ffa`](https://github.com/quadsproject/quads-client/commit/5451ffa7fd8e8c15f7f418865087d44ccb68e4a1))
+
+- Flake8
+  ([`4bc75c8`](https://github.com/quadsproject/quads-client/commit/4bc75c8755783ec43432fd4a8686af6f54f89083))
+
+- Harden RPM spec update
+  ([`ad884a9`](https://github.com/quadsproject/quads-client/commit/ad884a946e1ef6909dde07a645545faa5fa70a4f))
+
+- Last bit of codecov tests
+  ([`300dfb0`](https://github.com/quadsproject/quads-client/commit/300dfb07686c6b62f5151fc07ffc6fd2f6d5cdd1))
+
+- Last of tests
+  ([`d2d6863`](https://github.com/quadsproject/quads-client/commit/d2d68633257d08f79116f9e665f613802c0d6142))
+
+- More tests
+  ([`f8154ca`](https://github.com/quadsproject/quads-client/commit/f8154cac815a1b6ace757644615713a284b17114))
+
+- Update RPM spec version to 0.3.2
+  ([`ce47f23`](https://github.com/quadsproject/quads-client/commit/ce47f2334bf787837f10b1ac56751d4176706607))
+
+
 ## v0.3.2 (2026-05-06)
 
 ### Bug Fixes
