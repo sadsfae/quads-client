@@ -60,7 +60,7 @@ def test_shell_print_onboarding_message():
             output_text = "\n".join(output_lines)
             assert "Welcome to QUADS Client!" in output_text
             assert "add-quads-server" in output_text
-            assert "config-reload" in output_text
+            assert "config_reload" in output_text
             assert "connect <server_name>" in output_text
             assert "register" in output_text
 
@@ -72,7 +72,7 @@ def test_shell_shorten_server_name():
             shell = QuadsClientShell()
 
             # Test with long name (more than 3 segments)
-            short = shell._shorten_server_name("quads2-dev.rdu2.scalelab.redhat.com")
+            short = shell._shorten_server_name("quads2-dev.rdu2.scalelab.example.com")
             assert short == "quads2-dev.rdu2.scalelab"
 
             # Test with already short name
@@ -100,9 +100,9 @@ def test_shell_update_prompt_connected():
             # Mock session manager with active connection
             mock_conn = MagicMock()
             mock_conn.is_connected = True
-            mock_conn.current_server = "quads1.rdu2.scalelab.redhat.com"
+            mock_conn.current_server = "quads1.rdu2.scalelab.example.com"
             shell.session_manager.active_connection = mock_conn
-            shell.config.get_server_url.return_value = "https://quads1.rdu2.scalelab.redhat.com"
+            shell.config.get_server_url.return_value = "https://quads1.rdu2.scalelab.example.com"
             shell.config.get_server_verify.return_value = True
             shell.session_manager.list_sessions.return_value = []
 

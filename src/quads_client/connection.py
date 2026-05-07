@@ -175,15 +175,24 @@ class ConnectionManager:
                     f"Failed to connect to {server_name}: SSL certificate verification failed. "
                     f"Use 'edit-server {server_name} --verify false' to disable verification for testing."
                 )
-            elif "unauthorized" in error_str or "401" in error_str:
+            elif "unauthorized" in error_str or "401" in error_str or "403" in error_str or "forbidden" in error_str:
                 raise ConnectionError(
-                    f"Failed to connect to {server_name}: Authentication failed. Check your credentials."
+                    f"Failed to connect to {server_name}: Authentication failed. "
+                    f"Check your username and password in the configuration."
                 )
             elif "expecting value" in error_str or "json" in error_str:
-                raise ConnectionError(
-                    f"Failed to connect to {server_name}: Server is not responding correctly. "
-                    f"It may be offline or the URL may be incorrect."
-                )
+                # JSON parsing error could mean wrong credentials (server returned HTML error page)
+                # or actual server issue. Check if we have credentials configured.
+                if username and password:
+                    raise ConnectionError(
+                        f"Failed to connect to {server_name}: Server returned an invalid response. "
+                        f"This usually means incorrect credentials. Please verify your username and password."
+                    )
+                else:
+                    raise ConnectionError(
+                        f"Failed to connect to {server_name}: Server is not responding correctly. "
+                        f"It may be offline or the URL may be incorrect."
+                    )
             elif "connection" in error_str or "refused" in error_str:
                 raise ConnectionError(
                     f"Failed to connect to {server_name}: Server is unreachable. "

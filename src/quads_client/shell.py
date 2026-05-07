@@ -90,10 +90,10 @@ class QuadsClientShell(cmd2.Cmd):
         self.poutput("     \033[1;36madd-quads-server\033[0m")
         self.poutput("     (Follow the interactive prompts)\n")
         self.poutput("  2. Reload configuration:")
-        self.poutput("     \033[1;36mconfig-reload\033[0m\n")
+        self.poutput("     \033[1;36mconfig_reload\033[0m\n")
         self.poutput("  3. Connect to your server:")
         self.poutput("     \033[1;36mconnect <server_name>\033[0m\n")
-        self.poutput("  4. Register your account:")
+        self.poutput("  4. Register new account (or login if you have one):")
         self.poutput("     \033[1;36mregister your.email@example.com YourPassword123\033[0m\n")
         self.poutput("  Type \033[1mhelp\033[0m for more commands.\n")
 
@@ -490,7 +490,7 @@ class QuadsClientShell(cmd2.Cmd):
                 return cloud_names
 
             # Subsequent args: attributes
-            keywords = ["--owner", "--description", "--ticket", "--wipe", "--ccusers"]
+            keywords = ["cloud-owner", "description", "cloud-ticket", "cc-users", "vlan", "qinq", "wipe", "nowipe"]
             if text:
                 return [k for k in keywords if k.startswith(text)]
             return keywords

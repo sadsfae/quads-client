@@ -114,17 +114,17 @@ def test_my_hosts_duplicate_hosts_across_assignments(mock_shell):
         return [
             {
                 "id": 1,
-                "host": {"name": "e28-h26-000-r650.stage.rdu2.scalelab.redhat.com"},
+                "host": {"name": "e28-h26-000-r650.stage.rdu2.scalelab.example.com"},
                 "end": "Sun, 10 May 2026 21:00:00 GMT",
             },
             {
                 "id": 2,
-                "host": {"name": "f07-h36-000-1029u.stage.rdu2.scalelab.redhat.com"},
+                "host": {"name": "f07-h36-000-1029u.stage.rdu2.scalelab.example.com"},
                 "end": "Sun, 10 May 2026 21:00:00 GMT",
             },
             {
                 "id": 3,
-                "host": {"name": "f18-h29-000-1029p.stage.rdu2.scalelab.redhat.com"},
+                "host": {"name": "f18-h29-000-1029p.stage.rdu2.scalelab.example.com"},
                 "end": "Sun, 10 May 2026 21:00:00 GMT",
             },
         ]
