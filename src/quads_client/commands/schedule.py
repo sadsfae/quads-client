@@ -319,7 +319,7 @@ class ScheduleCommands:
                 schedule_data = {
                     "cloud": parsed["cloud"],
                     "hostname": hostname,
-                    "start": None if parsed["start"] == "now" else parsed["start"],
+                    "start": parsed["start"],  # Pass "now" as-is, server handles it
                     "end": parsed["end"],
                 }
 

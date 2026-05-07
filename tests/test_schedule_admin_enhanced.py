@@ -53,7 +53,14 @@ class TestSchedulePreFlightChecks:
         mock_shell.connection.is_authenticated = True
         mock_shell.connection.is_admin = True
         mock_shell.connection.api.filter_clouds.return_value = [{"name": "cloud02"}]
-        mock_shell.connection.api.get_active_cloud_assignment.return_value = {"id": 50}
+        mock_shell.connection.api.create_assignment.return_value = {
+            "id": 150,
+            "cloud": {"name": "cloud02"},
+        }
+        mock_shell.connection.api.get_active_cloud_assignment.return_value = {
+            "id": 150,
+            "cloud": {"name": "cloud02"},
+        }
         mock_shell.connection.api.create_schedule.return_value = {"id": 1}
 
         schedule_cmd = ScheduleCommands(mock_shell)
@@ -63,6 +70,11 @@ class TestSchedulePreFlightChecks:
 
         # Should NOT check availability when start is "now"
         assert mock_shell.connection.api.is_available.call_count == 0
+        # Should create schedules with "now" as start value
+        assert mock_shell.connection.api.create_schedule.call_count == 2
+        # Verify "now" is passed to API (not None)
+        first_call = mock_shell.connection.api.create_schedule.call_args_list[0][0][0]
+        assert first_call["start"] == "now"
 
 
 class TestScheduleOrphanedCleanup:
