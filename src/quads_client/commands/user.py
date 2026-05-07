@@ -42,18 +42,17 @@ class UserCommands:
             result = self.shell.connection.api.register()
 
             # Check if user already exists
-            user_exists = False
             if isinstance(result, dict) and result.get("message"):
                 message = result["message"]
                 if "already exists" in message.lower():
-                    user_exists = True
                     self.shell.pwarning(f"Warning: {message}")
                     self.shell.pwarning("This email is already registered.")
                     self.shell.pwarning("If this is your account, use the correct password and try:")
+                    server = self.shell.connection.current_server
                     self.shell.pwarning(
-                        f"  1. Update config: edit-server {self.shell.connection.current_server} --username {email} --password <correct_password>"
+                        f"  1. Update config: edit-server {server} --username {email} --password <correct_password>"
                     )
-                    self.shell.pwarning(f"  2. Reconnect: connect {self.shell.connection.current_server}")
+                    self.shell.pwarning(f"  2. Reconnect: connect {server}")
                     self.shell.pwarning("If you forgot your password, contact your QUADS administrator.")
                     return
 
