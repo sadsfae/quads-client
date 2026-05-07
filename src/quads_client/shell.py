@@ -106,7 +106,10 @@ class QuadsClientShell(cmd2.Cmd):
 
             # DEBUG: Uncomment to troubleshoot admin detection
             # import sys
-            # print(f"DEBUG: is_admin={self.connection.is_admin}, username={self.connection.username}", file=sys.stderr)
+            # print(
+            #     f"DEBUG: is_admin={self.connection.is_admin}, username={self.connection.username}",
+            #     file=sys.stderr
+            # )
 
             self.prompt = f"{color}{symbol} {session_info}({short_name}){admin_badge}\033[0m > "
         else:

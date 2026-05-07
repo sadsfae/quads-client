@@ -6,7 +6,6 @@ from quads_client.utils import (
     extract_assignment_id,
     extract_cloud_name,
     extract_hostname,
-    get_available_hosts_filter,
     get_username_short,
 )
 

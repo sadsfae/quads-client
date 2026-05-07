@@ -146,7 +146,8 @@ def parse_schedule_admin_args(args):
         args: Command arguments string
 
     Returns:
-        dict with keys: cloud, host_list, start, end, description, cloud_owner, cc_users, cloud_ticket, vlan, qinq, nowipe
+        dict with keys: cloud, host_list, start, end, description, cloud_owner, cc_users,
+        cloud_ticket, vlan, qinq, nowipe
 
     Raises:
         ValueError: If arguments are invalid
