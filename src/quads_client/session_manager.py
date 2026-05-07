@@ -47,6 +47,7 @@ class SessionManager:
         self.config = config
         self.sessions: Dict[str, Session] = {}
         self.active_session_id: Optional[str] = None
+        self._previous_session_id: Optional[str] = None
         self._next_session_num = 1
 
     @property
@@ -63,6 +64,11 @@ class SessionManager:
             return self.sessions[self.active_session_id]
         return None
 
+    @property
+    def previous_session_id(self) -> Optional[str]:
+        """Returns the previous session ID for toggle functionality"""
+        return self._previous_session_id
+
     def create_session(self, server_name: str, label: str = None) -> Session:
         """Create new session with connection to server"""
         session_id = str(self._next_session_num)
@@ -71,6 +77,9 @@ class SessionManager:
         connection = ConnectionManager(self.config)
         session = Session(session_id, server_name, connection, label)
         self.sessions[session_id] = session
+
+        # Track previous session before switching
+        self._previous_session_id = self.active_session_id
         self.active_session_id = session_id
         return session
 
@@ -78,6 +87,9 @@ class SessionManager:
         """Switch active session"""
         if session_id not in self.sessions:
             raise ValueError(f"Session {session_id} not found")
+
+        # Track previous session before switching
+        self._previous_session_id = self.active_session_id
         self.active_session_id = session_id
         self.sessions[session_id].last_active = datetime.now()
 

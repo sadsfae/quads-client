@@ -6,7 +6,6 @@ from quads_client.utils import (
     extract_assignment_id,
     extract_cloud_name,
     extract_hostname,
-    get_available_hosts_filter,
     get_username_short,
 )
 
@@ -41,6 +40,23 @@ class UserCommands:
             self.shell.connection.api.username = email
             self.shell.connection.api.password = password
             result = self.shell.connection.api.register()
+
+            # Check if user already exists
+            if isinstance(result, dict) and result.get("message"):
+                message = result["message"]
+                if "already exists" in message.lower():
+                    self.shell.pwarning(f"Warning: {message}")
+                    self.shell.pwarning("This email is already registered.")
+                    self.shell.pwarning("If this is your account, use the correct password and try:")
+                    server = self.shell.connection.current_server
+                    self.shell.pwarning(
+                        f"  1. Update config: edit-server {server} --username {email} --password <correct_password>"
+                    )
+                    self.shell.pwarning(f"  2. Reconnect: connect {server}")
+                    self.shell.pwarning("If you forgot your password, contact your QUADS administrator.")
+                    return
+
+            # Only save credentials and login for NEW registrations
             self.shell.poutput(f"OK: User registered successfully: {email}")
             if isinstance(result, dict) and result.get("message"):
                 self.shell.poutput(f"  {result['message']}")
@@ -105,9 +121,14 @@ class UserCommands:
 
             self.shell.poutput(f"\nCurrent user: {username or 'Not authenticated'}")
             if is_auth:
-                self.shell.poutput("Authenticated: Yes")
+                # Display role from JWT token
                 if role:
-                    self.shell.poutput(f"Role: {role}")
+                    role_color = "red" if role == "admin" else "green"
+                    if self.shell.rich_console:
+                        self.shell.rich_console.console.print(f"Role: [{role_color}]{role}[/{role_color}]")
+                    else:
+                        self.shell.poutput(f"Role: {role}")
+                self.shell.poutput("Authenticated: Yes")
             else:
                 self.shell.poutput("Authenticated: No")
 
@@ -226,34 +247,54 @@ class UserCommands:
         self.cmd_my_assignments(args)
 
     def cmd_my_assignments(self, args):
-        """List your active self-scheduled assignments. Usage: my-assignments"""
+        """List active assignments. Usage: my-assignments (admins see all assignments)"""
         if not self._require_auth():
             return
 
         try:
             username = get_username_short(self.shell.connection.username)
-            # Filter for active assignments only
-            assignments = self.shell.connection.api.filter_assignments({"owner": username, "active": True})
+            is_admin = self.shell.connection.is_admin
+
+            # Admin users see ALL active assignments, regular users see only their own
+            if is_admin:
+                assignments = self.shell.connection.api.filter_assignments({"active": True})
+                title = "All active assignments"
+            else:
+                assignments = self.shell.connection.api.filter_assignments({"owner": username, "active": True})
+                title = f"Active assignments for {username}"
 
             if not assignments:
-                self.shell.poutput(f"No active assignments found for {username}")
+                if is_admin:
+                    self.shell.poutput("No active assignments found")
+                else:
+                    self.shell.poutput(f"No active assignments found for {username}")
                 return
 
-            self.shell.poutput(f"\nActive assignments for {username}:")
+            self.shell.poutput(f"\n{title}:")
             self.shell.poutput("=" * 80)
 
             table_data = []
             for assignment in assignments:
                 assignment_id = extract_assignment_id(assignment)
                 cloud_name = extract_cloud_name(assignment)
+                owner = assignment.get("owner", "-")
                 description = assignment.get("description", "")
                 if len(description) > 40:
                     description = description[:37] + "..."
                 validated = "✓" if assignment.get("validated") else "○"
 
-                table_data.append([assignment_id, cloud_name, description, validated])
+                # For admins, show owner column; for regular users, skip it
+                if is_admin:
+                    table_data.append([assignment_id, cloud_name, owner, description, validated])
+                else:
+                    table_data.append([assignment_id, cloud_name, description, validated])
 
-            headers = ["ID", "Cloud", "Description", "Validated"]
+            # Different headers based on admin status
+            if is_admin:
+                headers = ["ID", "Cloud", "Owner", "Description", "Validated"]
+            else:
+                headers = ["ID", "Cloud", "Description", "Validated"]
+
             self.shell.poutput(tabulate(table_data, headers=headers, tablefmt="simple"))
         except Exception as e:
             handle_api_error(self.shell, e, "Listing assignments")
@@ -348,38 +389,6 @@ class UserCommands:
 
         except Exception as e:
             handle_api_error(self.shell, e, "Terminate")
-
-    def cmd_available(self, args):
-        """Show available hosts. Usage: available"""
-        if not self._require_auth():
-            return
-
-        # Handle help request
-        if args.strip() in ("?", "-h", "--help"):
-            self.shell.poutput("Usage: available")
-            self.shell.poutput("\nShow hosts available for self-scheduling (SSM mode).")
-            self.shell.poutput("Lists only hosts that have can_self_schedule enabled.")
-            self.shell.poutput("\nFor hardware filtering, use: ls-available --model r640 --ram 256")
-            return
-
-        try:
-            # Get hosts that can be self-scheduled
-            hosts = self.shell.connection.api.filter_hosts(get_available_hosts_filter())
-            if not hosts:
-                self.shell.poutput("No available hosts")
-                return
-
-            # Filter by can_self_schedule flag
-            available_hosts = [h for h in hosts if h.get("can_self_schedule")]
-            if not available_hosts:
-                self.shell.poutput("No available hosts")
-                return
-
-            self.shell.poutput("Available hosts:")
-            for host in available_hosts:
-                self.shell.poutput(f"  {host['name']}")
-        except Exception as e:
-            self.shell.perror(f"Failed to get available hosts: {e}")
 
     def cmd_schedule(self, args):
         """

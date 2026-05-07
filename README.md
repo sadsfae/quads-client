@@ -19,6 +19,7 @@ QUADS Client is an interactive TUI (Text User Interface) shell for managing mult
 - **Rich UI**: Beautiful terminal output with colors, tables, and status indicators powered by python-rich
 - **User Registration**: Non-admin users can register accounts and manage their own assignments
 - **Command History**: SQLite-based persistent command history per server
+- **Unified Schedule Command**: Combines cloud assignment creation and host scheduling in a single operation for simpler workflows
 - **Progress Tracking**: Real-time provisioning progress monitoring
 - **Connection Management**: Easy switching between QUADS server instances
 - **Thin Wrapper Design**: Server-side authorization via QUADS API
@@ -35,6 +36,14 @@ QUADS Client is an interactive TUI (Text User Interface) shell for managing mult
   <img src="images/quads-client-3.png" alt="QUADS Client Screenshot 3" width="600">
 </p>
 
+<p align="left">
+  <img src="images/quads-client-4.png" alt="QUADS Client Screenshot 4" width="600">
+</p>
+
+<p align="left">
+  <img src="images/quads-client-one-shot-ssm.png" alt="QUADS Client One-Shot SSM" width="600">
+</p>
+
 ## Table of Contents
 
 - [Installation](#installation)
@@ -49,6 +58,7 @@ QUADS Client is an interactive TUI (Text User Interface) shell for managing mult
 - [Commands](#commands)
   - [Connection Management](#connection-management)
   - [Multi-Server Session Management](#multi-server-session-management)
+  - [Managing Multiple Users on Same Server](#managing-multiple-users-on-same-server)
   - [Server Management](#server-management)
   - [Cloud Management](#cloud-management)
   - [Self-Scheduling Mode (SSM)](#self-scheduling-mode-ssm)
@@ -256,17 +266,30 @@ quads-client terminate 42
 **Admin Operations:**
 
 ```bash
+# Unified schedule command (creates assignment + schedules in one step)
+quads-client schedule cloud02 host01,host02 2026-05-15 2026-06-15 \
+  description "Test Environment" \
+  cloud-owner jdoe \
+  cloud-ticket JIRA-456
+
+# Schedule with host list file
+quads-client schedule cloud17 host-list ~/hosts.txt now 2026-07-01 \
+  description "Performance Lab" \
+  cloud-owner alice \
+  cloud-ticket JIRA-789
+
 # Extend schedules
 quads-client extend cloud05 weeks 2
 quads-client extend cloud17 date "2026-06-15 22:00"
 quads-client extend host01.example.com weeks 1
 
-# Create schedules
-quads-client schedule cloud02 host01.example.com,host02.example.com 2026-05-15 2026-06-15
-quads-client schedule cloud17 host-list ~/hosts.txt now 2026-07-01
-
 # Shrink schedules
 quads-client shrink host01.example.com weeks 2
+
+# Cloud utilities
+quads-client find-free-cloud
+quads-client cloud-only cloud05
+quads-client ls-vlan
 ```
 
 **Exit Codes:**
@@ -334,12 +357,12 @@ QUADS Client provides comprehensive tab completion for all commands and their ar
 **Command Completion**: Press `Tab` after typing partial command names
 ```
 (quads1-dev) > clo<Tab>
-cloud-create  cloud-delete  cloud-list
+cloud-list  cloud-only
 ```
 
 **Context-Aware Argument Completion**: Press `Tab` to complete command arguments based on live server data
 
-- **Cloud names**: `cloud-delete <Tab>` → shows available clouds
+- **Cloud names**: `mod-cloud <Tab>` → shows available clouds
 - **Hostnames**: `mark-broken <Tab>` → shows non-broken hosts
 - **Assignment IDs**: `terminate <Tab>` → shows your active assignment IDs
 - **Server names**: `connect <Tab>` → shows configured servers
@@ -422,12 +445,16 @@ QUADS Client allows you to maintain multiple authenticated connections simultane
 **Session Commands:**
 ```
 session-create quads-prod label prod      - Create new session with optional label
-session prod                              - Quick switch to session by ID or label  
-session-switch 2                          - Switch to session by ID
+session prod                              - Quick switch to session by ID or label
+session-switch                            - Toggle to previous session (like screen Ctrl+A Ctrl+A)
+session-switch 2                          - Switch to specific session by ID
 session-list                              - Show all active sessions with status
 session-close 2                           - Close specific session
 session-close-all                         - Close all inactive sessions
 ```
+
+> [!TIP]
+> **Quick Toggle**: Use `session-switch` (or just `session`) with no arguments to toggle between your last two sessions, similar to GNU screen's `Ctrl+A Ctrl+A` behavior. Perfect for bouncing between two environments!
 
 **Quick Start Example:**
 ```bash
@@ -479,8 +506,9 @@ Compare environments:
 > connect quads-dev session dev
 > session prod
 > cloud-list cloud cloud05 detail  # Check prod state
-> session dev  
+> session-switch  # Toggle back to dev
 > cloud-list cloud cloud05 detail  # Compare with dev
+> session-switch  # Toggle back to prod
 ```
 
 Work in dev, monitor prod:
@@ -489,9 +517,9 @@ Work in dev, monitor prod:
 > connect quads-prod session prod
 > session dev
 > schedule 3 description "Testing new feature"
-> session prod  # Quick check on production
+> session-switch  # Quick toggle to production
 > my-hosts      # Verify prod assignments
-> session dev   # Back to development work
+> session-switch  # Toggle back to development work
 ```
 
 **Tips:**
@@ -499,6 +527,100 @@ Work in dev, monitor prod:
 - Use `session-close-all` to clean up when switching projects
 - The `status` command shows all sessions when you have multiple connections
 - Configuration changes with `config-reload` update all active sessions
+
+### Managing Multiple Users on Same Server
+
+You can configure multiple user accounts for the same QUADS server by using different "friendly names" in your configuration. This is useful for:
+
+- **Admin + Regular User**: Separate admin and self-schedule workflows
+- **Multiple Team Members**: Share a workstation with separate QUADS accounts
+- **Testing**: Different permission levels or testing scenarios
+
+**How It Works:**
+
+The same server URL can be added multiple times with different names and credentials:
+
+```bash
+# Add admin user account
+> add-quads-server
+Enter server name: admin-quads2-dev
+Enter server URL: https://quads2-dev.rdu2.scalelab.example.com
+Enable SSL verification? [Y/n]: Y
+
+# Add regular user account  
+> add-quads-server
+Enter server name: quads2-dev
+Enter server URL: https://quads2-dev.rdu2.scalelab.example.com  # Same URL!
+Enable SSL verification? [Y/n]: Y
+
+> config-reload
+```
+
+**Configuration Result:**
+
+```yaml
+servers:
+  admin-quads2-dev:
+    url: https://quads2-dev.rdu2.scalelab.example.com
+    username: admin+wfoster@example.com
+    password: ""
+    verify: true
+    
+  quads2-dev:
+    url: https://quads2-dev.rdu2.scalelab.example.com  # Same server!
+    username: wfoster@example.com
+    password: ""
+    verify: true
+```
+
+**Usage Example:**
+
+```bash
+# Connect as admin for administrative tasks
+> connect admin-quads2-dev session admin
+OK: Connected to admin-quads2-dev as admin+wfoster@example.com (session 1)
+
+# Connect as regular user for self-scheduling
+> connect quads2-dev session user
+OK: Connected to quads2-dev as wfoster@example.com (session 2)
+
+# Prompt shows both sessions to same server
+✓ [1:admin 2:user*] (quads2-dev) >
+
+# Toggle between admin and user sessions
+> session-switch
+Switched to session 1 (admin)
+✓ [1:admin* 2:user] (quads2-dev) [ADMIN] >
+
+# Admin work
+> extend cloud05 weeks 2
+
+# Back to user session
+> session-switch
+Switched to session 2 (user)
+✓ [1:admin 2:user*] (quads2-dev) >
+
+# Self-schedule work (SSM)
+> schedule 3 description "Testing new feature"
+```
+
+**Benefits:**
+
+- **Role Separation**: Keep admin and user workflows clearly separated
+- **Quick Switching**: Toggle between accounts with `session-switch`
+- **Visual Indicators**: Prompt shows `[ADMIN]` badge for admin sessions
+- **Command Visibility**: Admin commands only visible in admin sessions
+- **Credential Security**: Each account's credentials stored separately
+
+**Use Cases:**
+
+1. **Admin + SSM User**: Test both admin and self-service workflows
+2. **Multi-User Workstation**: Team members with separate accounts
+3. **Permission Testing**: Compare admin vs user permissions
+4. **Training**: Demonstrate different user experiences
+
+> [!NOTE]
+> This works because the server name is the configuration key, while the URL can be reused. Each entry maintains separate credentials and session state.
 
 ### Server Management
 
@@ -529,15 +651,34 @@ add-quads-server
 ```
 cloud-list                                         - List all clouds
 cloud-list cloud cloud05 detail                    - Show detailed cloud info with hosts
-cloud-create cloud10                               - Create a new cloud (admin only)
-cloud-delete cloud10                               - Delete a cloud (admin only)
-mod-cloud cloud02 [OPTIONS]                        - Modify cloud attributes (admin only)
-  owner alice@example.com                          - Set cloud owner
-  description "Production environment"             - Set cloud description
-  ticket JIRA-12345                                - Set ticket number
-  wipe true|false                                  - Enable/disable wipe
-  ccusers "alice@example.com,bob@example.com"      - Set CC users list
+mod-cloud <cloud_name> [OPTIONS]                   - Modify cloud attributes (admin only)
+  cloud-owner <username>                           - Set cloud owner
+  description <text>                               - Set cloud description
+  cloud-ticket <ticket_id>                         - Set ticket ID
+  cc-users <user1,user2>                           - Comma-separated CC users
+  vlan <vlan_id>                                   - VLAN ID number
+  qinq <0|1>                                       - QinQ setting
+  wipe                                             - Enable host wiping
+  nowipe                                           - Disable host wiping
+find-free-cloud                                    - List clouds without active assignments
+cloud-only <cloud_name>                            - List all hosts assigned to a specific cloud
+ls-vlan                                            - List VLANs with assigned clouds
 ```
+
+**Examples:**
+```bash
+# Modify cloud assignment properties
+mod-cloud cloud05 description "Updated test environment"
+mod-cloud cloud02 cloud-owner alice cloud-ticket JIRA-456
+mod-cloud cloud17 cc-users bob@example.com,charlie@example.com wipe
+
+# Find available clouds and check assignments
+find-free-cloud
+cloud-only cloud05
+```
+
+> [!NOTE]
+> The `cloud-create` and `cloud-delete` commands have been removed for safety. Use the unified `schedule` command which automatically creates assignments and manages cloud lifecycle.
 
 ### Self-Scheduling Mode (SSM)
 
@@ -609,27 +750,92 @@ ls-retired                       - List all retired hosts
 
 ### Schedule Management (Admin)
 
+The unified `schedule` command combines cloud assignment creation and host scheduling into a single operation, providing feature parity with QUADS core CLI in a simpler workflow.
+
+**Syntax:**
 ```
-schedule cloud02 host01,host02 "2026-05-15" "2026-06-15"  - Schedule hosts (admin mode)
-schedule cloud17 host-list ~/hosts.txt now "2026-07-01"   - Schedule with host list file
-ls-schedule [host host01.example.com] [cloud cloud02]     - List schedules
-mod-schedule id 123 [start "2026-05-15"] [end "2026-06-15"] - Modify schedule dates
-rm-schedule 123                                             - Remove a schedule
-extend cloud02 weeks 2                                      - Extend cloud by weeks
-extend cloud02 date "2026-05-17 22:00"                      - Extend cloud to specific date
-extend host01.example.com weeks 1                           - Extend single host
-shrink host01.example.com weeks 2                           - Shrink schedule by weeks
+schedule <cloud> <hosts|host-list path> <start> <end> [OPTIONS]
+
+Hosts:
+  host01.example.com                 - Single hostname
+  host01,host02,host03               - Comma-separated list
+  host-list ~/hosts.txt              - File with hostnames (whitespace-separated)
+
+Date/Time Formats:
+  "2026-05-07 13:00"                 - Full date and time (YYYY-MM-DD HH:MM, requires quotes)
+  now                                - Immediate start (start date only)
+
+Options:
+  description <text>                 - Assignment description (required for new assignments)
+  cloud-owner <username>             - Cloud owner (required for new assignments)
+  cloud-ticket <ticket_id>           - Ticket ID (required for new assignments)
+  cc-users <user1,user2>             - Comma-separated CC users
+  vlan <vlan_id>                     - VLAN ID number
+  qinq <0|1>                         - QinQ setting (default 0)
+  nowipe                             - Don't wipe hosts (default: wipe=true)
+
+Other Schedule Commands:
+  ls-schedule [host <hostname>] [cloud <cloud>]             - List schedules
+  mod-schedule id <id> [start <date>] [end <date>]          - Modify schedule dates
+  rm-schedule <schedule_id>                                 - Remove a schedule
+  extend <cloud|hostname> weeks <N>                         - Extend by weeks
+  extend <cloud|hostname> date "YYYY-MM-DD HH:MM"           - Extend to specific date
+  shrink <hostname> weeks <N>                               - Shrink schedule by weeks
 ```
 
-**Admin Examples:**
+**Unified Schedule Examples:**
 
 ```bash
-schedule cloud02 host01,host02,host03 2026-05-11 2026-06-11
-schedule cloud17 host-list ~/hosts.txt now 2026-07-01
+# Create new assignment and schedule hosts
+schedule cloud02 host01,host02 "2026-05-15 22:00" "2026-06-15 22:00" \
+  description "OpenStack Testing" \
+  cloud-owner jdoe \
+  cloud-ticket JIRA-456 \
+  cc-users alice,bob \
+  vlan 1234 \
+  qinq 1 \
+  nowipe
+
+# Create assignment with specific date/time
+schedule cloud03 host01,host02 "2026-05-07 13:00" "2026-05-08 22:00" \
+  description "Test Environment" \
+  cloud-owner jdoe \
+  cloud-ticket JIRA-999
+
+# Schedule hosts to existing assignment (simpler - no assignment options needed)
+schedule cloud02 host03,host04 "2026-05-15 22:00" "2026-06-15 22:00"
+
+# Use host list file with immediate start
+schedule cloud17 host-list ~/hosts.txt now "2026-07-01 22:00" \
+  description "Performance Lab" \
+  cloud-owner alice \
+  cloud-ticket JIRA-789
+
+# Extend and shrink operations
 extend cloud02 weeks 2
 extend cloud02 date "2026-05-17 22:00"
 extend host01.example.com weeks 1
+shrink host01.example.com weeks 2
 ```
+
+**How Unified Schedule Works:**
+
+1. **Checks for active assignment** - If cloud has no assignment, creates one automatically
+2. **Pre-checks host availability** - Validates hosts are available for the date range
+3. **Creates schedules** - Links hosts to the assignment for specified dates
+4. **Server validates** - All validation handled by QUADS server API
+
+**Date/Time Handling:**
+- Full format (`"2026-05-07 13:00"`) → Always include date and time with quotes
+- Immediate start (`now`) → Starts right away (for start date only)
+
+**Advantages over QUADS core CLI:**
+- Single command instead of `--define-cloud` + `--add-schedule`
+- Automatic assignment creation when needed
+- Pre-flight availability checks
+- Flexible date/time formats
+- Clear error messages from server
+- Simpler syntax, fewer steps
 
 ### Available Hosts
 
@@ -732,7 +938,7 @@ quads-client/
 │       └── version.py        - Version command
 ├── conf/
 │   └── quads-client.yml.example - Example configuration
-├── tests/                    - pytest test suite (511 tests, 75.6% coverage)
+├── tests/                    - pytest test suite (519 tests, 71.0% coverage)
 ├── rpm/
 │   └── quads-client.spec     - RPM package specification
 ├── images/                   - Screenshots and documentation images

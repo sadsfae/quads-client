@@ -54,7 +54,7 @@ class ServerCommands:
                 self.shell.poutput(f"\nCurrent connection: {short_current}")
 
     def _get_server_info_combined(self, name, url, server_config):
-        """Get server status, version, and capacity in one API connection to avoid double overhead"""
+        """Get server status, version, and capacity. Version check requires no auth (public endpoint)."""
         try:
             from quads_lib import QuadsApi
             import urllib3
@@ -63,28 +63,16 @@ class ServerCommands:
             password = server_config.get("password", "")
             verify = server_config.get("verify", True)
 
-            if not username or not password:
-                return "No credentials", "N/A", "N/A"
-
             # Suppress SSL warnings when certificate verification is disabled
             if not verify:
                 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
-            # Single API connection for all info
-            api = QuadsApi(base_url=url, username=username, password=password, verify=verify)
-
-            # Login first
-            try:
-                login_result = api.login()
-                if not login_result or login_result.get("status") == "failure":
-                    return "Auth failed", "N/A", "N/A"
-            except Exception:
-                return "Offline", "N/A", "N/A"
-
-            # Get version
+            # STEP 1: Try to get version WITHOUT auth (public endpoint)
             version = "unknown"
             try:
-                version_info = api.get_version()
+                # Create API instance without credentials for public version check
+                api_public = QuadsApi(base_url=url, username="", password="", verify=verify)
+                version_info = api_public.get_version()
 
                 if isinstance(version_info, dict):
                     version = version_info.get("version", "unknown")
@@ -99,34 +87,50 @@ class ServerCommands:
                     if version_match:
                         version = version_match.group(1)
                     else:
-                        # Couldn't parse version number, use full string
                         version = version_info if version_info else "unknown"
-                else:
-                    version = "unknown"
             except Exception:
-                version = "unknown"
+                # Version check failed - server offline or unreachable
+                return "Offline", "N/A", "N/A"
 
-            # Get capacity info
+            # Server is online (version check succeeded)
+            # STEP 2: Try to get capacity info (requires auth)
             capacity = "N/A"
+            status = "Available"
+
+            if not username or not password:
+                return status, version, "No credentials"
+
+            # Try authenticated API calls for capacity
             try:
-                all_hosts = api.get_hosts()
-                total_hosts = sum(1 for h in all_hosts if not h.get("broken") and not h.get("retired"))
+                api = QuadsApi(base_url=url, username=username, password=password, verify=verify)
+                login_result = api.login()
 
-                if total_hosts > 0:
-                    current_schedules = api.get_current_schedules({})
-                    scheduled_hosts = len(
-                        set(s.get("host", {}).get("name", "") for s in current_schedules if s.get("host"))
-                    )
-                    percent_used = int((scheduled_hosts / total_hosts) * 100)
-                    free_hosts = total_hosts - scheduled_hosts
-                    capacity = f"{percent_used}% ({free_hosts}/{total_hosts})"
-                else:
-                    capacity = "0% (0/0)"
+                if not login_result or login_result.get("status") == "failure":
+                    return "Auth failed", version, "N/A"
+
+                # Login succeeded, get capacity
+                try:
+                    all_hosts = api.get_hosts()
+                    total_hosts = sum(1 for h in all_hosts if not h.get("broken") and not h.get("retired"))
+
+                    if total_hosts > 0:
+                        current_schedules = api.get_current_schedules({})
+                        scheduled_hosts = len(
+                            set(s.get("host", {}).get("name", "") for s in current_schedules if s.get("host"))
+                        )
+                        percent_used = int((scheduled_hosts / total_hosts) * 100)
+                        free_hosts = total_hosts - scheduled_hosts
+                        capacity = f"{percent_used}% ({free_hosts}/{total_hosts})"
+                    else:
+                        capacity = "0% (0/0)"
+                except Exception:
+                    capacity = "N/A"
+
+                return "Online", version, capacity
             except Exception:
-                # Capacity check failed, but we still have version
-                capacity = "N/A"
+                # Auth failed but server is online
+                return "Auth failed", version, "N/A"
 
-            return "Online", version, capacity
         except Exception:
             return "Offline", "N/A", "N/A"
 
@@ -301,20 +305,21 @@ class ServerCommands:
 
         try:
             with open(config_path, "w") as f:
-                yaml.dump(config_data, f, default_flow_style=False)
+                yaml.dump(config_data, f, default_flow_style=False, sort_keys=False)
+
+            # Automatically reload config so tab completion works immediately
+            self.cmd_config_reload("")
 
             if self.rich_console:
                 self.rich_console.print_success(f"\nServer '{server_name}' added successfully!")
                 self.rich_console.print_info("\nNext steps:")
-                self.rich_console.print_info("  1. Reload configuration: config-reload")
-                self.rich_console.print_info(f"  2. Connect to server: connect {server_name}")
-                self.rich_console.print_info("  3. Register account: register <email> <password>")
+                self.rich_console.print_info(f"  1. Connect to server: connect {server_name}")
+                self.rich_console.print_info("  2. Register account: register <email> <password>")
             else:
                 self.shell.poutput(f"\nOK: Server '{server_name}' added successfully!")
                 self.shell.poutput("\nNext steps:")
-                self.shell.poutput("  1. Reload configuration: config-reload")
-                self.shell.poutput(f"  2. Connect to server: connect {server_name}")
-                self.shell.poutput("  3. Register account: register <email> <password>")
+                self.shell.poutput(f"  1. Connect to server: connect {server_name}")
+                self.shell.poutput("  2. Register account: register <email> <password>")
         except Exception as e:
             self.shell.perror(f"Failed to save configuration: {e}")
 
@@ -377,14 +382,15 @@ class ServerCommands:
             }
 
             with open(config_path, "w") as f:
-                yaml.dump(config_data, f, default_flow_style=False)
+                yaml.dump(config_data, f, default_flow_style=False, sort_keys=False)
+
+            # Automatically reload config so tab completion works immediately
+            self.cmd_config_reload("")
 
             if self.rich_console:
                 self.rich_console.print_success(f"Server '{name}' added successfully")
-                self.rich_console.print_info("Reload configuration with: config-reload")
             else:
                 self.shell.poutput(f"OK: Server '{name}' added successfully")
-                self.shell.poutput("Reload configuration with: config-reload")
 
         except Exception as e:
             self.shell.perror(f"Failed to add server: {e}")
@@ -444,10 +450,12 @@ class ServerCommands:
             config_data["servers"][name] = server
 
             with open(config_path, "w") as f:
-                yaml.dump(config_data, f, default_flow_style=False)
+                yaml.dump(config_data, f, default_flow_style=False, sort_keys=False)
+
+            # Automatically reload config
+            self.cmd_config_reload("")
 
             self.shell.poutput(f"OK: Server '{name}' updated successfully")
-            self.shell.poutput("Reload configuration with: config-reload")
 
         except Exception as e:
             self.shell.perror(f"Failed to edit server: {e}")
@@ -489,10 +497,12 @@ class ServerCommands:
                 config_data["default_server"] = None
 
             with open(config_path, "w") as f:
-                yaml.dump(config_data, f, default_flow_style=False)
+                yaml.dump(config_data, f, default_flow_style=False, sort_keys=False)
+
+            # Automatically reload config
+            self.cmd_config_reload("")
 
             self.shell.poutput(f"OK: Server '{name}' removed successfully")
-            self.shell.poutput("Reload configuration with: config-reload")
 
         except Exception as e:
             self.shell.perror(f"Failed to remove server: {e}")

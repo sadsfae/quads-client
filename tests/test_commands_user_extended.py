@@ -138,31 +138,8 @@ def test_assignment_terminate_object_response(mock_shell):
         assert "Terminated assignment" in str(mock_shell.poutput.call_args_list)
 
 
-def test_available_no_self_schedulable_hosts(mock_shell):
-    """Test available when no hosts have can_self_schedule flag"""
-    mock_shell.connection.is_connected = True
-    mock_shell.connection.is_authenticated = True
-    mock_shell.connection.api.filter_hosts.return_value = [
-        {"name": "host01.example.com", "can_self_schedule": False},
-        {"name": "host02.example.com", "can_self_schedule": False},
-    ]
-
-    user_cmd = UserCommands(mock_shell)
-    user_cmd.cmd_available("")
-
-    mock_shell.poutput.assert_called_with("No available hosts")
-
-
-def test_available_api_error(mock_shell):
-    """Test available when API call fails"""
-    mock_shell.connection.is_connected = True
-    mock_shell.connection.is_authenticated = True
-    mock_shell.connection.api.filter_hosts.side_effect = Exception("Database error")
-
-    user_cmd = UserCommands(mock_shell)
-    user_cmd.cmd_available("")
-
-    mock_shell.perror.assert_called_with("Failed to get available hosts: Database error")
+# Tests for 'available' command removed - command has been deprecated
+# Use 'ls_available' or 'ls_hosts' instead
 
 
 def test_schedule_api_error(mock_shell):

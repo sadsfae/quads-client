@@ -59,20 +59,20 @@ class TestParseScheduleSSMArgs:
         """Test parsing count mode"""
         result = parse_schedule_ssm_args('3 description "Dev testing"')
         assert result["count"] == 3
-        assert result["description"] == '"Dev testing"'
+        assert result["description"] == "Dev testing"
         assert result["wipe"] is True
 
     def test_comma_separated_hosts(self):
         """Test parsing comma-separated hosts"""
         result = parse_schedule_ssm_args('host01,host02,host03 description "Testing"')
         assert result["host_list"] == ["host01", "host02", "host03"]
-        assert result["description"] == '"Testing"'
+        assert result["description"] == "Testing"
 
     def test_single_host(self):
         """Test parsing single hostname"""
         result = parse_schedule_ssm_args('host01.example.com description "Single"')
         assert result["host_list"] == ["host01.example.com"]
-        assert result["description"] == '"Single"'
+        assert result["description"] == "Single"
 
     def test_host_list_file_mode(self):
         """Test parsing host-list file mode"""
@@ -83,7 +83,7 @@ class TestParseScheduleSSMArgs:
         try:
             result = parse_schedule_ssm_args(f'host-list {temp_path} description "Batch"')
             assert result["host_list"] == ["host01", "host02"]
-            assert result["description"] == '"Batch"'
+            assert result["description"] == "Batch"
         finally:
             os.unlink(temp_path)
 
@@ -122,7 +122,7 @@ class TestParseScheduleSSMArgs:
         """Test all options combined"""
         result = parse_schedule_ssm_args('3 description "Full test" model r640 ram 128 vlan 1150 qinq 1 nowipe')
         assert result["count"] == 3
-        assert result["description"] == '"Full test"'
+        assert result["description"] == "Full test"
         assert result["model"] == "r640"
         assert result["ram"] == 128
         assert result["vlan"] == 1150

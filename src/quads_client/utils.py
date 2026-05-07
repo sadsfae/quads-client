@@ -182,3 +182,31 @@ def get_ssl_status_text(url: str, verify: bool) -> str:
             return "HTTPS (unverified)"
     else:
         return "HTTP"
+
+
+def format_schedule_datetime(datetime_str: str) -> str:
+    """
+    Format schedule datetime from API format to display format.
+
+    Args:
+        datetime_str: ISO datetime from API (e.g., "2026-05-07T13:00:00.000Z")
+
+    Returns:
+        Formatted datetime (e.g., "2026-05-07 13:00")
+    """
+    return datetime_str.replace("T", " ").replace(":00.000Z", "").replace("Z", "")
+
+
+def validate_cloud_exists(api, cloud_name: str) -> bool:
+    """
+    Check if a cloud exists.
+
+    Args:
+        api: QuadsApi instance
+        cloud_name: Name of cloud to check
+
+    Returns:
+        True if cloud exists, False otherwise
+    """
+    clouds = api.filter_clouds({"name": cloud_name})
+    return bool(clouds)

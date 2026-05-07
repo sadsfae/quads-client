@@ -84,6 +84,10 @@ class AvailableCommands:
         try:
             # Get available hosts using filter_hosts for cloud01 (available pool)
             # This returns full host objects with all fields populated
+            # Extract start/end for schedule checking, remove from filter_hosts params
+            start_date = filters.pop("start", None)
+            end_date = filters.pop("end", None)
+
             host_filters = get_available_hosts_filter(**filters)
 
             hosts = self.shell.connection.api.filter_hosts(host_filters)
@@ -111,6 +115,26 @@ class AvailableCommands:
 
                 if not name:
                     continue
+
+                # If start/end dates specified, check schedule availability
+                if start_date and end_date:
+                    try:
+                        # Convert dates to ISO format for API
+                        from datetime import datetime
+
+                        start_dt = datetime.strptime(start_date, "%Y-%m-%d")
+                        end_dt = datetime.strptime(end_date, "%Y-%m-%d")
+                        start_iso = start_dt.isoformat()[:-3]
+                        end_iso = end_dt.isoformat()[:-3]
+
+                        is_available = self.shell.connection.api.is_available(
+                            name, {"start": start_iso, "end": end_iso}
+                        )
+                        if not is_available:
+                            continue  # Skip hosts with schedule conflicts
+                    except Exception:
+                        # If availability check fails, include the host
+                        pass
 
                 table_data.append([name, model, host_type, "Yes" if can_self_schedule else "No"])
 

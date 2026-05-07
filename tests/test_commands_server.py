@@ -62,11 +62,12 @@ def test_add_server_success(mock_shell):
         with patch("builtins.open", mock_open(read_data="servers: {}\n")):
             with patch("yaml.safe_load", return_value=yaml_content):
                 with patch("yaml.dump") as mock_dump:
-                    server_cmd = ServerCommands(mock_shell)
-                    server_cmd.cmd_add_server("quads3 https://quads3.example.com admin pass")
+                    with patch.object(ServerCommands, "cmd_config_reload"):
+                        server_cmd = ServerCommands(mock_shell)
+                        server_cmd.cmd_add_server("quads3 https://quads3.example.com admin pass")
 
-                    mock_dump.assert_called_once()
-                    assert mock_shell.poutput.call_count >= 2
+                        mock_dump.assert_called_once()
+                        assert mock_shell.poutput.call_count >= 2
 
 
 def test_add_server_already_exists(mock_shell):
@@ -121,12 +122,13 @@ def test_add_server_no_verify_flag(mock_shell):
         with patch("builtins.open", mock_open(read_data="servers: {}\n")):
             with patch("yaml.safe_load", return_value=yaml_content):
                 with patch("yaml.dump") as mock_dump:
-                    server_cmd = ServerCommands(mock_shell)
-                    server_cmd.cmd_add_server("quads3 https://quads3.example.com admin pass --no-verify")
+                    with patch.object(ServerCommands, "cmd_config_reload"):
+                        server_cmd = ServerCommands(mock_shell)
+                        server_cmd.cmd_add_server("quads3 https://quads3.example.com admin pass --no-verify")
 
-                    # Verify that verify was set to False
-                    call_args = mock_dump.call_args[0][0]
-                    assert call_args["servers"]["quads3"]["verify"] is False
+                        # Verify that verify was set to False
+                        call_args = mock_dump.call_args[0][0]
+                        assert call_args["servers"]["quads3"]["verify"] is False
 
 
 def test_edit_server_success(mock_shell):
@@ -140,11 +142,12 @@ def test_edit_server_success(mock_shell):
     with patch("builtins.open", mock_open(read_data="servers:\n  quads3: {}\n")):
         with patch("quads_client.commands.server.yaml.safe_load", return_value=yaml_content):
             with patch("quads_client.commands.server.yaml.dump") as mock_dump:
-                server_cmd = ServerCommands(mock_shell)
-                server_cmd.cmd_edit_server("quads3 url https://new.example.com")
+                with patch.object(ServerCommands, "cmd_config_reload"):
+                    server_cmd = ServerCommands(mock_shell)
+                    server_cmd.cmd_edit_server("quads3 url https://new.example.com")
 
-                mock_dump.assert_called_once()
-                assert mock_shell.poutput.call_count >= 2
+                    mock_dump.assert_called_once()
+                    assert mock_shell.poutput.call_count >= 1
 
 
 def test_edit_server_not_found(mock_shell):
@@ -192,11 +195,12 @@ def test_edit_server_verify_flag(mock_shell):
     with patch("builtins.open", mock_open(read_data="servers:\n  quads3: {}\n")):
         with patch("quads_client.commands.server.yaml.safe_load", return_value=yaml_content):
             with patch("quads_client.commands.server.yaml.dump") as mock_dump:
-                server_cmd = ServerCommands(mock_shell)
-                server_cmd.cmd_edit_server("quads3 verify false")
+                with patch.object(ServerCommands, "cmd_config_reload"):
+                    server_cmd = ServerCommands(mock_shell)
+                    server_cmd.cmd_edit_server("quads3 verify false")
 
-                call_args = mock_dump.call_args[0][0]
-                assert call_args["servers"]["quads3"]["verify"] is False
+                    call_args = mock_dump.call_args[0][0]
+                    assert call_args["servers"]["quads3"]["verify"] is False
 
 
 def test_rm_server_success(mock_shell):
@@ -213,11 +217,12 @@ def test_rm_server_success(mock_shell):
         with patch("quads_client.commands.server.yaml.safe_load", return_value=yaml_content):
             with patch("quads_client.commands.server.yaml.dump") as mock_dump:
                 with patch("builtins.input", return_value="y"):
-                    server_cmd = ServerCommands(mock_shell)
-                    server_cmd.cmd_rm_server("quads3")
+                    with patch.object(ServerCommands, "cmd_config_reload"):
+                        server_cmd = ServerCommands(mock_shell)
+                        server_cmd.cmd_rm_server("quads3")
 
-                    mock_dump.assert_called_once()
-                    assert mock_shell.poutput.call_count >= 2
+                        mock_dump.assert_called_once()
+                        assert mock_shell.poutput.call_count >= 1
 
 
 def test_rm_server_reject(mock_shell):
@@ -275,11 +280,12 @@ def test_rm_server_clears_default(mock_shell):
         with patch("quads_client.commands.server.yaml.safe_load", return_value=yaml_content):
             with patch("quads_client.commands.server.yaml.dump") as mock_dump:
                 with patch("builtins.input", return_value="y"):
-                    server_cmd = ServerCommands(mock_shell)
-                    server_cmd.cmd_rm_server("quads3")
+                    with patch.object(ServerCommands, "cmd_config_reload"):
+                        server_cmd = ServerCommands(mock_shell)
+                        server_cmd.cmd_rm_server("quads3")
 
-                    call_args = mock_dump.call_args[0][0]
-                    assert call_args["default_server"] is None
+                        call_args = mock_dump.call_args[0][0]
+                        assert call_args["default_server"] is None
 
 
 def test_rm_server_no_args(mock_shell):
@@ -347,15 +353,16 @@ def test_add_quads_server_success(mock_shell):
             with patch("builtins.open", mock_open(read_data="servers: {}\n")):
                 with patch("yaml.safe_load", return_value=yaml_content):
                     with patch("yaml.dump") as mock_dump:
-                        server_cmd = ServerCommands(mock_shell)
-                        server_cmd.cmd_add_quads_server("")
+                        with patch.object(ServerCommands, "cmd_config_reload"):
+                            server_cmd = ServerCommands(mock_shell)
+                            server_cmd.cmd_add_quads_server("")
 
-                        mock_dump.assert_called_once()
-                        # Verify empty credentials were set
-                        call_args = mock_dump.call_args[0][0]
-                        assert call_args["servers"]["quads3.example.com"]["username"] == ""
-                        assert call_args["servers"]["quads3.example.com"]["password"] == ""
-                        assert mock_shell.poutput.call_count >= 2
+                            mock_dump.assert_called_once()
+                            # Verify empty credentials were set
+                            call_args = mock_dump.call_args[0][0]
+                            assert call_args["servers"]["quads3.example.com"]["username"] == ""
+                            assert call_args["servers"]["quads3.example.com"]["password"] == ""
+                            assert mock_shell.poutput.call_count >= 2
 
 
 def test_add_quads_server_empty_name(mock_shell):
@@ -394,12 +401,13 @@ def test_add_quads_server_no_verify(mock_shell):
             with patch("builtins.open", mock_open(read_data="servers: {}\n")):
                 with patch("yaml.safe_load", return_value=yaml_content):
                     with patch("yaml.dump") as mock_dump:
-                        server_cmd = ServerCommands(mock_shell)
-                        server_cmd.cmd_add_quads_server("")
+                        with patch.object(ServerCommands, "cmd_config_reload"):
+                            server_cmd = ServerCommands(mock_shell)
+                            server_cmd.cmd_add_quads_server("")
 
-                        # Verify verify was set to False
-                        call_args = mock_dump.call_args[0][0]
-                        assert call_args["servers"]["quads3.example.com"]["verify"] is False
+                            # Verify verify was set to False
+                            call_args = mock_dump.call_args[0][0]
+                            assert call_args["servers"]["quads3.example.com"]["verify"] is False
 
 
 def test_server_info_no_credentials(mock_shell):
@@ -591,9 +599,10 @@ def test_add_quads_server_connection_failed_accept(mock_shell):
                     with patch(
                         "builtins.input", side_effect=["quads3.example.com", "https://quads3.example.com", "y", "y"]
                     ):
-                        server_cmd = ServerCommands(mock_shell)
-                        server_cmd.cmd_add_quads_server("")
+                        with patch.object(ServerCommands, "cmd_config_reload"):
+                            server_cmd = ServerCommands(mock_shell)
+                            server_cmd.cmd_add_quads_server("")
 
-                        mock_dump.assert_called_once()
-                        call_args = mock_dump.call_args[0][0]
-                        assert "quads3.example.com" in call_args["servers"]
+                            mock_dump.assert_called_once()
+                            call_args = mock_dump.call_args[0][0]
+                            assert "quads3.example.com" in call_args["servers"]
