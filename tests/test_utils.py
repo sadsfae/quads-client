@@ -1,14 +1,17 @@
 import pytest
+from unittest.mock import MagicMock
 from quads_client.utils import (
     AVAILABLE_HOSTS_BASE_FILTER,
     extract_assignment_id,
     extract_cloud_name,
     extract_host_field,
     extract_hostname,
+    format_schedule_datetime,
     get_available_hosts_filter,
     get_ssl_indicator,
     get_ssl_status_text,
     get_username_short,
+    validate_cloud_exists,
 )
 
 
@@ -424,3 +427,43 @@ def test_get_ssl_status_text_http_unverified():
     """Test SSL status text for HTTP (verify flag doesn't matter)"""
     result = get_ssl_status_text("http://example.com", False)
     assert result == "HTTP"
+
+
+def test_format_schedule_datetime_with_milliseconds():
+    """Test format_schedule_datetime with ISO format including milliseconds"""
+    result = format_schedule_datetime("2026-05-07T13:00:00.000Z")
+    assert result == "2026-05-07 13:00"
+
+
+def test_format_schedule_datetime_without_milliseconds():
+    """Test format_schedule_datetime with ISO format without milliseconds"""
+    result = format_schedule_datetime("2026-05-07T13:00:00Z")
+    assert result == "2026-05-07 13:00:00"
+
+
+def test_format_schedule_datetime_plain():
+    """Test format_schedule_datetime with already formatted string"""
+    result = format_schedule_datetime("2026-05-07 13:00")
+    assert result == "2026-05-07 13:00"
+
+
+def test_validate_cloud_exists_true():
+    """Test validate_cloud_exists when cloud exists"""
+    mock_api = MagicMock()
+    mock_api.filter_clouds.return_value = [{"name": "cloud02"}]
+
+    result = validate_cloud_exists(mock_api, "cloud02")
+
+    assert result is True
+    mock_api.filter_clouds.assert_called_once_with({"name": "cloud02"})
+
+
+def test_validate_cloud_exists_false():
+    """Test validate_cloud_exists when cloud does not exist"""
+    mock_api = MagicMock()
+    mock_api.filter_clouds.return_value = []
+
+    result = validate_cloud_exists(mock_api, "cloud99")
+
+    assert result is False
+    mock_api.filter_clouds.assert_called_once_with({"name": "cloud99"})

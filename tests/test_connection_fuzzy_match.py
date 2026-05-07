@@ -9,12 +9,12 @@ def mock_config_fuzzy():
     config = MagicMock()
     config.get_all_servers.return_value = {
         "quads2-dev.rdu2.scalelab": {
-            "url": "https://quads2-dev.rdu2.scalelab.redhat.com",
+            "url": "https://quads2-dev.rdu2.scalelab.example.com",
             "username": "user@example.com",
             "password": "pass123",
         },
-        "quads2-stage.rdu2.scalelab.redhat.com": {
-            "url": "https://quads2-stage.rdu2.scalelab.redhat.com",
+        "quads2-stage.rdu2.scalelab.example.com": {
+            "url": "https://quads2-stage.rdu2.scalelab.example.com",
             "username": "user@example.com",
             "password": "pass123",
         },
@@ -43,14 +43,14 @@ def test_resolve_server_exact_match(mock_config_fuzzy):
 def test_resolve_server_fqdn_match(mock_config_fuzzy):
     """Test matching by full FQDN from URL"""
     conn = ConnectionManager(mock_config_fuzzy)
-    result = conn._resolve_server_name("quads2-dev.rdu2.scalelab.redhat.com")
+    result = conn._resolve_server_name("quads2-dev.rdu2.scalelab.example.com")
     assert result == "quads2-dev.rdu2.scalelab"
 
 
 def test_resolve_server_url_match_with_protocol(mock_config_fuzzy):
     """Test matching by URL with protocol"""
     conn = ConnectionManager(mock_config_fuzzy)
-    result = conn._resolve_server_name("https://quads2-dev.rdu2.scalelab.redhat.com")
+    result = conn._resolve_server_name("https://quads2-dev.rdu2.scalelab.example.com")
     assert result == "quads2-dev.rdu2.scalelab"
 
 
@@ -71,8 +71,8 @@ def test_resolve_server_no_match(mock_config_fuzzy):
 def test_resolve_server_stage_fqdn(mock_config_fuzzy):
     """Test stage server FQDN exact match"""
     conn = ConnectionManager(mock_config_fuzzy)
-    result = conn._resolve_server_name("quads2-stage.rdu2.scalelab.redhat.com")
-    assert result == "quads2-stage.rdu2.scalelab.redhat.com"
+    result = conn._resolve_server_name("quads2-stage.rdu2.scalelab.example.com")
+    assert result == "quads2-stage.rdu2.scalelab.example.com"
 
 
 def test_connect_with_fqdn(mock_config_fuzzy, mock_api):
@@ -82,7 +82,7 @@ def test_connect_with_fqdn(mock_config_fuzzy, mock_api):
         conn = ConnectionManager(mock_config_fuzzy)
         # Mock the QuadsApi to avoid actual connection
         with pytest.raises(Exception):
-            conn.connect("quads2-dev.rdu2.scalelab.redhat.com")
+            conn.connect("quads2-dev.rdu2.scalelab.example.com")
         # Should have resolved to the config key
         assert conn._current_server == "quads2-dev.rdu2.scalelab"
 
@@ -100,7 +100,7 @@ def test_resolve_ambiguous_prefix(mock_config_fuzzy):
     # Add another server with similar prefix
     servers = mock_config_fuzzy.get_all_servers()
     servers["quads2-dev.rdu3.scalelab"] = {
-        "url": "https://quads2-dev.rdu3.scalelab.redhat.com",
+        "url": "https://quads2-dev.rdu3.scalelab.example.com",
         "username": "user@example.com",
         "password": "pass123",
     }

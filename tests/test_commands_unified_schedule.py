@@ -170,7 +170,7 @@ class TestUnifiedScheduleAdmin:
         mock_shell.connection.api.create_schedule.return_value = {"id": 1}
 
         schedule_cmd = ScheduleCommands(mock_shell)
-        schedule_cmd.cmd_schedule_admin("cloud02 host01,host02,host03 2026-05-11 2026-06-11")
+        schedule_cmd.cmd_schedule_admin('cloud02 host01,host02,host03 "2026-05-11 22:00" "2026-06-11 22:00"')
 
         # Verify API calls
         mock_shell.connection.api.filter_clouds.assert_called_once_with({"name": "cloud02"})
@@ -184,7 +184,7 @@ class TestUnifiedScheduleAdmin:
         mock_shell.connection.api.filter_clouds.return_value = []
 
         schedule_cmd = ScheduleCommands(mock_shell)
-        schedule_cmd.cmd_schedule_admin("cloud99 host01 2026-05-11 2026-06-11")
+        schedule_cmd.cmd_schedule_admin('cloud99 host01 "2026-05-11 22:00" "2026-06-11 22:00"')
 
         # Should error about cloud not found
         mock_shell.perror.assert_called_with("Cloud 'cloud99' not found")
@@ -196,7 +196,7 @@ class TestUnifiedScheduleAdmin:
         mock_shell.connection.is_admin = False
 
         schedule_cmd = ScheduleCommands(mock_shell)
-        schedule_cmd.cmd_schedule_admin("cloud02 host01 2026-05-11 2026-06-11")
+        schedule_cmd.cmd_schedule_admin('cloud02 host01 "2026-05-11 22:00" "2026-06-11 22:00"')
 
         # Should deny permission
         mock_shell.perror.assert_called()

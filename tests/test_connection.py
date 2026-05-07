@@ -217,12 +217,13 @@ def test_connection_refresh_token_exception(mock_config, mock_api):
 
 
 def test_connection_error_json_parsing(mock_config, mock_api):
-    """Test connection error handling for JSON parsing errors"""
+    """Test connection error handling for JSON parsing errors with credentials"""
     mock_api.login.side_effect = Exception("Expecting value: line 1 column 1 (char 0)")
 
     with patch("quads_client.connection.QuadsApi", return_value=mock_api):
         conn = ConnectionManager(mock_config)
-        with pytest.raises(ConnectionError, match="Server is not responding correctly"):
+        # With credentials configured, JSON parsing error suggests wrong credentials
+        with pytest.raises(ConnectionError, match="incorrect credentials"):
             conn.connect("test_server")
 
 

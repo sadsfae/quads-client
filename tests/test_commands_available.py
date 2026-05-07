@@ -34,21 +34,32 @@ def test_ls_available_success(available_commands, mock_shell):
 
 
 def test_ls_available_with_filters(available_commands, mock_shell):
-    """Test listing available hosts with filters"""
+    """Test listing available hosts with filters including date range"""
     mock_shell.connection.is_connected = True
-    mock_shell.connection.api.filter_hosts.return_value = []
+    # Return hosts that filter_hosts would return (before availability check)
+    mock_shell.connection.api.filter_hosts.return_value = [
+        {
+            "name": "host01.example.com",
+            "model": "R630",
+            "host_type": "baremetal",
+            "can_self_schedule": True,
+        },
+    ]
+    # Mock is_available to return True (host passes availability check)
+    mock_shell.connection.api.is_available.return_value = True
 
     available_commands.cmd_ls_available("start 2026-05-01 end 2026-05-15 model R630")
 
+    # Start/end are extracted and used for is_available(), not passed to filter_hosts
     expected_filters = {
         "cloud": "cloud01",
         "retired": False,
         "broken": False,
-        "start": "2026-05-01",
-        "end": "2026-05-15",
         "model": "R630",  # Uppercased to match QUADS storage
     }
     mock_shell.connection.api.filter_hosts.assert_called_once_with(expected_filters)
+    # Verify is_available was called with the host and date range
+    mock_shell.connection.api.is_available.assert_called_once()
 
 
 def test_ls_available_empty(available_commands, mock_shell):
@@ -81,24 +92,26 @@ def test_ls_available_api_error(available_commands, mock_shell):
 
 
 def test_ls_available_start_filter_only(available_commands, mock_shell):
-    """Test ls-available with only start date filter"""
+    """Test ls-available with only start date filter (no availability check without end date)"""
     mock_shell.connection.is_connected = True
     mock_shell.connection.api.filter_hosts.return_value = []
 
     available_commands.cmd_ls_available("start 2026-05-01")
 
-    expected_filters = {"cloud": "cloud01", "retired": False, "broken": False, "start": "2026-05-01"}
+    # Start without end - won't trigger availability check, just shows hosts in cloud01
+    expected_filters = {"cloud": "cloud01", "retired": False, "broken": False}
     mock_shell.connection.api.filter_hosts.assert_called_once_with(expected_filters)
 
 
 def test_ls_available_end_filter_only(available_commands, mock_shell):
-    """Test ls-available with only end date filter"""
+    """Test ls-available with only end date filter (no availability check without start date)"""
     mock_shell.connection.is_connected = True
     mock_shell.connection.api.filter_hosts.return_value = []
 
     available_commands.cmd_ls_available("end 2026-05-15")
 
-    expected_filters = {"cloud": "cloud01", "retired": False, "broken": False, "end": "2026-05-15"}
+    # End without start - won't trigger availability check, just shows hosts in cloud01
+    expected_filters = {"cloud": "cloud01", "retired": False, "broken": False}
     mock_shell.connection.api.filter_hosts.assert_called_once_with(expected_filters)
 
 
