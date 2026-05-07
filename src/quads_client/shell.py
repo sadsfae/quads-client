@@ -35,6 +35,10 @@ class QuadsClientShell(cmd2.Cmd):
         if not quiet:
             self.rich_console.print_banner()
 
+            # Show onboarding message if no servers configured
+            if self.config and self.config.needs_initial_setup():
+                self._print_onboarding_message()
+
         # Hide unwanted cmd2 built-in commands and dangerous cloud management commands
         self.permanently_hidden = [
             "macro",
@@ -53,7 +57,6 @@ class QuadsClientShell(cmd2.Cmd):
             self.session_manager = SessionManager(self.config)
         except ConfigError as e:
             self.pwarning(f"Configuration error: {e}")
-            self.pwarning("Please create ~/.config/quads/quads-client.yml")
 
         self.connection_commands = ConnectionCommands(self)
         self.version_commands = VersionCommands(self)
@@ -78,6 +81,21 @@ class QuadsClientShell(cmd2.Cmd):
     def do_exit(self, args):
         """Exit the application"""
         return True
+
+    def _print_onboarding_message(self):
+        """Display first-time setup instructions"""
+        self.poutput("\n\033[1;33m Welcome to QUADS Client! \033[0m")
+        self.poutput("\n\033[1mGetting Started:\033[0m")
+        self.poutput("  1. Add your QUADS server:")
+        self.poutput("     \033[1;36madd-quads-server\033[0m")
+        self.poutput("     (Follow the interactive prompts)\n")
+        self.poutput("  2. Reload configuration:")
+        self.poutput("     \033[1;36mconfig-reload\033[0m\n")
+        self.poutput("  3. Connect to your server:")
+        self.poutput("     \033[1;36mconnect <server_name>\033[0m\n")
+        self.poutput("  4. Register your account:")
+        self.poutput("     \033[1;36mregister your.email@example.com YourPassword123\033[0m\n")
+        self.poutput("  Type \033[1mhelp\033[0m for more commands.\n")
 
     def _shorten_server_name(self, name):
         """Shorten server name by stripping last 2 segments (e.g. quads2-dev.rdu2.scalelab)"""
@@ -131,7 +149,7 @@ class QuadsClientShell(cmd2.Cmd):
             indicators.append(f"{session.id}:{label}{active}")
 
         if len(sessions) > 4:
-            indicators.append(f"+{len(sessions)-4}")
+            indicators.append(f"+{len(sessions) - 4}")
 
         return f"[{' '.join(indicators)}] "
 

@@ -155,8 +155,9 @@ def test_config_empty_servers(tmp_path):
     config_data = {"servers": {}}
     config_file.write_text(yaml.dump(config_data))
 
-    with pytest.raises(ConfigError, match="At least one server must be configured"):
-        QuadsClientConfig(config_path=str(config_file))
+    config = QuadsClientConfig(config_path=str(config_file))
+    assert config.needs_initial_setup() is True
+    assert config.get_all_servers() == {}
 
 
 def test_config_no_default_server(tmp_path):
