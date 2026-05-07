@@ -121,6 +121,7 @@ class AvailableCommands:
                     try:
                         # Convert dates to ISO format for API
                         from datetime import datetime
+
                         start_dt = datetime.strptime(start_date, "%Y-%m-%d")
                         end_dt = datetime.strptime(end_date, "%Y-%m-%d")
                         start_iso = start_dt.isoformat()[:-3]
