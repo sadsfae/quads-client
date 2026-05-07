@@ -44,14 +44,39 @@ class CloudCommands:
 
                 table_data = []
                 for cloud in clouds:
-                    owner = cloud.get("owner", "") or "-"
-                    description = cloud.get("description", "") or "-"
-                    wipe = "Yes" if cloud.get("wipe", False) else "No"
-                    vlan = cloud.get("vlan", {}).get("vlan_id", "-") if isinstance(cloud.get("vlan"), dict) else "-"
+                    cloud_name = cloud.get("name", "")
 
-                    table_data.append([cloud.get("name", ""), owner, description[:50], vlan, wipe])
+                    # Try to get active assignment for this cloud
+                    assignment_id = "-"
+                    owner = "-"
+                    description = "-"
+                    vlan = "-"
+                    wipe = "No"
 
-                headers = ["Cloud", "Owner", "Description", "VLAN", "Wipe"]
+                    try:
+                        assignment = self.shell.connection.api.get_active_cloud_assignment(cloud_name)
+                        if assignment:
+                            # Extract assignment ID
+                            if isinstance(assignment, dict):
+                                assignment_id = str(assignment.get("id", "-"))
+                                owner = assignment.get("owner", "-") or "-"
+                                desc_full = assignment.get("description", "-") or "-"
+                                description = desc_full[:40] if len(desc_full) > 40 else desc_full
+                                wipe = "Yes" if assignment.get("wipe", False) else "No"
+
+                                # Extract VLAN
+                                vlan_obj = assignment.get("vlan")
+                                if isinstance(vlan_obj, dict):
+                                    vlan = str(vlan_obj.get("vlan_id", "-"))
+                                elif vlan_obj:
+                                    vlan = str(vlan_obj)
+                    except Exception:
+                        # No active assignment - keep defaults
+                        pass
+
+                    table_data.append([cloud_name, assignment_id, owner, description, vlan, wipe])
+
+                headers = ["Cloud", "Assignment", "Owner", "Description", "VLAN", "Wipe"]
                 if self.rich_console:
                     self.rich_console.print_table(headers, table_data)
                 else:
@@ -216,50 +241,110 @@ class CloudCommands:
                     self.shell.perror(f"Failed to delete cloud: {e}")
 
     def cmd_mod_cloud(self, args):
-        """Modify cloud attributes.
-        Usage: mod-cloud <cloud_name> [owner OWNER] [description DESC] [ticket TICKET] [wipe true|false]
+        """Modify cloud assignment attributes.
+        Usage: mod-cloud <cloud_name> [OPTIONS]
+
+        Modify attributes of a cloud's active assignment. Cloud must have an active assignment.
+
+        Options:
+          description <text>       Assignment description
+          cloud-owner <username>   Cloud owner username
+          cloud-ticket <ticket_id> Ticket ID (JIRA, etc.)
+          cc-users <user1,user2>   Comma-separated CC users
+          vlan <vlan_id>           VLAN ID number
+          qinq <0|1>              QinQ setting (0=disabled, 1=enabled)
+          wipe                     Enable host wiping
+          nowipe                   Disable host wiping
+
+        Examples:
+          mod-cloud cloud05 description "Updated test environment"
+          mod-cloud cloud02 cloud-owner alice cloud-ticket JIRA-456
+          mod-cloud cloud03 vlan 1234 qinq 1
+          mod-cloud cloud04 wipe
+          mod-cloud cloud06 cc-users "bob,alice,charlie"
         """
         if not self._require_connection():
             return
 
+        # Handle help request
+        if args.strip() in ("?", "-h", "--help"):
+            self.shell.poutput("Usage: mod-cloud <cloud_name> [OPTIONS]")
+            self.shell.poutput("\nModify attributes of a cloud's active assignment.")
+            self.shell.poutput("\nOptions:")
+            self.shell.poutput("  description <text>       Assignment description")
+            self.shell.poutput("  cloud-owner <username>   Cloud owner username")
+            self.shell.poutput("  cloud-ticket <ticket_id> Ticket ID (JIRA, etc.)")
+            self.shell.poutput("  cc-users <user1,user2>   Comma-separated CC users")
+            self.shell.poutput("  vlan <vlan_id>           VLAN ID number")
+            self.shell.poutput("  qinq <0|1>              QinQ setting (0=disabled, 1=enabled)")
+            self.shell.poutput("  wipe                     Enable host wiping")
+            self.shell.poutput("  nowipe                   Disable host wiping")
+            self.shell.poutput("\nExamples:")
+            self.shell.poutput("  mod-cloud cloud05 description \"Updated test environment\"")
+            self.shell.poutput("  mod-cloud cloud02 cloud-owner alice cloud-ticket JIRA-456")
+            self.shell.poutput("  mod-cloud cloud03 vlan 1234 qinq 1")
+            self.shell.poutput("  mod-cloud cloud04 wipe")
+            self.shell.poutput("  mod-cloud cloud06 cc-users \"bob,alice,charlie\"")
+            return
+
         parts = args.split()
         if len(parts) < 1:
-            self.shell.perror(
-                "Usage: mod-cloud <cloud_name> [owner OWNER] [description DESC] "
-                "[ticket TICKET] [wipe true|false] [ccusers CCUSERS]"
-            )
+            self.shell.perror("Usage: mod-cloud <cloud_name> [OPTIONS]")
+            self.shell.perror("Run 'mod-cloud ?' for detailed help")
             return
 
         cloud_name = parts[0]
         updates = {}
-        keywords = ["owner", "description", "ticket", "wipe", "ccusers"]
+        keywords = ["description", "cloud-owner", "cloud-ticket", "cc-users", "vlan", "qinq", "wipe", "nowipe"]
 
         i = 1
         while i < len(parts):
-            if parts[i] == "owner" and i + 1 < len(parts):
-                updates["owner"] = parts[i + 1]
-                i += 2
-            elif parts[i] == "description" and i + 1 < len(parts):
+            if parts[i] == "description" and i + 1 < len(parts):
                 desc_parts = []
                 i += 1
                 while i < len(parts) and parts[i] not in keywords:
                     desc_parts.append(parts[i])
                     i += 1
                 updates["description"] = " ".join(desc_parts)
-            elif parts[i] == "ticket" and i + 1 < len(parts):
+            elif parts[i] == "cloud-owner" and i + 1 < len(parts):
+                updates["owner"] = parts[i + 1]
+                i += 2
+            elif parts[i] == "cloud-ticket" and i + 1 < len(parts):
                 updates["ticket"] = parts[i + 1]
                 i += 2
-            elif parts[i] == "wipe" and i + 1 < len(parts):
-                updates["wipe"] = parts[i + 1].lower() == "true"
+            elif parts[i] == "cc-users" and i + 1 < len(parts):
+                updates["ccuser"] = parts[i + 1]
                 i += 2
-            elif parts[i] == "ccusers" and i + 1 < len(parts):
-                updates["ccusers"] = parts[i + 1]
+            elif parts[i] == "vlan" and i + 1 < len(parts):
+                try:
+                    updates["vlan"] = int(parts[i + 1])
+                except ValueError:
+                    self.shell.perror(f"Invalid VLAN ID: {parts[i + 1]}")
+                    return
                 i += 2
+            elif parts[i] == "qinq" and i + 1 < len(parts):
+                try:
+                    qinq_val = int(parts[i + 1])
+                    if qinq_val not in [0, 1]:
+                        self.shell.perror(f"QinQ must be 0 or 1, got: {parts[i + 1]}")
+                        return
+                    updates["qinq"] = qinq_val
+                except ValueError:
+                    self.shell.perror(f"Invalid QinQ value: {parts[i + 1]}")
+                    return
+                i += 2
+            elif parts[i] == "wipe":
+                updates["wipe"] = True
+                i += 1
+            elif parts[i] == "nowipe":
+                updates["wipe"] = False
+                i += 1
             else:
                 i += 1
 
         if not updates:
             self.shell.perror("No updates specified")
+            self.shell.perror("Run 'mod-cloud ?' for help")
             return
 
         try:
@@ -284,3 +369,173 @@ class CloudCommands:
                     self.rich_console.print_error(f"Failed to modify cloud: {e}")
                 else:
                     self.shell.perror(f"Failed to modify cloud: {e}")
+
+    def cmd_find_free_cloud(self, args):
+        """
+        Find clouds without active assignments.
+        Usage: find_free_cloud
+        """
+        if not self._require_connection():
+            return
+
+        try:
+            # Get all clouds
+            clouds = self.shell.connection.api.get_clouds()
+            if not clouds:
+                self.shell.poutput("No clouds found")
+                return
+
+            free_clouds = []
+
+            for cloud in clouds:
+                cloud_name = cloud.get("name")
+
+                # Skip cloud01 (spare pool)
+                if cloud_name == "cloud01":
+                    continue
+
+                # Check if cloud has current schedules
+                current_schedules = self.shell.connection.api.get_current_schedules({"cloud": cloud_name})
+
+                # If no current schedules, cloud is free
+                if not current_schedules:
+                    free_clouds.append(cloud_name)
+
+            if free_clouds:
+                self.shell.poutput("Free clouds:")
+                for cloud_name in sorted(free_clouds):
+                    self.shell.poutput(f"  {cloud_name}")
+            else:
+                self.shell.poutput("No free clouds available")
+
+        except Exception as e:
+            if self.rich_console:
+                self.rich_console.print_error(f"Failed to find free clouds: {e}")
+            else:
+                self.shell.perror(f"Failed to find free clouds: {e}")
+
+    def cmd_cloud_only(self, args):
+        """
+        List all hosts assigned to a specific cloud.
+        Usage: cloud_only <cloud_name>
+
+        Example:
+          cloud_only cloud02
+        """
+        if not self._require_connection():
+            return
+
+        cloud_name = args.strip()
+
+        if not cloud_name:
+            self.shell.perror("Usage: cloud_only <cloud_name>")
+            return
+
+        try:
+            # Verify cloud exists
+            clouds = self.shell.connection.api.filter_clouds({"name": cloud_name})
+            if not clouds:
+                self.shell.perror(f"Cloud '{cloud_name}' not found")
+                return
+
+            # Get current schedules for this cloud
+            current_schedules = self.shell.connection.api.get_current_schedules({"cloud": cloud_name})
+
+            if not current_schedules:
+                self.shell.poutput(f"No hosts currently assigned to {cloud_name}")
+                return
+
+            # Extract unique hostnames
+            hostnames = []
+            for schedule in current_schedules:
+                host = schedule.get("host")
+                if host:
+                    hostname = host.get("name") if isinstance(host, dict) else host
+                    if hostname and hostname not in hostnames:
+                        hostnames.append(hostname)
+
+            if hostnames:
+                self.shell.poutput(f"Hosts in cloud {cloud_name}:")
+                for hostname in sorted(hostnames):
+                    self.shell.poutput(f"  {hostname}")
+            else:
+                self.shell.poutput(f"No hosts currently assigned to {cloud_name}")
+
+        except Exception as e:
+            if self.rich_console:
+                self.rich_console.print_error(f"Failed to list cloud hosts: {e}")
+            else:
+                self.shell.perror(f"Failed to list cloud hosts: {e}")
+
+    def cmd_ls_vlan(self, args):
+        """
+        List all VLANs with assigned clouds.
+        Usage: ls-vlan
+
+        Displays VLANs in a table showing VLAN ID, gateway, IP range, netmask, and assigned cloud.
+        """
+        if not self._require_connection():
+            return
+
+        try:
+            # Get all VLANs
+            vlans = self.shell.connection.api.get_vlans()
+
+            if not vlans:
+                self.shell.poutput("No VLANs configured")
+                return
+
+            # Build table data
+            table_data = []
+            headers = ["VLAN ID", "Gateway", "IP Range", "Netmask", "Assigned Cloud"]
+
+            for vlan in vlans:
+                vlan_id = vlan.get("vlan_id", "N/A")
+                gateway = vlan.get("gateway", "-")
+                ip_range = vlan.get("ip_range", "-")
+                netmask = vlan.get("netmask", "-")
+
+                # Get assignment for this VLAN
+                # Query API for assignments with this VLAN ID
+                try:
+                    # Get all active assignments and filter for this VLAN
+                    assignments = self.shell.connection.api.filter_assignments({"active": True})
+                    cloud_assigned = "Free"
+
+                    for assignment in assignments:
+                        if assignment.get("vlan", {}).get("vlan_id") == vlan_id:
+                            cloud_assigned = assignment.get("cloud", {}).get("name", "Unknown")
+                            break
+
+                except Exception:
+                    cloud_assigned = "Unknown"
+
+                table_data.append([str(vlan_id), gateway, ip_range, netmask, cloud_assigned])
+
+            # Display table
+            if self.rich_console:
+                from rich.table import Table
+
+                table = Table(title="Available VLANs")
+                for header in headers:
+                    table.add_column(header, style="cyan" if header == "VLAN ID" else "white")
+
+                for row in table_data:
+                    # Color "Free" in green, assigned clouds in yellow
+                    styled_row = row.copy()
+                    if row[4] == "Free":
+                        styled_row[4] = f"[green]{row[4]}[/green]"
+                    elif row[4] != "Unknown":
+                        styled_row[4] = f"[yellow]{row[4]}[/yellow]"
+                    table.add_row(*styled_row)
+
+                self.shell.rich_console.console.print(table)
+            else:
+                # Fallback to tabulate
+                self.shell.poutput(tabulate(table_data, headers=headers, tablefmt="simple"))
+
+        except Exception as e:
+            if self.rich_console:
+                self.rich_console.print_error(f"Failed to list VLANs: {e}")
+            else:
+                self.shell.perror(f"Failed to list VLANs: {e}")

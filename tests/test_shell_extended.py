@@ -106,8 +106,12 @@ def test_shell_update_visible_commands_admin():
 
             shell._update_visible_commands()
 
-            # No admin commands should be hidden for admin
-            assert "cloud_create" not in shell.hidden_commands
+            # cloud_create and cloud_delete are permanently hidden (too dangerous)
+            assert "cloud_create" in shell.hidden_commands
+            assert "cloud_delete" in shell.hidden_commands
+            # But other admin commands should be visible
+            assert "ls_hosts" not in shell.hidden_commands
+            assert "mod_cloud" not in shell.hidden_commands
 
 
 def test_shell_exit_command():

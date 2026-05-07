@@ -35,8 +35,17 @@ class QuadsClientShell(cmd2.Cmd):
         if not quiet:
             self.rich_console.print_banner()
 
-        # Hide unwanted cmd2 built-in commands
-        self.permanently_hidden = ["macro", "run_script", "edit", "run_pyscript", "shortcuts", "_relative_run_script"]
+        # Hide unwanted cmd2 built-in commands and dangerous cloud management commands
+        self.permanently_hidden = [
+            "macro",
+            "run_script",
+            "edit",
+            "run_pyscript",
+            "shortcuts",
+            "_relative_run_script",
+            "cloud_create",  # Too dangerous - no use case for empty clouds
+            "cloud_delete",  # Too dangerous - can break active assignments
+        ]
         self.hidden_commands.extend(self.permanently_hidden)
 
         try:
@@ -89,7 +98,17 @@ class QuadsClientShell(cmd2.Cmd):
 
             # Add session indicators
             session_info = self._get_session_indicators()
-            self.prompt = f"{color}{symbol} {session_info}({short_name})\033[0m > "
+
+            # Add admin badge if user is admin
+            admin_badge = ""
+            if self.connection and self.connection.is_admin:
+                admin_badge = " \033[1;31m[ADMIN]\033[0m"
+
+            # DEBUG: Uncomment to troubleshoot admin detection
+            # import sys
+            # print(f"DEBUG: is_admin={self.connection.is_admin}, username={self.connection.username}", file=sys.stderr)
+
+            self.prompt = f"{color}{symbol} {session_info}({short_name}){admin_badge}\033[0m > "
         else:
             self.prompt = "\033[1;31m(disconnected)\033[0m > "
 
@@ -120,6 +139,9 @@ class QuadsClientShell(cmd2.Cmd):
             "cloud_create",
             "cloud_delete",
             "mod_cloud",
+            "find_free_cloud",
+            "cloud_only",
+            "ls_vlan",
             "ls_hosts",
             "mark_broken",
             "mark_repaired",
@@ -153,7 +175,6 @@ class QuadsClientShell(cmd2.Cmd):
         auth_required_commands = [
             "login",
             "whoami",
-            "available",
             "schedule",
             "assignment_list",
             "my_hosts",
@@ -186,6 +207,19 @@ class QuadsClientShell(cmd2.Cmd):
         """Display QUADS Client version"""
         self.version_commands.cmd_version(args)
 
+    def do_debug_admin(self, args):
+        """DEBUG: Check admin status"""
+        if self.connection:
+            print(f"Connected: {self.connection.is_connected}")
+            print(f"Authenticated: {self.connection.is_authenticated}")
+            print(f"Username: {self.connection.username}")
+            print(f"User role: {self.connection.user_role}")
+            print(f"Is admin: {self.connection.is_admin}")
+            print(f"Hidden commands count: {len(self.hidden_commands)}")
+            print(f"Admin commands in hidden: {'cloud_create' in self.hidden_commands}")
+        else:
+            print("No connection")
+
     def do_connect(self, args):
         """Connect to a QUADS server. Usage: connect [server_name]"""
         self.connection_commands.cmd_connect(args)
@@ -210,6 +244,18 @@ class QuadsClientShell(cmd2.Cmd):
     def do_cloud_list(self, args):
         """List all clouds (admin only)"""
         self.cloud_commands.cmd_cloud_list(args)
+
+    def do_find_free_cloud(self, args):
+        """Find clouds without active assignments (admin only)"""
+        self.cloud_commands.cmd_find_free_cloud(args)
+
+    def do_cloud_only(self, args):
+        """List hosts assigned to a specific cloud (admin only)"""
+        self.cloud_commands.cmd_cloud_only(args)
+
+    def do_ls_vlan(self, args):
+        """List VLANs with assigned clouds (admin only)"""
+        self.cloud_commands.cmd_ls_vlan(args)
 
     def do_cloud_create(self, args):
         """Create a new cloud (admin only)"""
@@ -246,10 +292,6 @@ class QuadsClientShell(cmd2.Cmd):
     def do_assignment_terminate(self, args):
         """Terminate an assignment"""
         self.user_commands.cmd_assignment_terminate(args)
-
-    def do_available(self, args):
-        """Show available hosts"""
-        self.user_commands.cmd_available(args)
 
     def do_schedule(self, args):
         """

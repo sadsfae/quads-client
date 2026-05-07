@@ -50,13 +50,22 @@ class SessionCommands:
     def cmd_session_switch(self, args):
         """
         Switch active session.
-        Usage: session-switch <session_id>
+        Usage: session-switch [session_id]
+
+        Without arguments, toggles to previous session (like screen Ctrl+A Ctrl+A).
+        With session_id, switches to that specific session.
         """
         session_id = args.strip()
 
+        # If no session_id provided, toggle to previous session
         if not session_id:
-            self.shell.perror("Usage: session-switch <session_id>")
-            return
+            session_id = self.shell.session_manager.previous_session_id
+            if session_id is None:
+                if self.shell.rich_console:
+                    self.shell.rich_console.console.print("[yellow]No previous session to switch to[/yellow]")
+                else:
+                    self.shell.poutput("No previous session to switch to")
+                return
 
         # Check if already on this session
         if session_id == self.shell.session_manager.active_session_id:

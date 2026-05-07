@@ -3,6 +3,29 @@ from tabulate import tabulate
 
 from quads_client.arg_parser import parse_extend_args, parse_schedule_admin_args
 from quads_client.error_handler import handle_api_error, require_admin, require_connection
+from quads_client.utils import format_schedule_datetime
+
+
+def parse_flexible_datetime(date_str):
+    """
+    Parse date string in format YYYY-MM-DD HH:MM
+
+    Args:
+        date_str: Date string to parse
+
+    Returns:
+        datetime object
+
+    Raises:
+        ValueError: If date_str doesn't match the required format
+    """
+    try:
+        return datetime.strptime(date_str, "%Y-%m-%d %H:%M")
+    except ValueError:
+        raise ValueError(
+            f"Invalid date format: '{date_str}'. "
+            f"Expected 'YYYY-MM-DD HH:MM' (e.g., '2026-05-15 22:00') or use 'now' for immediate start"
+        )
 
 
 class ScheduleCommands:
@@ -14,17 +37,23 @@ class ScheduleCommands:
         return require_connection(self.shell)
 
     def cmd_ls_schedule(self, args):
-        """List schedules. Usage: ls-schedule [host <hostname>] [cloud <cloudname>]"""
+        """List schedules. Usage: ls-schedule [host <hostname>] [cloud <cloudname>]
+
+        For single host: shows default cloud, current cloud, current schedule, and full history.
+        For multiple/no filter: shows schedules in table format.
+        """
         if not self._require_connection():
             return
 
         parts = args.split()
         filters = {}
+        hostname = None
 
         i = 0
         while i < len(parts):
             if parts[i] == "host" and i + 1 < len(parts):
-                filters["host"] = parts[i + 1]
+                hostname = parts[i + 1]
+                filters["host"] = hostname
                 i += 2
             elif parts[i] == "cloud" and i + 1 < len(parts):
                 filters["cloud"] = parts[i + 1]
@@ -38,6 +67,61 @@ class ScheduleCommands:
                 self.shell.poutput("No schedules found")
                 return
 
+            # Special handling for single host query - show host details and full history
+            if hostname and not filters.get("cloud"):
+                # Get host details for default/current cloud info
+                try:
+                    host_info = self.shell.connection.api.get_host(hostname)
+                    default_cloud = host_info.get("default_cloud", {}).get("name", "cloud01")
+                    current_cloud = host_info.get("cloud", {}).get("name", default_cloud)
+
+                    # Find current schedule
+                    current_schedule_id = None
+                    now = datetime.now()
+                    for sched in schedules:
+                        start_str = sched.get("start", "")
+                        end_str = sched.get("end", "")
+                        if start_str and end_str:
+                            try:
+                                start = datetime.fromisoformat(start_str.replace("Z", ""))
+                                end = datetime.fromisoformat(end_str.replace("Z", ""))
+                                if start <= now <= end:
+                                    current_schedule_id = sched.get("id")
+                                    break
+                            except (ValueError, AttributeError):
+                                pass
+
+                    # Show host summary
+                    self.shell.poutput(f"Default cloud: {default_cloud}")
+                    self.shell.poutput(f"Current cloud: {current_cloud}")
+                    if current_schedule_id:
+                        self.shell.poutput(f"Current schedule: {current_schedule_id}")
+
+                    # Build schedule table (ID | start | end | cloud format)
+                    table_data = []
+                    for sched in sorted(schedules, key=lambda x: x.get("start", "")):
+                        schedule_id = sched.get("id", "")
+                        start = format_schedule_datetime(sched.get("start", ""))
+                        end = format_schedule_datetime(sched.get("end", ""))
+                        assignment = sched.get("assignment", {})
+                        cloud = assignment.get("cloud", {}).get("name", "")
+
+                        table_data.append([schedule_id, start, end, cloud])
+
+                    if self.rich_console:
+                        self.rich_console.print_table(
+                            ["ID", "Start", "End", "Cloud"], table_data, title=f"Schedule History for {hostname}"
+                        )
+                    else:
+                        self.shell.poutput(
+                            tabulate(table_data, headers=["ID", "Start", "End", "Cloud"], tablefmt="simple")
+                        )
+                    return
+                except Exception as e:
+                    # Fall through to regular table display if host info fails
+                    self.shell.perror(f"Warning: Could not fetch host details: {e}")
+
+            # Regular table display for multiple hosts or cloud filter
             table_data = []
             for sched in schedules:
                 host_name = sched.get("host", {}).get("name", "")
@@ -67,12 +151,29 @@ class ScheduleCommands:
 
     def cmd_schedule_admin(self, args):
         """
-        Admin Mode: Schedule hosts with explicit dates
-        Usage: schedule <cloud> <hosts|host-list path> <start> <end>
+        Admin Mode: Schedule hosts with explicit dates and cloud parameters
+
+        Unified command that combines assignment creation and host scheduling.
+        If the cloud has no active assignment, one will be created automatically.
+
+        Usage: schedule <cloud> <hosts|host-list path> <start> <end> [options]
+
+        Options:
+          description <text>       Assignment description (required for new assignments)
+          cloud-owner <username>   Cloud owner username (required for new assignments)
+          cloud-ticket <ticket_id> Ticket ID (required for new assignments)
+          cc-users <user1,user2>   Comma-separated CC users
+          vlan <vlan_id>           VLAN ID number
+          qinq <0|1>              QinQ setting (default 0)
+          nowipe                   Disable host wiping (default: wipe enabled)
 
         Examples:
-          schedule cloud02 host01,host02,host03 2026-05-11 2026-06-11
-          schedule cloud17 host-list ~/hosts.txt now 2026-07-01
+          schedule cloud02 host01,host02 2026-05-11 2026-06-11 description "Test Env" \\
+            cloud-owner jdoe cloud-ticket JIRA-123
+          schedule cloud17 host-list ~/hosts.txt now 2026-07-01 \\
+            description "OpenStack Testing" cloud-owner alice cloud-ticket JIRA-456
+          schedule cloud05 host03 2026-05-15 2026-06-01 description "Performance Test" \\
+            cloud-owner jdoe cloud-ticket JIRA-789 vlan 1234 qinq 1 nowipe
         """
         if not require_admin(self.shell):
             return
@@ -81,32 +182,177 @@ class ScheduleCommands:
             # Parse arguments
             parsed = parse_schedule_admin_args(args)
 
+            # Validate dates (unless start is "now")
+            if parsed["start"] and parsed["start"] != "now":
+                try:
+                    start_date = parse_flexible_datetime(parsed["start"])
+                    end_date = parse_flexible_datetime(parsed["end"])
+
+                    if start_date >= end_date:
+                        self.shell.perror("Error: Start date must be before end date")
+                        return
+                except ValueError as date_err:
+                    self.shell.perror(f"Invalid date format: {date_err}")
+                    return
+
             # Verify cloud exists
             clouds = self.shell.connection.api.filter_clouds({"name": parsed["cloud"]})
             if not clouds:
                 self.shell.perror(f"Cloud '{parsed['cloud']}' not found")
                 return
 
+            # Pre-check host availability BEFORE creating assignment
+            # This prevents creating orphaned assignments when hosts are unavailable
+            unavailable = []
+            if parsed["start"] != "now":
+                start_iso = parse_flexible_datetime(parsed["start"]).isoformat()[:-3]
+                end_iso = parse_flexible_datetime(parsed["end"]).isoformat()[:-3]
+
+                for hostname in parsed["host_list"]:
+                    is_available = self.shell.connection.api.is_available(
+                        hostname, {"start": start_iso, "end": end_iso}
+                    )
+                    if not is_available:
+                        unavailable.append(hostname)
+
+                if unavailable:
+                    self.shell.perror("The following hosts are unavailable for the specified date range:")
+                    for host in unavailable:
+                        self.shell.perror(f"  {host}")
+                    self.shell.perror("Remove these from your host list and try again.")
+                    return
+
+            # Determine whether to create new assignment or use existing
+            # If user provides assignment parameters (cloud-ticket), they want a NEW assignment
+            should_create_new = parsed["cloud_ticket"] or (parsed["description"] and parsed["cloud_owner"])
+
+            assignment = None
+            created_new_assignment = False
+            assignment_id = None
+
+            if should_create_new:
+                # User wants to create NEW assignment - validate required fields
+                if not parsed["description"]:
+                    self.shell.perror("description is required when creating a new assignment")
+                    return
+
+                if not parsed["cloud_owner"]:
+                    self.shell.perror("cloud-owner is required when creating a new assignment")
+                    return
+
+                if not parsed["cloud_ticket"]:
+                    self.shell.perror("cloud-ticket is required when creating a new assignment")
+                    return
+
+                # Create new assignment
+                assignment_data = {
+                    "cloud": parsed["cloud"],
+                    "description": parsed["description"],
+                    "owner": parsed["cloud_owner"],
+                    "ticket": parsed["cloud_ticket"],
+                    "wipe": parsed.get("wipe", True),  # Default: wipe enabled
+                }
+
+                if parsed["cc_users"]:
+                    assignment_data["ccuser"] = parsed["cc_users"]
+                if parsed["vlan"]:
+                    assignment_data["vlan"] = parsed["vlan"]
+                if parsed["qinq"] is not None:
+                    assignment_data["qinq"] = parsed["qinq"]
+
+                try:
+                    assignment = self.shell.connection.api.create_assignment(assignment_data)
+
+                    # Check if response contains an error
+                    if isinstance(assignment, dict) and assignment.get("error"):
+                        self.shell.perror(f"Failed to create assignment: {assignment.get('message', 'Unknown error')}")
+                        return
+
+                    # Extract assignment ID for display and mark that we created it
+                    assignment_id = assignment.get("id", "unknown")
+                    created_new_assignment = True
+                    if self.rich_console:
+                        self.rich_console.print_success(
+                            f"Assignment created - ID: {assignment_id}, Cloud: {parsed['cloud']}"
+                        )
+                    else:
+                        self.shell.poutput(f"OK: Assignment created - ID: {assignment_id}, Cloud: {parsed['cloud']}")
+
+                    # Verify assignment is active before proceeding
+                    try:
+                        assignment = self.shell.connection.api.get_active_cloud_assignment(parsed["cloud"])
+                        if not assignment:
+                            self.shell.perror(
+                                f"Assignment created but not active for {parsed['cloud']}. "
+                                "This may be a database timing issue. Please retry."
+                            )
+                            return
+                    except Exception as verify_error:
+                        self.shell.perror(
+                            f"Assignment created but cannot verify it's active: {verify_error}. "
+                            "Proceeding anyway..."
+                        )
+                except Exception as e:
+                    handle_api_error(self.shell, e, "Creating assignment")
+                    return
+            else:
+                # User wants to use existing assignment - check it exists
+                try:
+                    assignment = self.shell.connection.api.get_active_cloud_assignment(parsed["cloud"])
+                    if self.rich_console:
+                        self.rich_console.print_info(f"Using existing assignment for {parsed['cloud']}")
+                    else:
+                        self.shell.poutput(f"Using existing assignment for {parsed['cloud']}")
+                except Exception:
+                    # No active assignment and user didn't provide parameters to create one
+                    self.shell.perror(f"Cloud '{parsed['cloud']}' has no active assignment.")
+                    self.shell.perror("Provide assignment parameters to create one:")
+                    self.shell.perror(
+                        '  schedule cloud02 host01 "2026-05-15 22:00" "2026-06-15 22:00" '
+                        'description "Test" cloud-owner jdoe cloud-ticket JIRA-123'
+                    )
+                    return
+
             # Create schedules for each host
             created_count = 0
             for hostname in parsed["host_list"]:
                 schedule_data = {
                     "cloud": parsed["cloud"],
-                    "hostname": hostname,  # API expects "hostname" not "host"
+                    "hostname": hostname,
                     "start": None if parsed["start"] == "now" else parsed["start"],
                     "end": parsed["end"],
                 }
-                self.shell.connection.api.create_schedule(schedule_data)
-                created_count += 1
+
+                # Do NOT send owner/ticket/vlan/ccuser - these belong to assignment, not schedule
+                try:
+                    self.shell.connection.api.create_schedule(schedule_data)
+                    created_count += 1
+                    if self.rich_console:
+                        self.rich_console.print_success(f"  {hostname}")
+                    else:
+                        self.shell.poutput(f"  OK: {hostname}")
+                except Exception as e:
+                    if self.rich_console:
+                        self.rich_console.print_error(f"  {hostname}: {e}")
+                    else:
+                        self.shell.perror(f"  Failed: {hostname}: {e}")
+
+            # Cleanup orphaned assignment if ALL schedules failed
+            if created_count == 0 and created_new_assignment and assignment_id:
+                try:
+                    self.shell.connection.api.terminate_assignment(assignment_id)
+                    self.shell.poutput(f"All schedules failed. Removed orphaned assignment {assignment_id}.")
+                except Exception as cleanup_error:
+                    self.shell.perror(f"Warning: Failed to cleanup assignment {assignment_id}: {cleanup_error}")
+                    self.shell.perror("You may need to manually remove this orphaned assignment.")
 
             if self.rich_console:
-                self.rich_console.print_success(f"Created {created_count} schedule(s)")
+                self.rich_console.print_success(f"\nCreated {created_count}/{len(parsed['host_list'])} schedule(s)")
             else:
-                self.shell.poutput(f"OK: Created {created_count} schedule(s)")
+                self.shell.poutput(f"OK: Created {created_count}/{len(parsed['host_list'])} schedule(s)")
 
         except ValueError as e:
             self.shell.perror(f"Invalid arguments: {e}")
-            self.shell.perror("Usage: schedule <cloud> <hosts|host-list path> <start> <end>")
         except ConnectionError:
             self.shell.perror("Connection failed: unable to reach QUADS server")
             self.shell.perror("Hint: Check 'status' or run 'connect <server>'")
@@ -300,12 +546,17 @@ class ScheduleCommands:
             handle_api_error(self.shell, e, "Extending schedule")
 
     def cmd_shrink(self, args):
-        """Shrink a schedule. Usage: shrink <hostname> weeks <number>"""
+        """
+        Shrink a schedule. Usage: shrink <cloud|hostname> weeks <number>
+
+        For clouds: Sets all current schedules to end now (cancels assignment)
+        For hosts: Reduces schedule by specified weeks
+        """
         if not self._require_connection():
             return
 
         parts = args.split()
-        hostname = None
+        target = None
         weeks = None
 
         i = 0
@@ -318,28 +569,86 @@ class ScheduleCommands:
                     return
                 i += 2
             else:
-                # First non-keyword argument is the hostname
-                if hostname is None and parts[i] != "weeks":
-                    hostname = parts[i]
+                # First non-keyword argument is the target (cloud or hostname)
+                if target is None and parts[i] != "weeks":
+                    target = parts[i]
                 i += 1
 
-        if not hostname or weeks is None:
-            self.shell.perror("Usage: shrink <hostname> weeks <number>")
+        if not target or weeks is None:
+            self.shell.perror("Usage: shrink <cloud|hostname> weeks <number>")
             return
 
         try:
-            schedules = self.shell.connection.api.get_current_schedules({"host": hostname})
-            if not schedules:
-                self.shell.perror(f"No current schedule found for {hostname}")
-                return
+            # Determine if target is cloud or hostname
+            if target.startswith("cloud"):
+                # Cloud mode: shrink entire cloud (cancel assignment)
+                schedules = self.shell.connection.api.get_current_schedules({"cloud": target})
 
-            current = schedules[0]
-            current_end = datetime.strptime(current["end"], "%Y-%m-%d %H:%M")
-            new_end = current_end - timedelta(weeks=weeks)
-            new_end_str = new_end.strftime("%Y-%m-%d %H:%M")
+                if not schedules:
+                    self.shell.perror(f"No current schedules found for {target}")
+                    return
 
-            self.shell.connection.api.update_schedule(current["id"], {"end": new_end_str})
-            self.shell.poutput(f"Shrunk schedule for {hostname} by {weeks} weeks to {new_end_str}")
+                # Show summary and prompt for confirmation
+                host_count = len(schedules)
+                self.shell.poutput(f"\nFound {host_count} active schedule(s) in {target}")
+                self.shell.poutput(f"This will shrink all schedules by {weeks} week(s)")
+
+                # Prompt for confirmation
+                try:
+                    response = input("Continue? [y/N]: ").strip().lower()
+                except (EOFError, KeyboardInterrupt):
+                    self.shell.poutput("\nCancelled")
+                    return
+
+                if response not in ["y", "yes"]:
+                    self.shell.poutput("Cancelled")
+                    return
+
+                # Shrink all schedules
+                updated_count = 0
+                for schedule in schedules:
+                    try:
+                        current_end = datetime.strptime(schedule["end"], "%Y-%m-%d %H:%M")
+                        new_end = current_end - timedelta(weeks=weeks)
+                        new_end_str = new_end.strftime("%Y-%m-%d %H:%M")
+
+                        self.shell.connection.api.update_schedule(schedule["id"], {"end": new_end_str})
+                        updated_count += 1
+
+                        host_name = schedule.get("host", {}).get("name", "unknown")
+                        if self.rich_console:
+                            self.rich_console.print_success(f"  {host_name}")
+                        else:
+                            self.shell.poutput(f"  OK: {host_name}")
+                    except Exception as e:
+                        host_name = schedule.get("host", {}).get("name", "unknown")
+                        if self.rich_console:
+                            self.rich_console.print_error(f"  {host_name}: {e}")
+                        else:
+                            self.shell.perror(f"  Failed: {host_name}: {e}")
+
+                if self.rich_console:
+                    self.rich_console.print_success(
+                        f"\nShrunk {updated_count}/{host_count} schedule(s) in {target} by {weeks} week(s)"
+                    )
+                else:
+                    self.shell.poutput(
+                        f"OK: Shrunk {updated_count}/{host_count} schedule(s) in {target} by {weeks} week(s)"
+                    )
+            else:
+                # Hostname mode: shrink single host (existing behavior)
+                schedules = self.shell.connection.api.get_current_schedules({"host": target})
+                if not schedules:
+                    self.shell.perror(f"No current schedule found for {target}")
+                    return
+
+                current = schedules[0]
+                current_end = datetime.strptime(current["end"], "%Y-%m-%d %H:%M")
+                new_end = current_end - timedelta(weeks=weeks)
+                new_end_str = new_end.strftime("%Y-%m-%d %H:%M")
+
+                self.shell.connection.api.update_schedule(current["id"], {"end": new_end_str})
+                self.shell.poutput(f"Shrunk schedule for {target} by {weeks} weeks to {new_end_str}")
 
         except Exception as e:
             self.shell.perror(f"Failed to shrink schedule: {e}")

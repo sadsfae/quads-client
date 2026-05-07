@@ -16,6 +16,15 @@ class QuadsClientConfig:
         self._config: dict[str, Any] = {}
         self._load_config()
 
+    def _normalize_server_fields(self, server: dict[str, Any]) -> dict[str, Any]:
+        """Normalize server dict fields to consistent order: url, username, password, verify"""
+        return {
+            "url": server.get("url", ""),
+            "username": server.get("username", ""),
+            "password": server.get("password", ""),
+            "verify": server.get("verify", True),
+        }
+
     def _load_config(self):
         if not self.config_path.exists():
             raise ConfigError(f"Config file not found: {self.config_path}")
@@ -67,15 +76,25 @@ class QuadsClientConfig:
 
     def update_server_credentials(self, name: str, username: str, password: str) -> None:
         """Update server credentials in config file"""
-        _ = self.get_server(name)  # Validates server exists
+        server = self.get_server(name)  # Validates server exists
 
-        # Update in-memory config
-        self._config["servers"][name]["username"] = username
-        self._config["servers"][name]["password"] = password
+        # Update server dict with credentials
+        server["username"] = username
+        server["password"] = password
+
+        # Normalize field order before writing
+        self._config["servers"][name] = self._normalize_server_fields(server)
+
+        # Normalize all servers to maintain consistent ordering
+        normalized_servers = {
+            server_name: self._normalize_server_fields(server_config)
+            for server_name, server_config in self._config["servers"].items()
+        }
+        self._config["servers"] = normalized_servers
 
         # Write to file
         try:
             with open(self.config_path, "w") as f:
-                yaml.dump(self._config, f, default_flow_style=False)
+                yaml.dump(self._config, f, default_flow_style=False, sort_keys=False)
         except Exception as e:
             raise ConfigError(f"Failed to update config file: {e}")

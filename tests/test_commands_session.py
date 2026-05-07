@@ -60,11 +60,21 @@ class TestSessionSwitch:
     """Test session-switch command"""
 
     def test_session_switch_no_args(self, mock_shell):
-        """Test session-switch with no arguments"""
+        """Test session-switch with no arguments toggles to previous session"""
+        # Setup: mock has a previous session and is currently on a different session
+        mock_shell.session_manager.previous_session_id = "1"
+        mock_shell.session_manager.active_session_id = "2"  # Currently on session 2
+        mock_session = MagicMock()
+        mock_session.id = "1"
+        mock_session.label = "dev"
+        mock_shell.session_manager.get_session.return_value = mock_session
+        mock_shell.rich_console = None  # No rich console for this test
+
         session_cmd = SessionCommands(mock_shell)
         session_cmd.cmd_session_switch("")
 
-        mock_shell.perror.assert_called_with("Usage: session-switch <session_id>")
+        # Should switch to previous session
+        mock_shell.session_manager.switch_session.assert_called_with("1")
 
     def test_session_switch_success(self, mock_shell):
         """Test session-switch to existing session"""

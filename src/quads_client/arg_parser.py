@@ -1,14 +1,19 @@
 """Argument parsing utilities for QUADS Client"""
 
 import os
+import shlex
 
 
 def parse_host_list_file(file_path):
     """
-    Parse a host list file and return list of hostnames
+    Parse a host list file and return list of hostnames.
+
+    Matches QUADS core behavior: reads entire file and splits by whitespace.
+    This allows hosts to be on one line or multiple lines.
+    Filters out comment lines (starting with #) and blank lines.
 
     Args:
-        file_path: Path to file containing hostnames (one per line)
+        file_path: Path to file containing hostnames (whitespace-separated)
 
     Returns:
         List of hostnames
@@ -20,8 +25,18 @@ def parse_host_list_file(file_path):
     if not os.path.exists(expanded_path):
         raise ValueError(f"Host list file not found: {file_path}")
 
-    with open(expanded_path, "r") as f:
-        hosts = [line.strip() for line in f if line.strip() and not line.startswith("#")]
+    try:
+        with open(expanded_path, "r") as f:
+            # Read lines, filter out comments and blank lines, then join and split by whitespace
+            lines = f.readlines()
+            # Filter out comment lines and blank lines
+            filtered_lines = [line for line in lines if line.strip() and not line.strip().startswith("#")]
+            host_list_stream = " ".join(filtered_lines)
+    except IOError as e:
+        raise ValueError(f"Could not read file: {file_path}. {e}")
+
+    # Split by whitespace (matches QUADS core CLI behavior)
+    hosts = host_list_stream.split()
 
     if not hosts:
         raise ValueError(f"Host list file is empty: {file_path}")
@@ -44,7 +59,7 @@ def parse_schedule_ssm_args(args):
     Raises:
         ValueError: If arguments are invalid
     """
-    parts = args.strip().split()
+    parts = shlex.split(args)
     if len(parts) < 3:
         raise ValueError("Usage: schedule <count|hostname[,hostname...]|host-list path> description <desc> [options]")
 
@@ -116,26 +131,46 @@ def parse_schedule_admin_args(args):
     """
     Parse admin schedule command arguments
 
-    Syntax: schedule <cloud> <hosts|host-list path> <start> <end>
+    Syntax: schedule <cloud> <hosts|host-list path> <start> <end> [options]
+
+    Options:
+      description <text>       Assignment description (required for new assignments)
+      cloud-owner <user>       Cloud owner username
+      cloud-ticket <id>        Ticket ID (required for new assignments)
+      cc-users <user1,user2>   Comma-separated CC users
+      vlan <id>                VLAN ID number
+      qinq <0|1>              QinQ setting (default 0)
+      nowipe                   Disable host wiping (default: wipe enabled)
 
     Args:
         args: Command arguments string
 
     Returns:
-        dict with keys: cloud, host_list, start, end
+        dict with keys: cloud, host_list, start, end, description, cloud_owner, cc_users, cloud_ticket, vlan, qinq, nowipe
 
     Raises:
         ValueError: If arguments are invalid
     """
-    parts = args.strip().split()
+    parts = shlex.split(args)
     if len(parts) < 4:
-        raise ValueError("Usage: schedule <cloud> <hosts|host-list path> <start> <end>")
+        raise ValueError(
+            "Usage: schedule <cloud> <hosts|host-list path> <start> <end> [description <text>] "
+            "[cloud-owner <user>] [cloud-ticket <id>] [cc-users <users>] [vlan <id>] [qinq <0|1>] [nowipe]"
+        )
 
     result = {
         "cloud": parts[0],
         "host_list": None,
-        "start": parts[-2],  # Second to last
-        "end": parts[-1],  # Last
+        "start": None,
+        "end": None,
+        "description": None,
+        "cloud_owner": None,
+        "cc_users": None,
+        "cloud_ticket": None,
+        "vlan": None,
+        "qinq": None,
+        "wipe": True,  # Default: wipe enabled (systems wiped before new tenants)
+        "nowipe": False,
     }
 
     # Parse hosts argument (between cloud and dates)
@@ -143,12 +178,69 @@ def parse_schedule_admin_args(args):
         if len(parts) < 5:
             raise ValueError("host-list requires a file path")
         result["host_list"] = parse_host_list_file(parts[2])
+        params_start = 3  # Start looking for dates after file path
     elif "," in parts[1]:
         # Comma-separated hosts
         result["host_list"] = [h.strip() for h in parts[1].split(",") if h.strip()]
+        params_start = 2
     else:
         # Single host
         result["host_list"] = [parts[1]]
+        params_start = 2
+
+    # Extract start/end dates (must come before optional keywords)
+    keywords = ["description", "cloud-owner", "cc-users", "cloud-ticket", "vlan", "qinq", "nowipe"]
+    if params_start + 2 <= len(parts):
+        # Check if next items are dates or keywords
+        if parts[params_start] not in keywords:
+            result["start"] = parts[params_start]
+            if params_start + 1 < len(parts) and parts[params_start + 1] not in keywords:
+                result["end"] = parts[params_start + 1]
+                params_start += 2
+            else:
+                params_start += 1
+
+    # Parse optional keyword parameters
+    i = params_start
+    while i < len(parts):
+        if parts[i] == "description" and i + 1 < len(parts):
+            # Collect description until next keyword
+            desc_parts = []
+            i += 1
+            while i < len(parts) and parts[i] not in keywords:
+                desc_parts.append(parts[i])
+                i += 1
+            result["description"] = " ".join(desc_parts)
+        elif parts[i] == "cloud-owner" and i + 1 < len(parts):
+            result["cloud_owner"] = parts[i + 1]
+            i += 2
+        elif parts[i] == "cc-users" and i + 1 < len(parts):
+            result["cc_users"] = parts[i + 1]
+            i += 2
+        elif parts[i] == "cloud-ticket" and i + 1 < len(parts):
+            result["cloud_ticket"] = parts[i + 1]
+            i += 2
+        elif parts[i] == "vlan" and i + 1 < len(parts):
+            try:
+                result["vlan"] = int(parts[i + 1])
+            except ValueError:
+                raise ValueError(f"VLAN must be a number, got: {parts[i + 1]}")
+            i += 2
+        elif parts[i] == "qinq" and i + 1 < len(parts):
+            try:
+                qinq_val = int(parts[i + 1])
+                if qinq_val not in [0, 1]:
+                    raise ValueError(f"QinQ must be 0 or 1, got: {parts[i + 1]}")
+                result["qinq"] = qinq_val
+            except ValueError as e:
+                raise ValueError(f"Invalid QinQ value: {e}")
+            i += 2
+        elif parts[i] == "nowipe":
+            result["wipe"] = False  # Disable wiping
+            result["nowipe"] = True
+            i += 1
+        else:
+            i += 1
 
     return result
 
@@ -169,7 +261,7 @@ def parse_extend_args(args):
     Raises:
         ValueError: If arguments are invalid
     """
-    parts = args.strip().split()
+    parts = shlex.split(args)
     if len(parts) < 3:
         raise ValueError("Usage: extend <cloud|hostname> weeks <N> OR extend <cloud|hostname> date <YYYY-MM-DD HH:MM>")
 

@@ -301,7 +301,7 @@ class ServerCommands:
 
         try:
             with open(config_path, "w") as f:
-                yaml.dump(config_data, f, default_flow_style=False)
+                yaml.dump(config_data, f, default_flow_style=False, sort_keys=False)
 
             if self.rich_console:
                 self.rich_console.print_success(f"\nServer '{server_name}' added successfully!")
@@ -377,7 +377,7 @@ class ServerCommands:
             }
 
             with open(config_path, "w") as f:
-                yaml.dump(config_data, f, default_flow_style=False)
+                yaml.dump(config_data, f, default_flow_style=False, sort_keys=False)
 
             if self.rich_console:
                 self.rich_console.print_success(f"Server '{name}' added successfully")
@@ -444,7 +444,7 @@ class ServerCommands:
             config_data["servers"][name] = server
 
             with open(config_path, "w") as f:
-                yaml.dump(config_data, f, default_flow_style=False)
+                yaml.dump(config_data, f, default_flow_style=False, sort_keys=False)
 
             self.shell.poutput(f"OK: Server '{name}' updated successfully")
             self.shell.poutput("Reload configuration with: config-reload")
@@ -489,7 +489,7 @@ class ServerCommands:
                 config_data["default_server"] = None
 
             with open(config_path, "w") as f:
-                yaml.dump(config_data, f, default_flow_style=False)
+                yaml.dump(config_data, f, default_flow_style=False, sort_keys=False)
 
             self.shell.poutput(f"OK: Server '{name}' removed successfully")
             self.shell.poutput("Reload configuration with: config-reload")

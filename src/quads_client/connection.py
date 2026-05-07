@@ -62,6 +62,7 @@ class ConnectionManager:
         try:
             # Decode without verification (we already trust it from the server)
             decoded = jwt.decode(self._token, options={"verify_signature": False})
+
             # Check various possible role field names
             role = decoded.get("role") or decoded.get("roles") or decoded.get("user_role")
             if isinstance(role, list) and role:
@@ -69,6 +70,7 @@ class ConnectionManager:
                 if "admin" in role:
                     return "admin"
                 return role[0]
+
             return role
         except Exception:
             return None
