@@ -18,7 +18,7 @@ class TestOneShot:
                 MockShell.return_value = mock_shell_instance
 
                 with pytest.raises(SystemExit) as exc_info:
-                    main.main()
+                    main()
 
                 MockShell.assert_called_once_with(quiet=True)
                 assert exc_info.value.code == 0
@@ -32,7 +32,7 @@ class TestOneShot:
                 mock_shell_instance = MagicMock()
                 MockShell.return_value = mock_shell_instance
 
-                main.main()
+                main()
 
                 MockShell.assert_called_once_with(quiet=False)
                 mock_shell_instance.cmdloop.assert_called_once()
