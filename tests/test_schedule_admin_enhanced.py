@@ -14,17 +14,22 @@ class TestSchedulePreFlightChecks:
         mock_shell.connection.is_authenticated = True
         mock_shell.connection.is_admin = True
         mock_shell.connection.api.filter_clouds.return_value = [{"name": "cloud02"}]
-        mock_shell.connection.api.is_available.return_value = True
         mock_shell.connection.api.get_active_cloud_assignment.return_value = {"id": 50}
-        mock_shell.connection.api.create_schedule.return_value = {"id": 1}
+        mock_shell.connection.api.create_schedules_batch.return_value = {
+            "assignment_id": 50,
+            "schedules_created": 2,
+            "hostnames": ["host01", "host02"],
+            "jira_updated": False,
+        }
 
         schedule_cmd = ScheduleCommands(mock_shell)
         schedule_cmd.cmd_schedule_admin('cloud02 host01,host02 "2026-05-11 22:00" "2026-06-11 22:00"')
 
-        # Should check availability for each host
-        assert mock_shell.connection.api.is_available.call_count == 2
-        # Should create schedules since all available
-        assert mock_shell.connection.api.create_schedule.call_count == 2
+        # Should use batch endpoint
+        mock_shell.connection.api.create_schedules_batch.assert_called_once()
+        batch_data = mock_shell.connection.api.create_schedules_batch.call_args[0][0]
+        assert batch_data["cloud"] == "cloud02"
+        assert batch_data["hostnames"] == ["host01", "host02"]
 
     def test_schedule_admin_pre_flight_some_unavailable(self, mock_shell):
         """Test schedule with some hosts unavailable"""
@@ -32,71 +37,55 @@ class TestSchedulePreFlightChecks:
         mock_shell.connection.is_authenticated = True
         mock_shell.connection.is_admin = True
         mock_shell.connection.api.filter_clouds.return_value = [{"name": "cloud02"}]
-        # host01 available, host02 unavailable
-        mock_shell.connection.api.is_available.side_effect = [True, False]
+        mock_shell.connection.api.get_active_cloud_assignment.return_value = {"id": 50}
+        # Batch endpoint returns error for unavailable hosts
+        mock_shell.connection.api.create_schedules_batch.side_effect = Exception("Some hosts are unavailable")
 
         schedule_cmd = ScheduleCommands(mock_shell)
         schedule_cmd.cmd_schedule_admin('cloud02 host01,host02 "2026-05-11 22:00" "2026-06-11 22:00"')
 
-        # Should check availability
-        assert mock_shell.connection.api.is_available.call_count == 2
-        # Should NOT create any schedules (blocked by pre-flight)
-        assert mock_shell.connection.api.create_schedule.call_count == 0
-        # Should show error about unavailable host
+        # Should show error about unavailable hosts
         error_calls = [str(call) for call in mock_shell.perror.call_args_list]
         assert any("unavailable" in call.lower() for call in error_calls)
-        assert any("host02" in call for call in error_calls)
 
     def test_schedule_admin_pre_flight_now_skips_check(self, mock_shell):
-        """Test schedule with 'now' skips pre-flight check"""
+        """Test schedule with 'now' passes to batch endpoint"""
         mock_shell.connection.is_connected = True
         mock_shell.connection.is_authenticated = True
         mock_shell.connection.is_admin = True
         mock_shell.connection.api.filter_clouds.return_value = [{"name": "cloud02"}]
-        mock_shell.connection.api.create_assignment.return_value = {
-            "id": 150,
-            "cloud": {"name": "cloud02"},
+        mock_shell.connection.api.create_schedules_batch.return_value = {
+            "assignment_id": 150,
+            "schedules_created": 2,
+            "hostnames": ["host01", "host02"],
+            "jira_updated": True,
         }
-        mock_shell.connection.api.get_active_cloud_assignment.return_value = {
-            "id": 150,
-            "cloud": {"name": "cloud02"},
-        }
-        mock_shell.connection.api.create_schedule.return_value = {"id": 1}
 
         schedule_cmd = ScheduleCommands(mock_shell)
         schedule_cmd.cmd_schedule_admin(
             'cloud02 host01,host02 now "2026-06-11 22:00" description "Test" cloud-owner alice cloud-ticket JIRA-123'
         )
 
-        # Should NOT check availability when start is "now"
-        assert mock_shell.connection.api.is_available.call_count == 0
-        # Should create schedules with "now" as start value
-        assert mock_shell.connection.api.create_schedule.call_count == 2
-        # Verify "now" is passed to API (not None)
-        first_call = mock_shell.connection.api.create_schedule.call_args_list[0][0][0]
-        assert first_call["start"] == "now"
+        # Should use batch endpoint with "now"
+        mock_shell.connection.api.create_schedules_batch.assert_called_once()
+        batch_data = mock_shell.connection.api.create_schedules_batch.call_args[0][0]
+        assert batch_data["start"] == "now"
+        assert batch_data["description"] == "Test"
+        assert batch_data["owner"] == "alice"
+        assert batch_data["ticket"] == "JIRA-123"
 
 
 class TestScheduleOrphanedCleanup:
     """Test orphaned assignment cleanup when all schedules fail"""
 
     def test_orphaned_assignment_cleanup_on_all_failures(self, mock_shell):
-        """Test cleanup when all schedules fail after assignment created"""
+        """Test error handling when batch endpoint fails"""
         mock_shell.connection.is_connected = True
         mock_shell.connection.is_authenticated = True
         mock_shell.connection.is_admin = True
         mock_shell.connection.api.filter_clouds.return_value = [{"name": "cloud02"}]
-        mock_shell.connection.api.is_available.return_value = True
-        mock_shell.connection.api.create_assignment.return_value = {
-            "id": 150,
-            "cloud": {"name": "cloud02"},
-        }
-        mock_shell.connection.api.get_active_cloud_assignment.return_value = {
-            "id": 150,
-            "cloud": {"name": "cloud02"},
-        }
-        # All schedule creations fail
-        mock_shell.connection.api.create_schedule.side_effect = Exception("Host already scheduled")
+        # Batch endpoint fails
+        mock_shell.connection.api.create_schedules_batch.side_effect = Exception("Some schedules failed to create")
 
         schedule_cmd = ScheduleCommands(mock_shell)
         schedule_cmd.cmd_schedule_admin(
@@ -104,33 +93,28 @@ class TestScheduleOrphanedCleanup:
             'description "Test" cloud-owner alice cloud-ticket JIRA-123'
         )
 
-        # Should create assignment
-        mock_shell.connection.api.create_assignment.assert_called_once()
-        # Should try to create schedules
-        assert mock_shell.connection.api.create_schedule.call_count == 2
-        # Should cleanup orphaned assignment
-        mock_shell.connection.api.terminate_assignment.assert_called_once_with(150)
+        schedule_cmd = ScheduleCommands(mock_shell)
+        schedule_cmd.cmd_schedule_admin(
+            'cloud02 host01,host02 "2026-05-11 22:00" "2026-06-11 22:00" '
+            'description "Test" cloud-owner alice cloud-ticket JIRA-123'
+        )
+
+        # Should show error from batch endpoint
+        error_calls = [str(call) for call in mock_shell.perror.call_args_list]
+        assert any("failed" in call.lower() for call in error_calls)
 
     def test_no_cleanup_when_some_schedules_succeed(self, mock_shell):
-        """Test no cleanup when at least one schedule succeeds"""
+        """Test batch endpoint success"""
         mock_shell.connection.is_connected = True
         mock_shell.connection.is_authenticated = True
         mock_shell.connection.is_admin = True
         mock_shell.connection.api.filter_clouds.return_value = [{"name": "cloud02"}]
-        mock_shell.connection.api.is_available.return_value = True
-        mock_shell.connection.api.create_assignment.return_value = {
-            "id": 150,
-            "cloud": {"name": "cloud02"},
+        mock_shell.connection.api.create_schedules_batch.return_value = {
+            "assignment_id": 150,
+            "schedules_created": 2,
+            "hostnames": ["host01", "host02"],
+            "jira_updated": False,
         }
-        mock_shell.connection.api.get_active_cloud_assignment.return_value = {
-            "id": 150,
-            "cloud": {"name": "cloud02"},
-        }
-        # First schedule succeeds, second fails
-        mock_shell.connection.api.create_schedule.side_effect = [
-            {"id": 1},
-            Exception("Conflict"),
-        ]
 
         schedule_cmd = ScheduleCommands(mock_shell)
         schedule_cmd.cmd_schedule_admin(
@@ -138,29 +122,34 @@ class TestScheduleOrphanedCleanup:
             'description "Test" cloud-owner alice cloud-ticket JIRA-123'
         )
 
-        # Should NOT cleanup assignment (at least one schedule succeeded)
-        assert mock_shell.connection.api.terminate_assignment.call_count == 0
+        # Batch endpoint should succeed
+        mock_shell.connection.api.create_schedules_batch.assert_called_once()
 
     def test_no_cleanup_when_using_existing_assignment(self, mock_shell):
-        """Test no cleanup when using existing assignment"""
+        """Test using existing assignment with batch endpoint"""
         mock_shell.connection.is_connected = True
         mock_shell.connection.is_authenticated = True
         mock_shell.connection.is_admin = True
         mock_shell.connection.api.filter_clouds.return_value = [{"name": "cloud02"}]
-        mock_shell.connection.api.is_available.return_value = True
         mock_shell.connection.api.get_active_cloud_assignment.return_value = {
-            "id": 50,  # Existing assignment
+            "id": 50,
             "cloud": {"name": "cloud02"},
         }
-        # All schedule creations fail
-        mock_shell.connection.api.create_schedule.side_effect = Exception("Error")
+        mock_shell.connection.api.create_schedules_batch.return_value = {
+            "assignment_id": 50,
+            "schedules_created": 1,
+            "hostnames": ["host01"],
+            "jira_updated": False,
+        }
 
         schedule_cmd = ScheduleCommands(mock_shell)
         # No assignment params provided - uses existing
         schedule_cmd.cmd_schedule_admin('cloud02 host01 "2026-05-11 22:00" "2026-06-11 22:00"')
 
-        # Should NOT cleanup (didn't create the assignment)
-        assert mock_shell.connection.api.terminate_assignment.call_count == 0
+        # Should use batch endpoint without assignment params
+        mock_shell.connection.api.create_schedules_batch.assert_called_once()
+        batch_data = mock_shell.connection.api.create_schedules_batch.call_args[0][0]
+        assert "description" not in batch_data  # No assignment params
 
 
 class TestScheduleDateValidation:
