@@ -1,6 +1,37 @@
 # CHANGELOG
 
 
+## v0.3.5 (2026-05-08)
+
+### Bug Fixes
+
+- Black formatting
+  ([`e889c80`](https://github.com/quadsproject/quads-client/commit/e889c80c5c7c7d41dc4b1e179baebf61256492f1))
+
+- Black formatting line length
+  ([`9e24ba3`](https://github.com/quadsproject/quads-client/commit/9e24ba30ec4afbb60a1e1b3113f71bb78ffbfb25))
+
+- Further fixes on admin scheduling with JIRA functionality
+  ([`b12f233`](https://github.com/quadsproject/quads-client/commit/b12f23353ae550741f4632eb0f31896a8d2df037))
+
+fix: further fixes on admin scheduling with JIRA functionality
+
+### Chores
+
+- Update RPM spec version to 0.3.4
+  ([`345b5f5`](https://github.com/quadsproject/quads-client/commit/345b5f5f2c9a611a475eec76d2152e4d9cc80fa1))
+
+### Refactoring
+
+- Use batch endpoint for schedule creation
+  ([`80a45bc`](https://github.com/quadsproject/quads-client/commit/80a45bcc18862a4de30bf577f6aec7b32da97fff))
+
+### Testing
+
+- Migrate schedule tests to use batch creation endpoint
+  ([`0749e24`](https://github.com/quadsproject/quads-client/commit/0749e2499a8ba4ac2cf95e9343bcfb8337b60bac))
+
+
 ## v0.3.4 (2026-05-08)
 
 ### Bug Fixes
