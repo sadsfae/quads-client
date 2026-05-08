@@ -95,7 +95,8 @@ class TestScheduleOrphanedCleanup:
 
         schedule_cmd = ScheduleCommands(mock_shell)
         schedule_cmd.cmd_schedule_admin(
-            'cloud02 host01,host02 "2026-05-11 22:00" "2026-06-11 22:00" description "Test" cloud-owner alice cloud-ticket JIRA-123'
+            'cloud02 host01,host02 "2026-05-11 22:00" "2026-06-11 22:00" '
+            'description "Test" cloud-owner alice cloud-ticket JIRA-123'
         )
 
         # Should show error from batch endpoint
