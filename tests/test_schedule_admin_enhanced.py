@@ -39,9 +39,7 @@ class TestSchedulePreFlightChecks:
         mock_shell.connection.api.filter_clouds.return_value = [{"name": "cloud02"}]
         mock_shell.connection.api.get_active_cloud_assignment.return_value = {"id": 50}
         # Batch endpoint returns error for unavailable hosts
-        mock_shell.connection.api.create_schedules_batch.side_effect = Exception(
-            "Some hosts are unavailable"
-        )
+        mock_shell.connection.api.create_schedules_batch.side_effect = Exception("Some hosts are unavailable")
 
         schedule_cmd = ScheduleCommands(mock_shell)
         schedule_cmd.cmd_schedule_admin('cloud02 host01,host02 "2026-05-11 22:00" "2026-06-11 22:00"')
@@ -87,9 +85,7 @@ class TestScheduleOrphanedCleanup:
         mock_shell.connection.is_admin = True
         mock_shell.connection.api.filter_clouds.return_value = [{"name": "cloud02"}]
         # Batch endpoint fails
-        mock_shell.connection.api.create_schedules_batch.side_effect = Exception(
-            "Some schedules failed to create"
-        )
+        mock_shell.connection.api.create_schedules_batch.side_effect = Exception("Some schedules failed to create")
 
         schedule_cmd = ScheduleCommands(mock_shell)
         schedule_cmd.cmd_schedule_admin(

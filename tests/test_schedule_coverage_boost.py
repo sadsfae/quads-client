@@ -175,9 +175,7 @@ class TestScheduleExistingAssignment:
         mock_shell.connection.is_connected = True
         mock_shell.connection.is_admin = True
         mock_shell.connection.api.filter_clouds.return_value = [{"name": "cloud02"}]
-        mock_shell.connection.api.create_schedules_batch.side_effect = Exception(
-            "No active assignment for cloud02"
-        )
+        mock_shell.connection.api.create_schedules_batch.side_effect = Exception("No active assignment for cloud02")
 
         schedule_cmd = ScheduleCommands(mock_shell)
         # No assignment params provided

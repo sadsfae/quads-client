@@ -292,7 +292,9 @@ class ScheduleCommands:
 
                 # Show summary
                 if self.rich_console:
-                    self.rich_console.print_success(f"\nCreated {created_count}/{len(parsed['host_list'])} schedule(s)")
+                    self.rich_console.print_success(
+                        f"\nCreated {created_count}/{len(parsed['host_list'])} schedule(s)"
+                    )
                 else:
                     self.shell.poutput(f"Created {created_count}/{len(parsed['host_list'])} schedule(s)")
             except Exception as e:

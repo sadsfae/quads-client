@@ -489,7 +489,7 @@ class TestBatchScheduleEndpoint:
         cmd = (
             'cloud02 host01,host02 "2026-05-11 22:00" "2026-06-11 22:00" '
             'description "Testing" cloud-owner jdoe cloud-ticket JIRA-123 '
-            'cc-users wfoster vlan 1234 qinq 1'
+            "cc-users wfoster vlan 1234 qinq 1"
         )
         schedule_cmd.cmd_schedule_admin(cmd)
 
