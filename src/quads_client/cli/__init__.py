@@ -1,1 +1,3 @@
-# CLI entry points for quads-client
+from quads_client.cli.main import main
+
+__all__ = ["main"]
