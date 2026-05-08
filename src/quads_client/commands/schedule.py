@@ -222,16 +222,20 @@ class ScheduleCommands:
                     self.shell.perror("Remove these from your host list and try again.")
                     return
 
-            # Determine whether to create new assignment or use existing
-            # If user provides assignment parameters (cloud-ticket), they want a NEW assignment
+            # Create schedules using batch endpoint
+            # Batch endpoint handles assignment creation if parameters provided
+            batch_data = {
+                "cloud": parsed["cloud"],
+                "hostnames": parsed["host_list"],
+                "start": parsed["start"],
+                "end": parsed["end"],
+            }
+
+            # Check if user provided assignment parameters
             should_create_new = parsed["cloud_ticket"] or (parsed["description"] and parsed["cloud_owner"])
 
-            assignment = None
-            created_new_assignment = False
-            assignment_id = None
-
             if should_create_new:
-                # User wants to create NEW assignment - validate required fields
+                # Validate required fields
                 if not parsed["description"]:
                     self.shell.perror("description is required when creating a new assignment")
                     return
@@ -244,112 +248,57 @@ class ScheduleCommands:
                     self.shell.perror("cloud-ticket is required when creating a new assignment")
                     return
 
-                # Create new assignment
-                assignment_data = {
-                    "cloud": parsed["cloud"],
-                    "description": parsed["description"],
-                    "owner": parsed["cloud_owner"],
-                    "ticket": parsed["cloud_ticket"],
-                    "wipe": parsed.get("wipe", True),  # Default: wipe enabled
-                }
-
+                # Pass assignment parameters to batch endpoint
+                batch_data["description"] = parsed["description"]
+                batch_data["owner"] = parsed["cloud_owner"]
+                batch_data["ticket"] = parsed["cloud_ticket"]
+                batch_data["wipe"] = parsed.get("wipe", True)
                 if parsed["cc_users"]:
-                    assignment_data["ccuser"] = parsed["cc_users"]
+                    batch_data["ccuser"] = parsed["cc_users"]
                 if parsed["vlan"]:
-                    assignment_data["vlan"] = parsed["vlan"]
+                    batch_data["vlan"] = parsed["vlan"]
                 if parsed["qinq"] is not None:
-                    assignment_data["qinq"] = parsed["qinq"]
+                    batch_data["qinq"] = parsed["qinq"]
 
-                try:
-                    assignment = self.shell.connection.api.create_assignment(assignment_data)
+            try:
+                result = self.shell.connection.api.create_schedules_batch(batch_data)
 
-                    # Check if response contains an error
-                    if isinstance(assignment, dict) and assignment.get("error"):
-                        self.shell.perror(f"Failed to create assignment: {assignment.get('message', 'Unknown error')}")
-                        return
+                created_count = result.get("schedules_created", 0)
+                assignment_id = result.get("assignment_id")
+                jira_updated = result.get("jira_updated", False)
 
-                    # Extract assignment ID for display and mark that we created it
-                    assignment_id = assignment.get("id", "unknown")
-                    created_new_assignment = True
+                # Show assignment creation if new
+                if should_create_new:
                     if self.rich_console:
                         self.rich_console.print_success(
                             f"Assignment created - ID: {assignment_id}, Cloud: {parsed['cloud']}"
                         )
                     else:
-                        self.shell.poutput(f"OK: Assignment created - ID: {assignment_id}, Cloud: {parsed['cloud']}")
+                        self.shell.poutput(f"Assignment created - ID: {assignment_id}, Cloud: {parsed['cloud']}")
 
-                    # Verify assignment is active before proceeding
-                    try:
-                        assignment = self.shell.connection.api.get_active_cloud_assignment(parsed["cloud"])
-                        if not assignment:
-                            self.shell.perror(
-                                f"Assignment created but not active for {parsed['cloud']}. "
-                                "This may be a database timing issue. Please retry."
-                            )
-                            return
-                    except Exception as verify_error:
-                        self.shell.perror(
-                            f"Assignment created but cannot verify it's active: {verify_error}. "
-                            "Proceeding anyway..."
-                        )
-                except Exception as e:
-                    handle_api_error(self.shell, e, "Creating assignment")
-                    return
-            else:
-                # User wants to use existing assignment - check it exists
-                try:
-                    assignment = self.shell.connection.api.get_active_cloud_assignment(parsed["cloud"])
+                # Show JIRA update status
+                if jira_updated:
                     if self.rich_console:
-                        self.rich_console.print_info(f"Using existing assignment for {parsed['cloud']}")
+                        self.rich_console.print_success("JIRA ticket updated")
                     else:
-                        self.shell.poutput(f"Using existing assignment for {parsed['cloud']}")
-                except Exception:
-                    # No active assignment and user didn't provide parameters to create one
-                    self.shell.perror(f"Cloud '{parsed['cloud']}' has no active assignment.")
-                    self.shell.perror("Provide assignment parameters to create one:")
-                    self.shell.perror(
-                        '  schedule cloud02 host01 "2026-05-15 22:00" "2026-06-15 22:00" '
-                        'description "Test" cloud-owner jdoe cloud-ticket JIRA-123'
-                    )
-                    return
+                        self.shell.poutput("JIRA ticket updated")
 
-            # Create schedules for each host
-            created_count = 0
-            for hostname in parsed["host_list"]:
-                schedule_data = {
-                    "cloud": parsed["cloud"],
-                    "hostname": hostname,
-                    "start": parsed["start"],  # Pass "now" as-is, server handles it
-                    "end": parsed["end"],
-                }
-
-                # Do NOT send owner/ticket/vlan/ccuser - these belong to assignment, not schedule
-                try:
-                    self.shell.connection.api.create_schedule(schedule_data)
-                    created_count += 1
+                # Show scheduled hosts
+                for hostname in result.get("hostnames", []):
                     if self.rich_console:
                         self.rich_console.print_success(f"  {hostname}")
                     else:
-                        self.shell.poutput(f"  OK: {hostname}")
-                except Exception as e:
-                    if self.rich_console:
-                        self.rich_console.print_error(f"  {hostname}: {e}")
-                    else:
-                        self.shell.perror(f"  Failed: {hostname}: {e}")
+                        self.shell.poutput(f"  {hostname}")
 
-            # Cleanup orphaned assignment if ALL schedules failed
-            if created_count == 0 and created_new_assignment and assignment_id:
-                try:
-                    self.shell.connection.api.terminate_assignment(assignment_id)
-                    self.shell.poutput(f"All schedules failed. Removed orphaned assignment {assignment_id}.")
-                except Exception as cleanup_error:
-                    self.shell.perror(f"Warning: Failed to cleanup assignment {assignment_id}: {cleanup_error}")
-                    self.shell.perror("You may need to manually remove this orphaned assignment.")
-
-            if self.rich_console:
-                self.rich_console.print_success(f"\nCreated {created_count}/{len(parsed['host_list'])} schedule(s)")
-            else:
-                self.shell.poutput(f"OK: Created {created_count}/{len(parsed['host_list'])} schedule(s)")
+                # Show summary
+                if self.rich_console:
+                    self.rich_console.print_success(
+                        f"\nCreated {created_count}/{len(parsed['host_list'])} schedule(s)"
+                    )
+                else:
+                    self.shell.poutput(f"Created {created_count}/{len(parsed['host_list'])} schedule(s)")
+            except Exception as e:
+                handle_api_error(self.shell, e, "Batch scheduling")
 
         except ValueError as e:
             self.shell.perror(f"Invalid arguments: {e}")
