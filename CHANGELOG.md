@@ -1,6 +1,19 @@
 # CHANGELOG
 
 
+## v0.3.4 (2026-05-08)
+
+### Bug Fixes
+
+- Incorrect entry point
+  ([`bbd0265`](https://github.com/quadsproject/quads-client/commit/bbd026516f382a37c13e5e22a9c3ff15c341ab87))
+
+### Chores
+
+- Update RPM spec version to 0.3.3
+  ([`5940499`](https://github.com/quadsproject/quads-client/commit/5940499e2e8ff913c0e81cb25af06ce523557cbf))
+
+
 ## v0.3.3 (2026-05-07)
 
 ### Bug Fixes
