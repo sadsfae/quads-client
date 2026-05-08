@@ -167,14 +167,20 @@ class TestUnifiedScheduleAdmin:
         mock_shell.connection.is_authenticated = True
         mock_shell.connection.is_admin = True
         mock_shell.connection.api.filter_clouds.return_value = [{"name": "cloud02"}]
-        mock_shell.connection.api.create_schedule.return_value = {"id": 1}
+        mock_shell.connection.api.get_active_cloud_assignment.return_value = {"id": 42}
+        mock_shell.connection.api.create_schedules_batch.return_value = {
+            "assignment_id": 42,
+            "schedules_created": 3,
+            "hostnames": ["host01", "host02", "host03"],
+            "jira_updated": False,
+        }
 
         schedule_cmd = ScheduleCommands(mock_shell)
         schedule_cmd.cmd_schedule_admin('cloud02 host01,host02,host03 "2026-05-11 22:00" "2026-06-11 22:00"')
 
-        # Verify API calls
+        # Verify batch API call
         mock_shell.connection.api.filter_clouds.assert_called_once_with({"name": "cloud02"})
-        assert mock_shell.connection.api.create_schedule.call_count == 3
+        mock_shell.connection.api.create_schedules_batch.assert_called_once()
 
     def test_schedule_admin_cloud_not_found(self, mock_shell):
         """Test admin schedule with non-existent cloud"""
