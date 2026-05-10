@@ -1,7 +1,7 @@
 """Settings view - application configuration"""
 
 import tkinter as tk
-from tkinter import ttk, messagebox
+from tkinter import ttk
 
 
 class SettingsView(ttk.Frame):
@@ -19,9 +19,7 @@ class SettingsView(ttk.Frame):
         header_frame = ttk.Frame(self)
         header_frame.pack(fill=tk.X, padx=20, pady=10)
 
-        title_label = ttk.Label(
-            header_frame, text="Settings", font=("TkDefaultFont", 14, "bold")
-        )
+        title_label = ttk.Label(header_frame, text="Settings", font=("TkDefaultFont", 14, "bold"))
         title_label.pack(side=tk.LEFT)
 
         # Content frame
@@ -40,17 +38,11 @@ class SettingsView(ttk.Frame):
 
         current_theme = self.shell.gui_app.theme_manager.current_mode
         theme_label = ttk.Label(
-            theme_row,
-            text=f"{current_theme.capitalize()} Mode",
-            font=("TkDefaultFont", 9, "bold")
+            theme_row, text=f"{current_theme.capitalize()} Mode", font=("TkDefaultFont", 9, "bold")
         )
         theme_label.pack(side=tk.LEFT, padx=10)
 
-        ttk.Button(
-            theme_row,
-            text="Toggle Theme",
-            command=self._toggle_theme
-        ).pack(side=tk.LEFT, padx=5)
+        ttk.Button(theme_row, text="Toggle Theme", command=self._toggle_theme).pack(side=tk.LEFT, padx=5)
 
         # Auto-refresh settings
         refresh_frame = ttk.LabelFrame(content_frame, text="Auto-Refresh", padding=15)
@@ -58,9 +50,8 @@ class SettingsView(ttk.Frame):
 
         ttk.Label(
             refresh_frame,
-            text="Default auto-refresh is disabled.\n"
-            "You can enable it per-view in 'My Hosts' view.",
-            foreground="gray"
+            text="Default auto-refresh is disabled.\n" "You can enable it per-view in 'My Hosts' view.",
+            foreground="gray",
         ).pack(anchor=tk.W)
 
         # Connection settings
@@ -77,17 +68,9 @@ class SettingsView(ttk.Frame):
             servers = self.shell.config.get_all_servers()
             server_count = len(servers)
 
-        ttk.Label(
-            servers_row,
-            text=str(server_count),
-            font=("TkDefaultFont", 9, "bold")
-        ).pack(side=tk.LEFT, padx=10)
+        ttk.Label(servers_row, text=str(server_count), font=("TkDefaultFont", 9, "bold")).pack(side=tk.LEFT, padx=10)
 
-        ttk.Button(
-            servers_row,
-            text="Manage Servers",
-            command=self._manage_servers
-        ).pack(side=tk.LEFT, padx=5)
+        ttk.Button(servers_row, text="Manage Servers", command=self._manage_servers).pack(side=tk.LEFT, padx=5)
 
         # Session info
         session_row = ttk.Frame(conn_frame)
@@ -99,17 +82,14 @@ class SettingsView(ttk.Frame):
         if self.shell.session_manager:
             session_count = len(self.shell.session_manager.sessions)
 
-        ttk.Label(
-            session_row,
-            text=str(session_count),
-            font=("TkDefaultFont", 9, "bold")
-        ).pack(side=tk.LEFT, padx=10)
+        ttk.Label(session_row, text=str(session_count), font=("TkDefaultFont", 9, "bold")).pack(side=tk.LEFT, padx=10)
 
         # Keyboard shortcuts
         shortcuts_frame = ttk.LabelFrame(content_frame, text="Keyboard Shortcuts", padding=15)
         shortcuts_frame.pack(fill=tk.X, pady=(0, 15))
 
         import sys
+
         cmd_key = "Cmd" if sys.platform == "darwin" else "Ctrl"
 
         shortcuts_text = f"""
@@ -122,12 +102,9 @@ class SettingsView(ttk.Frame):
 F1         Show Shortcuts Help
 """
 
-        ttk.Label(
-            shortcuts_frame,
-            text=shortcuts_text.strip(),
-            font=("TkMonospace", 9),
-            justify=tk.LEFT
-        ).pack(anchor=tk.W)
+        ttk.Label(shortcuts_frame, text=shortcuts_text.strip(), font=("TkMonospace", 9), justify=tk.LEFT).pack(
+            anchor=tk.W
+        )
 
         # About section
         about_frame = ttk.LabelFrame(content_frame, text="About", padding=15)
@@ -140,15 +117,11 @@ F1         Show Shortcuts Help
             text=f"QUADS Client GUI v{__version__}\n\n"
             "A graphical interface for QUADS\n"
             "(QUADS Automated Deployment System)",
-            justify=tk.CENTER
+            justify=tk.CENTER,
         )
         about_text.pack(pady=5)
 
-        ttk.Button(
-            about_frame,
-            text="View Full About",
-            command=self.shell.gui_app._show_about
-        ).pack(pady=5)
+        ttk.Button(about_frame, text="View Full About", command=self.shell.gui_app._show_about).pack(pady=5)
 
         # Config file location
         config_frame = ttk.LabelFrame(content_frame, text="Configuration", padding=15)
@@ -157,10 +130,7 @@ F1         Show Shortcuts Help
         if self.shell.config:
             config_path = self.shell.config.config_path
             ttk.Label(
-                config_frame,
-                text=f"Config file: {config_path}",
-                font=("TkDefaultFont", 8),
-                foreground="gray"
+                config_frame, text=f"Config file: {config_path}", font=("TkDefaultFont", 8), foreground="gray"
             ).pack(anchor=tk.W)
 
         # Status label

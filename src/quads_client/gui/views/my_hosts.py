@@ -22,14 +22,10 @@ class MyHostsView(ttk.Frame):
         header_frame = ttk.Frame(self)
         header_frame.pack(fill=tk.X, padx=20, pady=10)
 
-        title_label = ttk.Label(
-            header_frame, text="My Hosts", font=("TkDefaultFont", 14, "bold")
-        )
+        title_label = ttk.Label(header_frame, text="My Hosts", font=("TkDefaultFont", 14, "bold"))
         title_label.pack(side=tk.LEFT)
 
-        ttk.Button(
-            header_frame, text="🔄 Refresh", command=self._manual_refresh
-        ).pack(side=tk.RIGHT)
+        ttk.Button(header_frame, text="🔄 Refresh", command=self._manual_refresh).pack(side=tk.RIGHT)
 
         self.auto_refresh_var = tk.BooleanVar(value=False)
         ttk.Checkbutton(
@@ -42,9 +38,7 @@ class MyHostsView(ttk.Frame):
         self.content_frame = ttk.Frame(self)
         self.content_frame.pack(fill=tk.BOTH, expand=True, padx=20, pady=(0, 20))
 
-        self.status_label = ttk.Label(
-            self, text="Loading...", font=("TkDefaultFont", 9)
-        )
+        self.status_label = ttk.Label(self, text="Loading...", font=("TkDefaultFont", 9))
         self.status_label.pack(side=tk.BOTTOM, fill=tk.X, padx=20, pady=(0, 10))
 
         self._load_assignments()
@@ -82,9 +76,7 @@ class MyHostsView(ttk.Frame):
             for assignment in assignments_data:
                 self._create_assignment_panel(assignment)
 
-            self.status_label.config(
-                text=f"Showing {len(assignments_data)} assignment(s) | Last updated: Just now"
-            )
+            self.status_label.config(text=f"Showing {len(assignments_data)} assignment(s) | Last updated: Just now")
 
         except Exception as e:
             error_label = ttk.Label(
@@ -100,9 +92,7 @@ class MyHostsView(ttk.Frame):
         assignments_data = []
 
         try:
-            user_assignments = self.shell.connection.api.filter_assignments({
-                "owner": self.shell.connection.username
-            })
+            user_assignments = self.shell.connection.api.filter_assignments({"owner": self.shell.connection.username})
 
             if not user_assignments:
                 return []
@@ -114,9 +104,8 @@ class MyHostsView(ttk.Frame):
                     cloud_name = cloud.get("name") if isinstance(cloud, dict) else str(cloud)
                     description = assignment.get("description", "No description")
 
-                    schedules = self.shell.connection.api.get_schedules({
-                        "cloud": cloud_name
-                    })
+                    # Fetch schedules by assignment_id (not cloud - API doesn't support that filter)
+                    schedules = self.shell.connection.api.get_schedules({"assignment_id": int(assignment_id)})
 
                     hosts = []
                     for schedule in schedules if schedules else []:
@@ -125,21 +114,19 @@ class MyHostsView(ttk.Frame):
                             if isinstance(hostname, dict):
                                 hostname = hostname.get("name", "")
 
-                            hosts.append({
-                                "name": str(hostname),
-                                "status": "active",
-                                "progress": 100
-                            })
+                            hosts.append({"name": str(hostname), "status": "active", "progress": 100})
 
-                    assignments_data.append({
-                        "id": assignment_id,
-                        "cloud": cloud_name,
-                        "description": description,
-                        "created": "N/A",
-                        "expires": "N/A",
-                        "hosts": hosts,
-                        "days_remaining": "N/A",
-                    })
+                    assignments_data.append(
+                        {
+                            "id": assignment_id,
+                            "cloud": cloud_name,
+                            "description": description,
+                            "created": "N/A",
+                            "expires": "N/A",
+                            "hosts": hosts,
+                            "days_remaining": "N/A",
+                        }
+                    )
 
         except Exception as e:
             self.shell.perror(f"Failed to fetch assignments: {e}")
@@ -167,7 +154,7 @@ class MyHostsView(ttk.Frame):
         tree_frame.pack(fill=tk.BOTH, expand=True)
 
         columns = ("host", "status", "progress")
-        tree = ttk.Treeview(tree_frame, columns=columns, show="headings", height=len(assignment['hosts']))
+        tree = ttk.Treeview(tree_frame, columns=columns, show="headings", height=len(assignment["hosts"]))
 
         tree.heading("host", text="Host")
         tree.heading("status", text="Status")
@@ -177,23 +164,23 @@ class MyHostsView(ttk.Frame):
         tree.column("status", width=120)
         tree.column("progress", width=150)
 
-        for host in assignment['hosts']:
-            status_icon = self._get_status_icon(host['status'])
-            progress_bar = self._get_progress_bar(host['progress'])
+        for host in assignment["hosts"]:
+            status_icon = self._get_status_icon(host["status"])
+            progress_bar = self._get_progress_bar(host["progress"])
 
             item_id = tree.insert(
                 "",
                 tk.END,
-                values=(host['name'], f"{status_icon} {host['status'].capitalize()}", progress_bar),
+                values=(host["name"], f"{status_icon} {host['status'].capitalize()}", progress_bar),
             )
 
-            if host['status'] == "active":
+            if host["status"] == "active":
                 tree.item(item_id, tags=("active",))
                 tree.tag_configure("active", foreground="#4ec9b0")
-            elif host['status'] == "provisioning":
+            elif host["status"] == "provisioning":
                 tree.item(item_id, tags=("provisioning",))
                 tree.tag_configure("provisioning", foreground="#dcdcaa")
-            elif host['status'] == "failed":
+            elif host["status"] == "failed":
                 tree.item(item_id, tags=("failed",))
                 tree.tag_configure("failed", foreground="#f48771")
 
@@ -205,7 +192,7 @@ class MyHostsView(ttk.Frame):
         ttk.Button(
             button_frame,
             text="Terminate Assignment",
-            command=lambda: self._terminate_assignment(assignment['id']),
+            command=lambda: self._terminate_assignment(assignment["id"]),
         ).pack(side=tk.LEFT)
 
     def _get_status_icon(self, status):
@@ -234,15 +221,25 @@ class MyHostsView(ttk.Frame):
             return
 
         try:
-            self.shell.user_commands.cmd_terminate(str(assignment_id))
-            messagebox.showinfo(
-                "Success",
-                f"Assignment #{assignment_id} terminated\n\n"
-                "Note: It may take a few moments for the termination to complete."
-            )
-            self._load_assignments()
+            # Set GUI mode to bypass terminal confirmation prompt
+            old_gui_mode = getattr(self.shell, "gui_mode", False)
+            self.shell.gui_mode = True
+
+            try:
+                self.shell.user_commands.cmd_terminate(str(assignment_id))
+                messagebox.showinfo(
+                    "Success",
+                    f"Assignment #{assignment_id} terminated\n\n"
+                    "Note: It may take a few moments for the termination to complete.",
+                )
+                self._load_assignments()
+            finally:
+                # Restore original gui_mode
+                self.shell.gui_mode = old_gui_mode
+
         except Exception as e:
             import traceback
+
             details = traceback.format_exc()
             show_error_dialog(self, "Termination Failed", str(e), details)
 

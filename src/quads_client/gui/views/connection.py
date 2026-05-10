@@ -3,7 +3,7 @@
 import tkinter as tk
 from tkinter import ttk, messagebox
 
-from quads_client.gui.widgets.dialogs import show_error_dialog, show_info_dialog
+from quads_client.gui.widgets.dialogs import show_error_dialog
 
 
 class ConnectionView(ttk.Frame):
@@ -29,20 +29,14 @@ class ConnectionView(ttk.Frame):
         )
         title_label.pack(side=tk.LEFT)
 
-        ttk.Button(
-            title_frame, text="+ Add Server", command=self._add_server
-        ).pack(side=tk.RIGHT)
+        ttk.Button(title_frame, text="+ Add Server", command=self._add_server).pack(side=tk.RIGHT)
 
-        ttk.Button(
-            title_frame, text="🔄 Refresh", command=self._refresh_server_list
-        ).pack(side=tk.RIGHT, padx=5)
+        ttk.Button(title_frame, text="🔄 Refresh", command=self._refresh_server_list).pack(side=tk.RIGHT, padx=5)
 
         content_frame = ttk.Frame(self)
         content_frame.pack(fill=tk.BOTH, expand=True, padx=20)
 
-        ttk.Label(
-            content_frame, text="Configured Servers:", font=("TkDefaultFont", 10)
-        ).pack(anchor=tk.W, pady=(0, 5))
+        ttk.Label(content_frame, text="Configured Servers:", font=("TkDefaultFont", 10)).pack(anchor=tk.W, pady=(0, 5))
 
         tree_frame = ttk.Frame(content_frame)
         tree_frame.pack(fill=tk.BOTH, expand=True)
@@ -73,9 +67,7 @@ class ConnectionView(ttk.Frame):
         details_frame = ttk.LabelFrame(content_frame, text="Server Details", padding=10)
         details_frame.pack(fill=tk.X, pady=(20, 10))
 
-        self.details_text = tk.Text(
-            details_frame, height=8, width=60, wrap=tk.WORD, state=tk.DISABLED, bg="white"
-        )
+        self.details_text = tk.Text(details_frame, height=8, width=60, wrap=tk.WORD, state=tk.DISABLED, bg="white")
         self.details_text.pack(fill=tk.BOTH, expand=True)
 
         self.details_text.tag_config("connected", foreground="#4ec9b0")
@@ -84,9 +76,7 @@ class ConnectionView(ttk.Frame):
         button_frame = ttk.Frame(details_frame)
         button_frame.pack(fill=tk.X, pady=(10, 0))
 
-        self.connect_button = ttk.Button(
-            button_frame, text="Connect", command=self._connect_server, state=tk.DISABLED
-        )
+        self.connect_button = ttk.Button(button_frame, text="Connect", command=self._connect_server, state=tk.DISABLED)
         self.connect_button.pack(side=tk.LEFT, padx=5)
 
         self.disconnect_button = ttk.Button(
@@ -97,13 +87,11 @@ class ConnectionView(ttk.Frame):
         )
         self.disconnect_button.pack(side=tk.LEFT, padx=5)
 
-        ttk.Button(
-            button_frame, text="Edit", command=self._edit_server, state=tk.DISABLED
-        ).pack(side=tk.LEFT, padx=5)
+        ttk.Button(button_frame, text="Edit", command=self._edit_server, state=tk.DISABLED).pack(side=tk.LEFT, padx=5)
 
-        ttk.Button(
-            button_frame, text="Remove", command=self._remove_server, state=tk.DISABLED
-        ).pack(side=tk.LEFT, padx=5)
+        ttk.Button(button_frame, text="Remove", command=self._remove_server, state=tk.DISABLED).pack(
+            side=tk.LEFT, padx=5
+        )
 
         sessions_frame = ttk.LabelFrame(content_frame, text="Active Sessions", padding=10)
         sessions_frame.pack(fill=tk.BOTH, expand=True, pady=(10, 0))
@@ -132,13 +120,9 @@ class ConnectionView(ttk.Frame):
         session_button_frame = ttk.Frame(sessions_frame)
         session_button_frame.pack(fill=tk.X, pady=(10, 0))
 
-        ttk.Button(
-            session_button_frame, text="Switch", command=self._switch_session
-        ).pack(side=tk.LEFT, padx=5)
+        ttk.Button(session_button_frame, text="Switch", command=self._switch_session).pack(side=tk.LEFT, padx=5)
 
-        ttk.Button(
-            session_button_frame, text="Close Session", command=self._close_session
-        ).pack(side=tk.LEFT, padx=5)
+        ttk.Button(session_button_frame, text="Close Session", command=self._close_session).pack(side=tk.LEFT, padx=5)
 
     def _refresh_server_list(self):
         """Refresh the server list"""
@@ -166,9 +150,7 @@ class ConnectionView(ttk.Frame):
             if is_connected and self.shell.session_manager.active_session:
                 if self.shell.session_manager.active_session.connection.current_server == name:
                     self.server_tree.item(item_id, tags=("active",))
-                    self.server_tree.tag_configure(
-                        "active", foreground="#4ec9b0", font=("TkDefaultFont", 9, "bold")
-                    )
+                    self.server_tree.tag_configure("active", foreground="#4ec9b0", font=("TkDefaultFont", 9, "bold"))
 
         self._refresh_session_list()
 
@@ -196,9 +178,7 @@ class ConnectionView(ttk.Frame):
 
             if session_id == active_id:
                 self.sessions_tree.item(item_id, tags=("active",))
-                self.sessions_tree.tag_configure(
-                    "active", foreground="#4ec9b0", font=("TkDefaultFont", 9, "bold")
-                )
+                self.sessions_tree.tag_configure("active", foreground="#4ec9b0", font=("TkDefaultFont", 9, "bold"))
 
     def _on_server_selected(self, event):
         """Handle server selection"""
@@ -235,8 +215,10 @@ class ConnectionView(ttk.Frame):
                     is_connected = True
                     if session.connection.username:
                         user = session.connection.username
-                    if hasattr(session.connection, 'role'):
-                        role = session.connection.role or "User"
+                    if session.connection.user_role:
+                        role = session.connection.user_role.capitalize()
+                    elif session.connection.is_authenticated:
+                        role = "User"
                     break
 
         self.details_text.config(state=tk.NORMAL)
@@ -263,60 +245,119 @@ class ConnectionView(ttk.Frame):
         """Add a new server"""
         dialog = tk.Toplevel(self)
         dialog.title("Add Server")
-        dialog.geometry("400x250")
+        dialog.geometry("450x380")
         dialog.resizable(False, False)
         dialog.transient(self)
         dialog.grab_set()
 
-        ttk.Label(dialog, text="Server Name:").grid(
-            row=0, column=0, sticky=tk.W, padx=20, pady=10
-        )
-        name_entry = ttk.Entry(dialog, width=30)
-        name_entry.grid(row=0, column=1, padx=20, pady=10)
+        # Apply theme colors to dialog
+        if hasattr(self.shell, "gui_app") and hasattr(self.shell.gui_app, "theme_manager"):
+            self.shell.gui_app.theme_manager.configure_toplevel(dialog)
 
-        ttk.Label(dialog, text="Server URL:").grid(
-            row=1, column=0, sticky=tk.W, padx=20, pady=10
-        )
+        ttk.Label(dialog, text="Server Name:").grid(row=0, column=0, sticky=tk.W, padx=20, pady=8)
+        name_entry = ttk.Entry(dialog, width=30)
+        name_entry.grid(row=0, column=1, padx=20, pady=8)
+
+        ttk.Label(dialog, text="Server URL:").grid(row=1, column=0, sticky=tk.W, padx=20, pady=8)
         url_entry = ttk.Entry(dialog, width=30)
-        url_entry.grid(row=1, column=1, padx=20, pady=10)
+        url_entry.grid(row=1, column=1, padx=20, pady=8)
         url_entry.insert(0, "https://")
 
+        ttk.Label(dialog, text="Username:").grid(row=2, column=0, sticky=tk.W, padx=20, pady=8)
+        username_entry = ttk.Entry(dialog, width=30)
+        username_entry.grid(row=2, column=1, padx=20, pady=8)
+
+        ttk.Label(dialog, text="Password:").grid(row=3, column=0, sticky=tk.W, padx=20, pady=8)
+        password_entry = ttk.Entry(dialog, width=30, show="*")
+        password_entry.grid(row=3, column=1, padx=20, pady=8)
+
         verify_var = tk.BooleanVar(value=True)
-        ttk.Checkbutton(
-            dialog, text="Verify SSL certificate", variable=verify_var
-        ).grid(row=2, column=1, sticky=tk.W, padx=20, pady=10)
+        ttk.Checkbutton(dialog, text="Verify SSL certificate", variable=verify_var).grid(
+            row=4, column=1, sticky=tk.W, padx=20, pady=8
+        )
+
+        # Tip label
+        tip_label = ttk.Label(
+            dialog,
+            text="💡 Username and password can be left blank.\nYou'll be prompted to login after connecting.",
+            font=("TkDefaultFont", 8),
+            foreground="gray",
+            justify=tk.LEFT,
+        )
+        tip_label.grid(row=5, column=0, columnspan=2, padx=20, pady=(2, 8), sticky=tk.W)
 
         def save_server():
             name = name_entry.get().strip()
             url = url_entry.get().strip()
+            username = username_entry.get().strip()
+            password = password_entry.get()
 
             if not name or not url:
                 messagebox.showerror("Error", "Name and URL are required")
                 return
 
-            try:
-                args = f"{name} {url}"
-                if verify_var.get():
-                    args += " --verify"
-                else:
-                    args += " --no-verify"
+            # Use empty credentials if not provided (triggers registration mode)
+            user = username if username else ""
+            pwd = password if password else ""
 
-                self.shell.server_commands.cmd_add_server(args)
-                self._refresh_server_list()
-                dialog.destroy()
-                messagebox.showinfo("Success", f"Server '{name}' added successfully")
-            except Exception as e:
-                messagebox.showerror("Error", f"Failed to add server: {e}")
+            # Use programmatic server add method (DRY - reuses CLI logic)
+            success, message, version_info = self.shell.server_commands.add_server_programmatic(
+                name=name,
+                url=url,
+                username=user,
+                password=pwd,
+                verify=verify_var.get(),
+                test_connection=True,  # Test before adding
+            )
+
+            if not success:
+                # Connection test failed - ask if they want to add anyway
+                if "Could not connect" in message or "returned status code" in message:
+                    result = messagebox.askyesno(
+                        "Connection Failed",
+                        f"{message}\n\n"
+                        f"Add server anyway?\n\n"
+                        f"You can try connecting later with different credentials.",
+                        icon="warning",
+                    )
+                    if result:
+                        # Try again without connection test
+                        success, message, version_info = self.shell.server_commands.add_server_programmatic(
+                            name=name,
+                            url=url,
+                            username=user,
+                            password=pwd,
+                            verify=verify_var.get(),
+                            test_connection=False,  # Skip test this time
+                        )
+                        if not success:
+                            messagebox.showerror("Error", message)
+                            return
+                    else:
+                        return
+                else:
+                    # Other error (e.g., server already exists)
+                    messagebox.showerror("Error", message)
+                    return
+
+            self._refresh_server_list()
+            dialog.destroy()
+
+            if version_info:
+                messagebox.showinfo(
+                    "Success", f"Server '{name}' added successfully\n\n" f"QUADS version: {version_info}"
+                )
+            else:
+                messagebox.showinfo(
+                    "Server Added",
+                    f"Server '{name}' added to configuration\n\n" f"You can now connect to this server.",
+                )
 
         button_frame = ttk.Frame(dialog)
-        button_frame.grid(row=3, column=0, columnspan=2, pady=20)
+        button_frame.grid(row=6, column=0, columnspan=2, pady=(10, 15))
 
-        ttk.Button(button_frame, text="Cancel", command=dialog.destroy).pack(
-            side=tk.LEFT, padx=5
-        )
-        ttk.Button(button_frame, text="Add", command=save_server).pack(
-            side=tk.LEFT, padx=5
-        )
+        ttk.Button(button_frame, text="Cancel", command=dialog.destroy).pack(side=tk.LEFT, padx=5)
+        ttk.Button(button_frame, text="Add", command=save_server).pack(side=tk.LEFT, padx=5)
 
     def _connect_server(self):
         """Connect to selected server"""
@@ -329,6 +370,7 @@ class ConnectionView(ttk.Frame):
             self._update_server_details()
         except Exception as e:
             import traceback
+
             details = traceback.format_exc()
             show_error_dialog(self, "Connection Failed", str(e), details)
 
@@ -341,6 +383,7 @@ class ConnectionView(ttk.Frame):
             self._on_server_selected(None)
         except Exception as e:
             import traceback
+
             details = traceback.format_exc()
             show_error_dialog(self, "Disconnect Failed", str(e), details)
 
@@ -402,6 +445,7 @@ class ConnectionView(ttk.Frame):
                 self._refresh_server_list()
             except Exception as e:
                 import traceback
+
                 details = traceback.format_exc()
                 show_error_dialog(self, "Close Session Failed", str(e), details)
 

@@ -26,9 +26,7 @@ class HostsView(BaseAdminView):
         ttk.Label(filter_frame, text="Filter:").pack(side=tk.LEFT, padx=(0, 10))
 
         for label, mode in [("All Hosts", "all"), ("Broken", "broken"), ("Retired", "retired")]:
-            ttk.Button(
-                filter_frame, text=label, command=lambda m=mode: self._set_filter(m)
-            ).pack(side=tk.LEFT, padx=2)
+            ttk.Button(filter_frame, text=label, command=lambda m=mode: self._set_filter(m)).pack(side=tk.LEFT, padx=2)
 
         # Content frame with scrolled treeview
         content_frame = ttk.Frame(self)
@@ -48,12 +46,14 @@ class HostsView(BaseAdminView):
         self.tree.pack(fill=tk.BOTH, expand=True)
 
         # Action buttons
-        self.create_action_bar([
-            ("Mark Broken", self._mark_broken),
-            ("Mark Repaired", self._mark_repaired),
-            ("Retire", self._retire),
-            ("Un-retire", self._unretire),
-        ])
+        self.create_action_bar(
+            [
+                ("Mark Broken", self._mark_broken),
+                ("Mark Repaired", self._mark_repaired),
+                ("Retire", self._retire),
+                ("Un-retire", self._unretire),
+            ]
+        )
 
         # Status label
         self.create_status_label()
@@ -68,6 +68,7 @@ class HostsView(BaseAdminView):
 
     def _load_hosts(self):
         """Load hosts from server"""
+
         def load_data():
             if self.filter_mode == "all":
                 return self.shell.connection.api.get_hosts()
@@ -78,10 +79,7 @@ class HostsView(BaseAdminView):
             return []
 
         self.tree.clear()
-        hosts = self.safe_load_data(
-            load_data,
-            success_message="Showing {count} host(s)"
-        )
+        hosts = self.safe_load_data(load_data, success_message="Showing {count} host(s)")
 
         if not hosts:
             return
@@ -122,9 +120,7 @@ class HostsView(BaseAdminView):
 
         hostname = values[0]
         if not self.confirm_action(
-            "Confirm",
-            f"Mark host '{hostname}' as broken?\n\n"
-            "This will prevent it from being scheduled."
+            "Confirm", f"Mark host '{hostname}' as broken?\n\n" "This will prevent it from being scheduled."
         ):
             return
 
@@ -132,7 +128,7 @@ class HostsView(BaseAdminView):
             lambda: self.shell.host_commands.cmd_mark_broken(hostname),
             f"Host '{hostname}' marked as broken",
             "Mark Broken Failed",
-            self._load_hosts
+            self._load_hosts,
         )
 
     def _mark_repaired(self):
@@ -146,7 +142,7 @@ class HostsView(BaseAdminView):
             lambda: self.shell.host_commands.cmd_mark_repaired(hostname),
             f"Host '{hostname}' marked as repaired",
             "Mark Repaired Failed",
-            self._load_hosts
+            self._load_hosts,
         )
 
     def _retire(self):
@@ -157,9 +153,7 @@ class HostsView(BaseAdminView):
 
         hostname = values[0]
         if not self.confirm_action(
-            "Confirm",
-            f"Retire host '{hostname}'?\n\n"
-            "This will remove it from the active pool."
+            "Confirm", f"Retire host '{hostname}'?\n\n" "This will remove it from the active pool."
         ):
             return
 
@@ -167,7 +161,7 @@ class HostsView(BaseAdminView):
             lambda: self.shell.host_commands.cmd_retire(hostname),
             f"Host '{hostname}' retired",
             "Retire Failed",
-            self._load_hosts
+            self._load_hosts,
         )
 
     def _unretire(self):
@@ -181,7 +175,7 @@ class HostsView(BaseAdminView):
             lambda: self.shell.host_commands.cmd_unretire(hostname),
             f"Host '{hostname}' is now active",
             "Un-retire Failed",
-            self._load_hosts
+            self._load_hosts,
         )
 
     def refresh(self):

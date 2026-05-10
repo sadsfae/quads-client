@@ -21,6 +21,9 @@ def show_error_dialog(parent, title, message, details=None):
     dialog.transient(parent)
     dialog.grab_set()
 
+    # Apply theme if available
+    _apply_theme_to_dialog(parent, dialog)
+
     main_frame = ttk.Frame(dialog, padding=10)
     main_frame.pack(fill=tk.BOTH, expand=True)
 
@@ -69,9 +72,7 @@ def show_error_dialog(parent, title, message, details=None):
         command=lambda: _copy_to_clipboard(dialog, text_widget),
     ).pack(side=tk.LEFT, padx=5)
 
-    ttk.Button(button_frame, text="Close", command=dialog.destroy).pack(
-        side=tk.LEFT, padx=5
-    )
+    ttk.Button(button_frame, text="Close", command=dialog.destroy).pack(side=tk.LEFT, padx=5)
 
 
 def _copy_to_clipboard(window, text_widget):
@@ -80,6 +81,32 @@ def _copy_to_clipboard(window, text_widget):
     window.clipboard_clear()
     window.clipboard_append(text)
     window.update()
+
+
+def _apply_theme_to_dialog(parent, dialog):
+    """Apply theme colors to dialog window"""
+    # Try to find theme manager from parent window hierarchy
+    theme_manager = None
+
+    # Check if parent has theme_manager
+    if hasattr(parent, "theme_manager"):
+        theme_manager = parent.theme_manager
+    # Check if parent has shell.gui_app.theme_manager
+    elif hasattr(parent, "shell") and hasattr(parent.shell, "gui_app"):
+        if hasattr(parent.shell.gui_app, "theme_manager"):
+            theme_manager = parent.shell.gui_app.theme_manager
+    # Check toplevel window
+    else:
+        try:
+            toplevel = parent.winfo_toplevel()
+            if hasattr(toplevel, "theme_manager"):
+                theme_manager = toplevel.theme_manager
+        except Exception:
+            pass
+
+    # Apply theme if found
+    if theme_manager:
+        theme_manager.configure_toplevel(dialog)
 
 
 def show_info_dialog(parent, title, message):
@@ -91,12 +118,13 @@ def show_info_dialog(parent, title, message):
     dialog.transient(parent)
     dialog.grab_set()
 
+    # Apply theme if available
+    _apply_theme_to_dialog(parent, dialog)
+
     main_frame = ttk.Frame(dialog, padding=20)
     main_frame.pack(fill=tk.BOTH, expand=True)
 
-    ttk.Label(
-        main_frame, text="ℹ️ " + title, font=("TkDefaultFont", 11, "bold")
-    ).pack(pady=(0, 10))
+    ttk.Label(main_frame, text="ℹ️ " + title, font=("TkDefaultFont", 11, "bold")).pack(pady=(0, 10))
 
     ttk.Label(main_frame, text=message, wraplength=350).pack(pady=10)
 

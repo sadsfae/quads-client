@@ -55,39 +55,27 @@ class QuadsClientApp(tk.Tk):
 
         file_menu = tk.Menu(menubar, tearoff=0)
         menubar.add_cascade(label="File", menu=file_menu)
-        file_menu.add_command(
-            label="New Session", command=self._new_session, accelerator=f"{cmd_key}+N"
-        )
-        file_menu.add_command(
-            label="Close Session", command=self._close_session, accelerator=f"{cmd_key}+W"
-        )
+        file_menu.add_command(label="New Session", command=self._new_session, accelerator=f"{cmd_key}+N")
+        file_menu.add_command(label="Close Session", command=self._close_session, accelerator=f"{cmd_key}+W")
         file_menu.add_separator()
         file_menu.add_command(label="Exit", command=self._on_closing, accelerator=f"{cmd_key}+Q")
 
         edit_menu = tk.Menu(menubar, tearoff=0)
         menubar.add_cascade(label="Edit", menu=edit_menu)
         edit_menu.add_command(label="Preferences", command=self._show_preferences)
-        edit_menu.add_command(
-            label="Toggle Theme", command=self._toggle_theme, accelerator=f"{cmd_key}+T"
-        )
+        edit_menu.add_command(label="Toggle Theme", command=self._toggle_theme, accelerator=f"{cmd_key}+T")
 
         view_menu = tk.Menu(menubar, tearoff=0)
         menubar.add_cascade(label="View", menu=view_menu)
-        view_menu.add_command(
-            label="Refresh", command=self._refresh_view, accelerator=f"{cmd_key}+R"
-        )
-        view_menu.add_command(
-            label="Toggle Sidebar", command=self._toggle_sidebar
-        )
+        view_menu.add_command(label="Refresh", command=self._refresh_view, accelerator=f"{cmd_key}+R")
+        view_menu.add_command(label="Toggle Sidebar", command=self._toggle_sidebar)
 
         help_menu = tk.Menu(menubar, tearoff=0)
         menubar.add_cascade(label="Help", menu=help_menu)
         help_menu.add_command(label="About", command=self._show_about)
         help_menu.add_command(label="Documentation", command=self._open_documentation)
         help_menu.add_command(label="Report Issue", command=self._report_issue)
-        help_menu.add_command(
-            label="Keyboard Shortcuts", command=self._show_shortcuts, accelerator="F1"
-        )
+        help_menu.add_command(label="Keyboard Shortcuts", command=self._show_shortcuts, accelerator="F1")
 
         self._bind_keyboard_shortcuts()
 
@@ -129,9 +117,7 @@ class QuadsClientApp(tk.Tk):
         )
         title_label.pack(pady=10, padx=10)
 
-        ttk.Separator(self.sidebar_frame, orient=tk.HORIZONTAL).pack(
-            fill=tk.X, padx=5, pady=5
-        )
+        ttk.Separator(self.sidebar_frame, orient=tk.HORIZONTAL).pack(fill=tk.X, padx=5, pady=5)
 
         # Store navigation items with admin flag
         nav_items = [
@@ -151,9 +137,7 @@ class QuadsClientApp(tk.Tk):
         self.nav_buttons = []
         for label, command, is_admin in nav_items:
             if label == "":  # Separator
-                ttk.Separator(self.sidebar_frame, orient=tk.HORIZONTAL).pack(
-                    fill=tk.X, padx=5, pady=5
-                )
+                ttk.Separator(self.sidebar_frame, orient=tk.HORIZONTAL).pack(fill=tk.X, padx=5, pady=5)
                 continue
 
             btn = ttk.Button(
@@ -183,8 +167,7 @@ class QuadsClientApp(tk.Tk):
         welcome_label.pack(pady=50)
         info_label = ttk.Label(
             welcome_frame,
-            text="Select an item from the sidebar to get started.\n\n"
-            "New to QUADS? Check Help → Documentation",
+            text="Select an item from the sidebar to get started.\n\n" "New to QUADS? Check Help → Documentation",
         )
         info_label.pack(pady=10)
         self.views["welcome"] = welcome_frame
@@ -206,20 +189,19 @@ class QuadsClientApp(tk.Tk):
         self.status_bar = ttk.Frame(self)
         self.status_bar.pack(side=tk.BOTTOM, fill=tk.X)
 
-        ttk.Separator(self.status_bar, orient=tk.HORIZONTAL).pack(
-            side=tk.TOP, fill=tk.X
-        )
+        ttk.Separator(self.status_bar, orient=tk.HORIZONTAL).pack(side=tk.TOP, fill=tk.X)
 
         status_content = ttk.Frame(self.status_bar)
-        status_content.pack(fill=tk.X, padx=5, pady=2)
+        status_content.pack(fill=tk.BOTH, expand=True, padx=5, pady=2)
 
-        self.status_label = ttk.Label(status_content, text="Not connected")
-        self.status_label.pack(side=tk.LEFT)
-
-        self.theme_label = ttk.Label(
-            status_content, text=f"Theme: {self.theme_manager.get_theme_info()}"
+        # Connection indicator (colored circle)
+        self.connection_indicator = ttk.Label(
+            status_content, text="●", foreground="#888888", font=("TkDefaultFont", 12)  # Grey when not connected
         )
-        self.theme_label.pack(side=tk.RIGHT, padx=10)
+        self.connection_indicator.pack(side=tk.LEFT, padx=(0, 5))
+
+        self.status_label = ttk.Label(status_content, text="Not connected", wraplength=1100, justify=tk.LEFT)
+        self.status_label.pack(side=tk.LEFT, fill=tk.X, expand=True)
 
     def _toggle_sidebar(self):
         """Toggle sidebar visibility"""
@@ -233,7 +215,6 @@ class QuadsClientApp(tk.Tk):
     def _toggle_theme(self):
         """Toggle between dark and light themes"""
         new_mode = self.theme_manager.toggle_theme()
-        self.theme_label.config(text=f"Theme: {self.theme_manager.get_theme_info()}")
         self.update_status(f"Theme switched to {new_mode} mode")
 
     def _new_session(self):
@@ -343,9 +324,7 @@ class QuadsClientApp(tk.Tk):
         )
         subtitle_label.pack(pady=10)
 
-        devs_label = ttk.Label(
-            about_window, text="Core Developers:", font=("TkDefaultFont", 10, "bold")
-        )
+        devs_label = ttk.Label(about_window, text="Core Developers:", font=("TkDefaultFont", 10, "bold"))
         devs_label.pack(pady=(20, 5))
 
         devs_frame = ttk.Frame(about_window)
@@ -382,9 +361,7 @@ class QuadsClientApp(tk.Tk):
         )
         website_button.pack(pady=10)
 
-        close_button = ttk.Button(
-            about_window, text="Close", command=about_window.destroy
-        )
+        close_button = ttk.Button(about_window, text="Close", command=about_window.destroy)
         close_button.pack(pady=15)
 
         about_window.transient(self)
@@ -435,17 +412,13 @@ class QuadsClientApp(tk.Tk):
             row = ttk.Frame(frame)
             row.pack(fill=tk.X, pady=5)
 
-            key_label = ttk.Label(
-                row, text=shortcut, font=("TkDefaultFont", 9, "bold"), width=12
-            )
+            key_label = ttk.Label(row, text=shortcut, font=("TkDefaultFont", 9, "bold"), width=12)
             key_label.pack(side=tk.LEFT)
 
             desc_label = ttk.Label(row, text=description)
             desc_label.pack(side=tk.LEFT, padx=10)
 
-        close_button = ttk.Button(
-            shortcuts_window, text="Close", command=shortcuts_window.destroy
-        )
+        close_button = ttk.Button(shortcuts_window, text="Close", command=shortcuts_window.destroy)
         close_button.pack(pady=15)
 
         shortcuts_window.transient(self)
@@ -453,8 +426,23 @@ class QuadsClientApp(tk.Tk):
 
     def update_status(self, message):
         """Update status bar message"""
-        if hasattr(self, 'status_label') and self.status_label:
+        if hasattr(self, "status_label") and self.status_label:
             self.status_label.config(text=message)
+        self.update_connection_indicator()
+
+    def update_connection_indicator(self):
+        """Update connection indicator color based on connection status"""
+        if not hasattr(self, "connection_indicator"):
+            return
+
+        is_connected = self.shell.is_authenticated() if self.shell else False
+
+        if is_connected:
+            # Green circle when connected
+            self.connection_indicator.config(foreground="#4ec9b0")
+        else:
+            # Grey circle when disconnected
+            self.connection_indicator.config(foreground="#888888")
 
     def update_role_visibility(self):
         """Update visibility of admin-only navigation items and visual indicators"""
@@ -498,6 +486,9 @@ class QuadsClientApp(tk.Tk):
             self.admin_indicator_label.pack(side=tk.LEFT, padx=20)
         else:
             self.admin_indicator_label.pack_forget()
+
+        # Update connection indicator
+        self.update_connection_indicator()
 
     def show_message(self, message, level="info"):
         """

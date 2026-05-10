@@ -85,29 +85,79 @@ class UserCommands:
         except Exception as e:
             self.shell.perror(f"Failed to register user: {e}")
 
+    def login_programmatic(self, email, password):
+        """
+        Non-interactive login for GUI and scripting.
+
+        Args:
+            email: User email
+            password: User password
+
+        Returns:
+            (success: bool, message: str, role: str or None)
+        """
+        if not self.shell.connection or not self.shell.connection.is_connected:
+            return (False, "Not connected to any server", None)
+
+        try:
+            # Get current connection details
+            from quads_lib import QuadsApi
+
+            server_name = self.shell.connection.current_server
+            url = self.shell.config.get_server_url(server_name)
+            verify = self.shell.config.get_server_verify(server_name)
+
+            # Create new API instance with credentials (quads-lib uses credentials from __init__)
+            api = QuadsApi(base_url=url, username=email, password=password, verify=verify)
+            result = api.login()
+
+            if isinstance(result, dict) and result.get("auth_token"):
+                # Update connection with new authenticated API instance
+                self.shell.connection._api = api
+                self.shell.connection._token = result["auth_token"]
+                self.shell.connection._username = email
+                self.shell.connection._registration_mode = False
+
+                # Try to decode role
+                role = self.shell.connection._decode_role_from_token()
+                if role:
+                    self.shell.connection._user_role = role
+
+                # Update visible commands based on new authentication state
+                if hasattr(self.shell, "_update_visible_commands"):
+                    self.shell._update_visible_commands()
+
+                return (True, "Logged in successfully", role)
+            else:
+                # Login succeeded but no token in response (older API version?)
+                if hasattr(self.shell, "_update_visible_commands"):
+                    self.shell._update_visible_commands()
+                return (True, "Logged in successfully", None)
+
+        except Exception as e:
+            return (False, f"Failed to login: {e}", None)
+
     def cmd_login(self, args):
         """Explicit login. Usage: login"""
         if not self._require_connection():
             return
 
-        try:
-            result = self.shell.connection.api.login()
-            if isinstance(result, dict) and result.get("auth_token"):
-                self.shell.poutput("OK: Logged in successfully")
-                # Update connection token
-                self.shell.connection._token = result["auth_token"]
-                # Try to decode role
-                role = self.shell.connection._decode_role_from_token()
-                if role:
-                    self.shell.connection._user_role = role
-                    self.shell.poutput(f"  Role: {role}")
-                # Update visible commands based on new authentication state
-                self.shell._update_visible_commands()
-            else:
-                self.shell.poutput("OK: Logged in successfully")
-                self.shell._update_visible_commands()
-        except Exception as e:
-            self.shell.perror(f"Failed to login: {e}")
+        # If we already have credentials from API instance, use them
+        email = getattr(self.shell.connection.api, "username", None)
+        password = getattr(self.shell.connection.api, "password", None)
+
+        if not email or not password:
+            self.shell.perror("No credentials configured. Use 'register' or configure credentials in config file.")
+            return
+
+        success, message, role = self.login_programmatic(email, password)
+
+        if success:
+            self.shell.poutput(f"OK: {message}")
+            if role:
+                self.shell.poutput(f"  Role: {role}")
+        else:
+            self.shell.perror(message)
 
     def cmd_whoami(self, args):
         """Show current user information. Usage: whoami"""
@@ -355,8 +405,10 @@ class UserCommands:
 
             if hostname:
                 # Release specific host
-                if not getattr(self.shell, 'gui_mode', False):
-                    response = input(f"Release {hostname} from assignment {assignment_id} (cloud: {cloud_name})? [y/N]: ")
+                if not getattr(self.shell, "gui_mode", False):
+                    response = input(
+                        f"Release {hostname} from assignment {assignment_id} (cloud: {cloud_name})? [y/N]: "
+                    )
                     if response.lower() != "y":
                         self.shell.poutput("Host not released")
                         return
@@ -370,7 +422,7 @@ class UserCommands:
                 self.shell.poutput(f"OK: Released {hostname} from assignment #{assignment_id}")
             else:
                 # Terminate entire assignment
-                if not getattr(self.shell, 'gui_mode', False):
+                if not getattr(self.shell, "gui_mode", False):
                     response = input(f"Terminate assignment {assignment_id} (cloud: {cloud_name})? [y/N]: ")
                     if response.lower() != "y":
                         self.shell.poutput("Assignment not terminated")

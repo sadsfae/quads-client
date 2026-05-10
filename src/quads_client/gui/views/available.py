@@ -25,22 +25,15 @@ class AvailableView(BaseAdminView):
             message_frame.pack(fill=tk.BOTH, expand=True, padx=20, pady=50)
 
             ttk.Label(
-                message_frame,
-                text="Not connected to any QUADS server",
-                font=("TkDefaultFont", 14),
-                foreground="gray"
+                message_frame, text="Not connected to any QUADS server", font=("TkDefaultFont", 14), foreground="gray"
             ).pack(pady=20)
 
-            ttk.Label(
-                message_frame,
-                text="Please connect to a server from the Servers view",
-                foreground="gray"
-            ).pack(pady=10)
+            ttk.Label(message_frame, text="Please connect to a server from the Servers view", foreground="gray").pack(
+                pady=10
+            )
 
             ttk.Button(
-                message_frame,
-                text="Go to Servers",
-                command=lambda: self.shell.gui_app._show_servers_view()
+                message_frame, text="Go to Servers", command=lambda: self.shell.gui_app._show_servers_view()
             ).pack(pady=10)
 
             # Status label
@@ -67,9 +60,7 @@ class AvailableView(BaseAdminView):
         self.ram_entry = ttk.Entry(filter_frame, width=10)
         self.ram_entry.pack(side=tk.LEFT, padx=5)
 
-        ttk.Button(filter_frame, text="Apply", command=self._load_available).pack(
-            side=tk.LEFT, padx=10
-        )
+        ttk.Button(filter_frame, text="Apply", command=self._load_available).pack(side=tk.LEFT, padx=10)
 
         # Content frame with scrolled treeview
         content_frame = ttk.Frame(self)
@@ -129,25 +120,25 @@ class AvailableView(BaseAdminView):
 
     def _update_button_states(self):
         """Enable/disable buttons based on selection"""
-        if not hasattr(self, 'tree'):
+        if not hasattr(self, "tree"):
             return
 
         selection = self.tree.selection()
         has_selection = len(selection) > 0
 
         # Enable/disable selection-dependent buttons
-        if hasattr(self, 'copy_selected_btn'):
+        if hasattr(self, "copy_selected_btn"):
             self.copy_selected_btn.config(state=tk.NORMAL if has_selection else tk.DISABLED)
 
-        if hasattr(self, 'schedule_now_btn'):
+        if hasattr(self, "schedule_now_btn"):
             self.schedule_now_btn.config(state=tk.NORMAL if has_selection else tk.DISABLED)
 
-        if hasattr(self, 'unselect_btn'):
+        if hasattr(self, "unselect_btn"):
             self.unselect_btn.config(state=tk.NORMAL if has_selection else tk.DISABLED)
 
     def _unselect_all(self):
         """Clear all selections"""
-        if not hasattr(self, 'tree'):
+        if not hasattr(self, "tree"):
             return
 
         # Clear selection
@@ -164,7 +155,7 @@ class AvailableView(BaseAdminView):
             return
 
         # Check if tree exists (it won't if we showed the not-connected message)
-        if not hasattr(self, 'tree'):
+        if not hasattr(self, "tree"):
             return
 
         self.tree.clear()
@@ -192,8 +183,8 @@ class AvailableView(BaseAdminView):
                         host["name"],
                         host["model"],
                         host["host_type"],
-                        "Yes" if host["can_self_schedule"] else "No"
-                    )
+                        "Yes" if host["can_self_schedule"] else "No",
+                    ),
                 )
 
             self.update_status(f"Loaded {len(hosts)} available host(s)")
@@ -205,8 +196,8 @@ class AvailableView(BaseAdminView):
             self.update_status(f"Error: {str(e)}")
 
     def _copy_selected(self):
-        """Copy selected rows to clipboard"""
-        if not hasattr(self, 'tree'):
+        """Copy selected hostnames (first column only) to clipboard"""
+        if not hasattr(self, "tree"):
             return
 
         selection = self.tree.selection()
@@ -214,19 +205,21 @@ class AvailableView(BaseAdminView):
             self.update_status("No items selected to copy")
             return
 
-        lines = []
+        # Only copy hostnames (first column)
+        hostnames = []
         for item in selection:
             values = self.tree.item(item, "values")
-            lines.append("\t".join(str(v) for v in values))
+            hostname = values[0]  # First column is hostname
+            hostnames.append(hostname)
 
-        text = "\n".join(lines)
+        text = "\n".join(hostnames)
         self.clipboard_clear()
         self.clipboard_append(text)
-        self.update_status(f"Copied {len(lines)} row(s) to clipboard")
+        self.update_status(f"Copied {len(hostnames)} hostname(s) to clipboard")
 
     def _copy_all(self):
         """Copy all rows to clipboard"""
-        if not hasattr(self, 'tree'):
+        if not hasattr(self, "tree"):
             return
 
         items = self.tree.tree.get_children()
@@ -250,7 +243,7 @@ class AvailableView(BaseAdminView):
 
     def _schedule_selected(self):
         """Schedule selected hosts - navigate to Schedule view with hosts pre-filled"""
-        if not hasattr(self, 'tree'):
+        if not hasattr(self, "tree"):
             return
 
         selection = self.tree.selection()

@@ -35,6 +35,8 @@ class GuiShell:
         self.debug = False
         self.quiet = False
         self.gui_mode = True
+        self._capture_output = False
+        self._captured_messages = []
 
         try:
             self.config = QuadsClientConfig()
@@ -61,21 +63,27 @@ class GuiShell:
 
     def poutput(self, message):
         """Output message to GUI (info level)"""
-        if self.gui_app:
+        if self._capture_output:
+            self._captured_messages.append(("info", message))
+        elif self.gui_app:
             self.gui_app.show_message(message, level="info")
         else:
             print(message)
 
     def perror(self, message):
         """Error output to GUI"""
-        if self.gui_app:
+        if self._capture_output:
+            self._captured_messages.append(("error", message))
+        elif self.gui_app:
             self.gui_app.show_message(message, level="error")
         else:
             print(f"ERROR: {message}")
 
     def pwarning(self, message):
         """Warning output to GUI"""
-        if self.gui_app:
+        if self._capture_output:
+            self._captured_messages.append(("warning", message))
+        elif self.gui_app:
             self.gui_app.show_message(message, level="warning")
         else:
             print(f"WARNING: {message}")
@@ -110,7 +118,7 @@ class GuiShell:
 
             return sorted(list(models))
 
-        except Exception as e:
+        except Exception:
             # Silently fail - this is a helper method
             return []
 
@@ -134,7 +142,7 @@ class GuiShell:
             # Get active assignments to check which VLANs are in use
             try:
                 assignments = self.connection.api.filter_assignments({"active": True})
-            except:
+            except Exception:
                 assignments = []
 
             # Find VLANs not assigned to any cloud
@@ -156,7 +164,7 @@ class GuiShell:
 
             return sorted(free_vlans, key=lambda x: int(x) if x.isdigit() else 0)
 
-        except Exception as e:
+        except Exception:
             # Silently fail
             return []
 
@@ -214,16 +222,13 @@ class GuiShell:
                 if not name:
                     continue
 
-                results.append({
-                    "name": name,
-                    "model": model_val,
-                    "host_type": host_type,
-                    "can_self_schedule": can_self_schedule
-                })
+                results.append(
+                    {"name": name, "model": model_val, "host_type": host_type, "can_self_schedule": can_self_schedule}
+                )
 
             return results
 
-        except Exception as e:
+        except Exception:
             # Silently fail
             return []
 

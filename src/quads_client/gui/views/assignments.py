@@ -22,13 +22,13 @@ class AssignmentsView(BaseAdminView):
         content_frame = ttk.Frame(self)
         content_frame.pack(fill=tk.BOTH, expand=True, padx=20, pady=(0, 20))
 
-        columns = ("id", "cloud", "description", "owner", "status")
+        columns = ("id", "cloud", "description", "owner", "validated")
         column_configs = {
             "id": ("ID", 80),
             "cloud": ("Cloud", 120),
             "description": ("Description", 300),
             "owner": ("Owner", 150),
-            "status": ("Status", 100),
+            "validated": ("Validated", 100),
         }
 
         self.tree = ScrolledTreeview(content_frame, columns, column_configs)
@@ -45,34 +45,31 @@ class AssignmentsView(BaseAdminView):
 
     def _load_assignments(self):
         """Load assignments from server"""
+        from quads_client.utils import get_username_short, extract_assignment_id, extract_cloud_name
+
         def load_data():
-            return self.shell.connection.api.filter_assignments({
-                "owner": self.shell.connection.username
-            })
+            # Use short username (without @domain.com) and filter for active assignments
+            username = get_username_short(self.shell.connection.username)
+            return self.shell.connection.api.filter_assignments({"owner": username, "active": True})
 
         self.tree.clear()
-        assignments = self.safe_load_data(
-            load_data,
-            success_message="Showing {count} assignment(s)"
-        )
+        assignments = self.safe_load_data(load_data, success_message="Showing {count} assignment(s)")
 
         if not assignments:
             return
 
         for assignment in assignments:
             if isinstance(assignment, dict):
-                assignment_id = assignment.get("_id") or assignment.get("id", "N/A")
-                cloud = assignment.get("cloud", {})
-                cloud_name = cloud.get("name") if isinstance(cloud, dict) else str(cloud)
+                assignment_id = extract_assignment_id(assignment)
+                cloud_name = extract_cloud_name(assignment)
                 description = assignment.get("description", "No description")
                 owner = assignment.get("owner", "N/A")
-                status = assignment.get("active", True)
-                status_text = "Active" if status else "Inactive"
+                validated = "✓" if assignment.get("validated") else "○"
 
                 self.tree.insert(
                     "",
                     tk.END,
-                    values=(assignment_id, cloud_name, description, owner, status_text),
+                    values=(assignment_id, cloud_name, description, owner, validated),
                 )
 
     def _terminate_selected(self):
@@ -86,7 +83,7 @@ class AssignmentsView(BaseAdminView):
         if not self.confirm_action(
             "Confirm Termination",
             f"Are you sure you want to terminate assignment #{assignment_id}?\n\n"
-            "This will release all hosts in this assignment."
+            "This will release all hosts in this assignment.",
         ):
             return
 
@@ -95,7 +92,7 @@ class AssignmentsView(BaseAdminView):
             f"Assignment #{assignment_id} terminated\n\n"
             "Note: It may take a few moments for the termination to complete.",
             "Termination Failed",
-            self._load_assignments
+            self._load_assignments,
         )
 
     def refresh(self):

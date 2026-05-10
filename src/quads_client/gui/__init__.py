@@ -6,7 +6,7 @@ import sys
 def main():
     """Main entry point for quads-client-gui"""
     try:
-        import tkinter
+        import tkinter  # noqa: F401
     except ImportError:
         print("ERROR: GUI dependencies not available.")
         print("\nPlease use the CLI instead: quads-client")
@@ -22,6 +22,7 @@ def main():
     except Exception as e:
         print(f"ERROR: Failed to start GUI: {e}")
         import traceback
+
         traceback.print_exc()
         return 1
 

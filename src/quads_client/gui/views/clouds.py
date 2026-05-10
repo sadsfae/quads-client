@@ -16,10 +16,12 @@ class CloudsView(BaseAdminView):
     def _create_ui(self):
         """Create the UI"""
         # Header with buttons
-        self.create_header([
-            ("➕ Create Cloud", self._create_cloud),
-            ("🔄 Refresh", self._load_clouds),
-        ])
+        self.create_header(
+            [
+                ("➕ Create Cloud", self._create_cloud),
+                ("🔄 Refresh", self._load_clouds),
+            ]
+        )
 
         # Content frame with scrolled treeview
         content_frame = ttk.Frame(self)
@@ -39,12 +41,14 @@ class CloudsView(BaseAdminView):
         self.tree.pack(fill=tk.BOTH, expand=True)
 
         # Action buttons
-        self.create_action_bar([
-            ("View Details", self._view_details),
-            ("Modify Cloud", self._modify_cloud),
-            ("Delete Cloud", self._delete_cloud),
-            ("Find Free Clouds", self._find_free),
-        ])
+        self.create_action_bar(
+            [
+                ("View Details", self._view_details),
+                ("Modify Cloud", self._modify_cloud),
+                ("Delete Cloud", self._delete_cloud),
+                ("Find Free Clouds", self._find_free),
+            ]
+        )
 
         # Status label
         self.create_status_label()
@@ -54,14 +58,12 @@ class CloudsView(BaseAdminView):
 
     def _load_clouds(self):
         """Load clouds from server"""
+
         def load_data():
             return self.shell.connection.api.get_clouds()
 
         self.tree.clear()
-        clouds = self.safe_load_data(
-            load_data,
-            success_message="Showing {count} cloud(s)"
-        )
+        clouds = self.safe_load_data(load_data, success_message="Showing {count} cloud(s)")
 
         if not clouds:
             return
@@ -116,14 +118,17 @@ class CloudsView(BaseAdminView):
                 lambda: self.shell.cloud_commands.cmd_cloud_create(cloud_name),
                 f"Cloud '{cloud_name}' created",
                 "Create Cloud Failed",
-                self._load_clouds
+                self._load_clouds,
             )
             dialog.destroy()
 
-        FormDialog.create_button_row(dialog, [
-            ("Cancel", dialog.destroy),
-            ("Create", on_create),
-        ])
+        FormDialog.create_button_row(
+            dialog,
+            [
+                ("Cancel", dialog.destroy),
+                ("Create", on_create),
+            ],
+        )
 
     def _delete_cloud(self):
         """Delete selected cloud"""
@@ -134,8 +139,7 @@ class CloudsView(BaseAdminView):
         cloud_name = values[0]
         if not self.confirm_action(
             "Confirm Deletion",
-            f"Are you sure you want to delete cloud '{cloud_name}'?\n\n"
-            "This action cannot be undone."
+            f"Are you sure you want to delete cloud '{cloud_name}'?\n\n" "This action cannot be undone.",
         ):
             return
 
@@ -143,7 +147,7 @@ class CloudsView(BaseAdminView):
             lambda: self.shell.cloud_commands.cmd_cloud_delete(cloud_name),
             f"Cloud '{cloud_name}' deleted",
             "Delete Cloud Failed",
-            self._load_clouds
+            self._load_clouds,
         )
 
     def _modify_cloud(self):
@@ -177,9 +181,7 @@ class CloudsView(BaseAdminView):
         qinq_combo.grid(row=5, column=1, pady=5, sticky=tk.W)
 
         wipe_var = tk.BooleanVar(value=False)
-        ttk.Checkbutton(form_frame, text="Enable wipe", variable=wipe_var).grid(
-            row=6, column=1, sticky=tk.W, pady=5
-        )
+        ttk.Checkbutton(form_frame, text="Enable wipe", variable=wipe_var).grid(row=6, column=1, sticky=tk.W, pady=5)
 
         def on_modify():
             args = cloud_name
@@ -207,14 +209,17 @@ class CloudsView(BaseAdminView):
                 lambda: self.shell.cloud_commands.cmd_mod_cloud(args),
                 f"Cloud '{cloud_name}' modified",
                 "Modify Cloud Failed",
-                self._load_clouds
+                self._load_clouds,
             )
             dialog.destroy()
 
-        FormDialog.create_button_row(dialog, [
-            ("Cancel", dialog.destroy),
-            ("Modify", on_modify),
-        ])
+        FormDialog.create_button_row(
+            dialog,
+            [
+                ("Cancel", dialog.destroy),
+                ("Modify", on_modify),
+            ],
+        )
 
     def _view_details(self):
         """View detailed information for selected cloud"""
@@ -226,7 +231,7 @@ class CloudsView(BaseAdminView):
         self.safe_execute(
             lambda: self.shell.cloud_commands.cmd_cloud_list(f"cloud {cloud_name} detail"),
             "",  # No success message needed
-            "View Details Failed"
+            "View Details Failed",
         )
 
     def _find_free(self):
@@ -234,7 +239,7 @@ class CloudsView(BaseAdminView):
         self.safe_execute(
             lambda: self.shell.cloud_commands.cmd_find_free_cloud(""),
             "",  # No success message needed
-            "Find Free Clouds Failed"
+            "Find Free Clouds Failed",
         )
 
     def refresh(self):

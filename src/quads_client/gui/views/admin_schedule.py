@@ -16,10 +16,12 @@ class AdminScheduleView(BaseAdminView):
     def _create_ui(self):
         """Create the UI"""
         # Header with buttons
-        self.create_header([
-            ("➕ New Schedule", self._create_schedule),
-            ("🔄 Refresh", self._load_schedules),
-        ])
+        self.create_header(
+            [
+                ("➕ New Schedule", self._create_schedule),
+                ("🔄 Refresh", self._load_schedules),
+            ]
+        )
 
         # Filter frame
         filter_frame = ttk.Frame(self)
@@ -33,9 +35,7 @@ class AdminScheduleView(BaseAdminView):
         self.host_filter = ttk.Entry(filter_frame, width=20)
         self.host_filter.pack(side=tk.LEFT, padx=5)
 
-        ttk.Button(filter_frame, text="Apply", command=self._load_schedules).pack(
-            side=tk.LEFT, padx=10
-        )
+        ttk.Button(filter_frame, text="Apply", command=self._load_schedules).pack(side=tk.LEFT, padx=10)
 
         # Content frame with scrolled treeview
         content_frame = ttk.Frame(self)
@@ -55,11 +55,13 @@ class AdminScheduleView(BaseAdminView):
         self.tree.pack(fill=tk.BOTH, expand=True)
 
         # Action buttons
-        self.create_action_bar([
-            ("Extend", self._extend_schedule),
-            ("Shrink", self._shrink_schedule),
-            ("Delete", self._delete_schedule),
-        ])
+        self.create_action_bar(
+            [
+                ("Extend", self._extend_schedule),
+                ("Shrink", self._shrink_schedule),
+                ("Delete", self._delete_schedule),
+            ]
+        )
 
         # Status label
         self.create_status_label()
@@ -69,6 +71,7 @@ class AdminScheduleView(BaseAdminView):
 
     def _load_schedules(self):
         """Load schedules from server"""
+
         def load_data():
             filters = {}
             if self.cloud_filter.get().strip():
@@ -78,10 +81,7 @@ class AdminScheduleView(BaseAdminView):
             return self.shell.connection.api.get_schedules(filters)
 
         self.tree.clear()
-        schedules = self.safe_load_data(
-            load_data,
-            success_message="Showing {count} schedule(s)"
-        )
+        schedules = self.safe_load_data(load_data, success_message="Showing {count} schedule(s)")
 
         if not schedules:
             return
@@ -128,15 +128,11 @@ class AdminScheduleView(BaseAdminView):
         mode_frame = ttk.Frame(form_frame)
         mode_frame.grid(row=1, column=1, pady=5, sticky=tk.W)
 
-        ttk.Radiobutton(mode_frame, text="Comma-separated", variable=mode_var, value="list").pack(
-            anchor=tk.W
-        )
+        ttk.Radiobutton(mode_frame, text="Comma-separated", variable=mode_var, value="list").pack(anchor=tk.W)
         hosts_entry = ttk.Entry(mode_frame, width=40)
         hosts_entry.pack(fill=tk.X, pady=2)
 
-        ttk.Radiobutton(mode_frame, text="From file", variable=mode_var, value="file").pack(
-            anchor=tk.W, pady=(5, 0)
-        )
+        ttk.Radiobutton(mode_frame, text="From file", variable=mode_var, value="file").pack(anchor=tk.W, pady=(5, 0))
         file_frame = ttk.Frame(mode_frame)
         file_frame.pack(fill=tk.X, pady=2)
         file_entry = ttk.Entry(file_frame, width=30)
@@ -180,9 +176,7 @@ class AdminScheduleView(BaseAdminView):
         qinq_combo.grid(row=9, column=1, pady=5, sticky=tk.W)
 
         nowipe_var = tk.BooleanVar(value=False)
-        ttk.Checkbutton(form_frame, text="No wipe", variable=nowipe_var).grid(
-            row=10, column=1, sticky=tk.W, pady=5
-        )
+        ttk.Checkbutton(form_frame, text="No wipe", variable=nowipe_var).grid(row=10, column=1, sticky=tk.W, pady=5)
 
         def on_create():
             cloud = cloud_entry.get().strip()
@@ -190,9 +184,7 @@ class AdminScheduleView(BaseAdminView):
             end = end_entry.get().strip()
 
             if not cloud or not start or not end:
-                messagebox.showerror(
-                    "Error", "Cloud, start, and end dates are required", parent=dialog
-                )
+                messagebox.showerror("Error", "Cloud, start, and end dates are required", parent=dialog)
                 return
 
             # Build host argument
@@ -230,14 +222,17 @@ class AdminScheduleView(BaseAdminView):
                 lambda: self.shell.schedule_commands.cmd_schedule_admin(args),
                 "Schedule created successfully",
                 "Create Schedule Failed",
-                self._load_schedules
+                self._load_schedules,
             )
             dialog.destroy()
 
-        FormDialog.create_button_row(dialog, [
-            ("Cancel", dialog.destroy),
-            ("Create", on_create),
-        ])
+        FormDialog.create_button_row(
+            dialog,
+            [
+                ("Cancel", dialog.destroy),
+                ("Create", on_create),
+            ],
+        )
 
     def _extend_schedule(self):
         """Extend selected schedule"""
@@ -250,9 +245,7 @@ class AdminScheduleView(BaseAdminView):
 
         dialog = self.create_simple_dialog(f"Extend Schedule #{schedule_id}", "400x200")
 
-        ttk.Label(dialog, text=f"Extend schedule #{schedule_id}", font=("TkDefaultFont", 10, "bold")).pack(
-            pady=10
-        )
+        ttk.Label(dialog, text=f"Extend schedule #{schedule_id}", font=("TkDefaultFont", 10, "bold")).pack(pady=10)
         ttk.Label(dialog, text=f"Current end: {current_end}").pack(pady=5)
 
         ttk.Label(dialog, text="New end date (YYYY-MM-DD HH:MM):").pack(pady=10)
@@ -270,14 +263,17 @@ class AdminScheduleView(BaseAdminView):
                 lambda: self.shell.schedule_commands.cmd_extend(args),
                 f"Schedule #{schedule_id} extended",
                 "Extend Failed",
-                self._load_schedules
+                self._load_schedules,
             )
             dialog.destroy()
 
-        FormDialog.create_button_row(dialog, [
-            ("Cancel", dialog.destroy),
-            ("Extend", on_extend),
-        ])
+        FormDialog.create_button_row(
+            dialog,
+            [
+                ("Cancel", dialog.destroy),
+                ("Extend", on_extend),
+            ],
+        )
 
     def _shrink_schedule(self):
         """Shrink selected schedule"""
@@ -290,9 +286,7 @@ class AdminScheduleView(BaseAdminView):
 
         dialog = self.create_simple_dialog(f"Shrink Schedule #{schedule_id}", "400x200")
 
-        ttk.Label(dialog, text=f"Shrink schedule #{schedule_id}", font=("TkDefaultFont", 10, "bold")).pack(
-            pady=10
-        )
+        ttk.Label(dialog, text=f"Shrink schedule #{schedule_id}", font=("TkDefaultFont", 10, "bold")).pack(pady=10)
         ttk.Label(dialog, text=f"Current end: {current_end}").pack(pady=5)
 
         ttk.Label(dialog, text="New end date (YYYY-MM-DD HH:MM):").pack(pady=10)
@@ -310,14 +304,17 @@ class AdminScheduleView(BaseAdminView):
                 lambda: self.shell.schedule_commands.cmd_shrink(args),
                 f"Schedule #{schedule_id} shrunk",
                 "Shrink Failed",
-                self._load_schedules
+                self._load_schedules,
             )
             dialog.destroy()
 
-        FormDialog.create_button_row(dialog, [
-            ("Cancel", dialog.destroy),
-            ("Shrink", on_shrink),
-        ])
+        FormDialog.create_button_row(
+            dialog,
+            [
+                ("Cancel", dialog.destroy),
+                ("Shrink", on_shrink),
+            ],
+        )
 
     def _delete_schedule(self):
         """Delete selected schedule"""
@@ -329,9 +326,7 @@ class AdminScheduleView(BaseAdminView):
         host_name = values[1]
 
         if not self.confirm_action(
-            "Confirm Deletion",
-            f"Delete schedule #{schedule_id} for {host_name}?\n\n"
-            "This action cannot be undone."
+            "Confirm Deletion", f"Delete schedule #{schedule_id} for {host_name}?\n\n" "This action cannot be undone."
         ):
             return
 
@@ -339,7 +334,7 @@ class AdminScheduleView(BaseAdminView):
             lambda: self.shell.schedule_commands.cmd_rm_schedule(schedule_id),
             f"Schedule #{schedule_id} deleted",
             "Delete Failed",
-            self._load_schedules
+            self._load_schedules,
         )
 
     def refresh(self):

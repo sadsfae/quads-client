@@ -7,10 +7,13 @@
 [![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](https://www.gnu.org/licenses/gpl-3.0)
 [![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
 
-QUADS Client is an interactive TUI (Text User Interface) shell for managing multiple QUADS server instances.
+QUADS Client provides both a powerful CLI and an intuitive GUI for managing multiple QUADS servers.
 
 ## Features
 
+- **Dual Interface Options**:
+  - **Standalone CLI**: Interactive shell with tab completion, scripting support, and one-shot commands
+  - **Full-Featured Multi-Platform GUI**: Modern graphical interface for Linux/macOS with onboarding wizard, dark/light themes, and visual host management
 - **Multi-Server Support**: Connect to and manage multiple QUADS servers from a single interface
 - **Session Management**: Maintain multiple authenticated connections simultaneously and switch between them instantly
 - **Bearer Token Authentication**: Secure JWT-based authentication via python-quads-lib
@@ -199,7 +202,7 @@ The client displays a visual security indicator in the prompt showing the SSL/TL
 
 ### GUI Mode
 
-For a graphical interface (requires X11/Wayland):
+For a graphical interface:
 
 ```bash
 quads-client-gui
@@ -211,7 +214,7 @@ quads-client-gui
 - Self-scheduling interface for normal users
 - My Hosts view with status monitoring
 - Dark/light theme toggle
-- Cross-platform (Linux, macOS)
+- Cross-platform (Linux, macOS, Windows)
 
 **Installation:**
 ```bash

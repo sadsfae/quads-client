@@ -1,6 +1,6 @@
 """Theme manager for QUADS Client GUI with dark/light mode support"""
 
-import tkinter as tk
+import tkinter as tk  # noqa: F401
 from tkinter import ttk
 
 
@@ -50,14 +50,14 @@ class ThemeManager:
     def _detect_available_themes(self):
         """Detect which theme packages are available"""
         try:
-            import sv_ttk
+            import sv_ttk  # noqa: F401
 
             self.has_sv_ttk = True
         except ImportError:
             pass
 
         try:
-            import ttkthemes
+            import ttkthemes  # noqa: F401
 
             self.has_ttkthemes = True
         except ImportError:
@@ -119,13 +119,9 @@ class ThemeManager:
 
         self.style.configure(".", background=colors["bg"], foreground=colors["fg"])
 
-        self.style.configure(
-            "TFrame", background=colors["bg"], bordercolor=colors["border"]
-        )
+        self.style.configure("TFrame", background=colors["bg"], bordercolor=colors["border"])
 
-        self.style.configure(
-            "TLabel", background=colors["bg"], foreground=colors["fg"]
-        )
+        self.style.configure("TLabel", background=colors["bg"], foreground=colors["fg"])
 
         self.style.configure(
             "TButton",
@@ -138,6 +134,7 @@ class ThemeManager:
         self.style.map(
             "TButton",
             background=[("active", colors["accent"]), ("pressed", colors["accent"])],
+            foreground=[("active", colors["button_fg"]), ("pressed", colors["button_fg"]), ("disabled", "gray")],
         )
 
         self.style.configure(
@@ -155,6 +152,22 @@ class ThemeManager:
             bordercolor=colors["border"],
         )
 
+        # Configure selection and hover colors for dark mode
+        if mode == "dark":
+            # Dark mode: bright selection with dark text
+            self.style.map(
+                "Treeview",
+                background=[("selected", "#007acc")],  # Blue selection background
+                foreground=[("selected", "#ffffff")],  # White text on selection
+            )
+        else:
+            # Light mode: standard selection colors
+            self.style.map(
+                "Treeview",
+                background=[("selected", "#0078d7")],  # Blue selection background
+                foreground=[("selected", "#ffffff")],  # White text on selection
+            )
+
         self.style.configure(
             "Treeview.Heading",
             background=colors["panel_bg"],
@@ -162,9 +175,7 @@ class ThemeManager:
             bordercolor=colors["border"],
         )
 
-        self.style.configure(
-            "TNotebook", background=colors["bg"], bordercolor=colors["border"]
-        )
+        self.style.configure("TNotebook", background=colors["bg"], bordercolor=colors["border"])
 
         self.style.configure(
             "TNotebook.Tab",
@@ -181,17 +192,73 @@ class ThemeManager:
 
         self.style.configure("TMenubutton", background=colors["panel_bg"])
 
+        # Checkbutton and Radiobutton configurations for dark mode visibility
         self.style.configure(
-            "Success.TLabel", foreground=colors["success"], background=colors["bg"]
+            "TCheckbutton",
+            background=colors["bg"],
+            foreground=colors["fg"],
+        )
+
+        self.style.map(
+            "TCheckbutton",
+            foreground=[("active", colors["fg"])],  # Keep text visible on hover
+            background=[("active", colors["bg"])],
         )
 
         self.style.configure(
-            "Warning.TLabel", foreground=colors["warning"], background=colors["bg"]
+            "TRadiobutton",
+            background=colors["bg"],
+            foreground=colors["fg"],
+        )
+
+        self.style.map(
+            "TRadiobutton",
+            foreground=[("active", colors["fg"])],  # Keep text visible on hover
+            background=[("active", colors["bg"])],
+        )
+
+        # Combobox configuration
+        self.style.configure(
+            "TCombobox",
+            fieldbackground=colors["entry_bg"],
+            foreground=colors["entry_fg"],
+            background=colors["panel_bg"],
+            bordercolor=colors["border"],
+        )
+
+        self.style.map(
+            "TCombobox",
+            fieldbackground=[("readonly", colors["entry_bg"])],
+            foreground=[("readonly", colors["entry_fg"])],
+        )
+
+        # Spinbox configuration
+        self.style.configure(
+            "TSpinbox",
+            fieldbackground=colors["entry_bg"],
+            foreground=colors["entry_fg"],
+            bordercolor=colors["border"],
+        )
+
+        # LabelFrame configuration
+        self.style.configure(
+            "TLabelframe",
+            background=colors["bg"],
+            foreground=colors["fg"],
+            bordercolor=colors["border"],
         )
 
         self.style.configure(
-            "Error.TLabel", foreground=colors["error"], background=colors["bg"]
+            "TLabelframe.Label",
+            background=colors["bg"],
+            foreground=colors["fg"],
         )
+
+        self.style.configure("Success.TLabel", foreground=colors["success"], background=colors["bg"])
+
+        self.style.configure("Warning.TLabel", foreground=colors["warning"], background=colors["bg"])
+
+        self.style.configure("Error.TLabel", foreground=colors["error"], background=colors["bg"])
 
     def toggle_theme(self):
         """Toggle between dark and light themes"""
@@ -201,9 +268,7 @@ class ThemeManager:
 
     def get_color(self, color_name):
         """Get a color from the current theme"""
-        colors = (
-            self.DARK_THEME if self.current_theme_mode == "dark" else self.LIGHT_THEME
-        )
+        colors = self.DARK_THEME if self.current_theme_mode == "dark" else self.LIGHT_THEME
         return colors.get(color_name, "#000000")
 
     def get_theme_info(self):
@@ -217,9 +282,7 @@ class ThemeManager:
 
     def configure_toplevel(self, toplevel):
         """Configure a Toplevel dialog with current theme colors"""
-        colors = (
-            self.DARK_THEME if self.current_theme_mode == "dark" else self.LIGHT_THEME
-        )
+        colors = self.DARK_THEME if self.current_theme_mode == "dark" else self.LIGHT_THEME
         toplevel.configure(bg=colors["bg"])
 
     @property

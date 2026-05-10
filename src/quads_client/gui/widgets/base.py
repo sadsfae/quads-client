@@ -126,9 +126,7 @@ class BaseAdminView(ttk.Frame):
         header_frame = ttk.Frame(self)
         header_frame.pack(fill=tk.X, padx=20, pady=10)
 
-        title_label = ttk.Label(
-            header_frame, text=self.title_text, font=("TkDefaultFont", 14, "bold")
-        )
+        title_label = ttk.Label(header_frame, text=self.title_text, font=("TkDefaultFont", 14, "bold"))
         title_label.pack(side=tk.LEFT)
 
         if buttons:
@@ -136,9 +134,7 @@ class BaseAdminView(ttk.Frame):
             button_frame.pack(side=tk.RIGHT)
 
             for text, command in buttons:
-                ttk.Button(button_frame, text=text, command=command).pack(
-                    side=tk.LEFT, padx=5
-                )
+                ttk.Button(button_frame, text=text, command=command).pack(side=tk.LEFT, padx=5)
 
         return header_frame
 
@@ -156,9 +152,7 @@ class BaseAdminView(ttk.Frame):
         action_frame.pack(fill=tk.X, padx=20, pady=(0, 10))
 
         for text, command in buttons:
-            ttk.Button(action_frame, text=text, command=command).pack(
-                side=tk.LEFT, padx=5
-            )
+            ttk.Button(action_frame, text=text, command=command).pack(side=tk.LEFT, padx=5)
 
         return action_frame
 
@@ -223,6 +217,7 @@ class BaseAdminView(ttk.Frame):
         except Exception as e:
             self.update_status("Error loading data")
             import traceback
+
             details = traceback.format_exc()
             show_error_dialog(self, "Load Failed", str(e), details)
             return None
@@ -283,9 +278,9 @@ class BaseAdminView(ttk.Frame):
         # Apply theme colors
         try:
             # Try to get theme manager from shell's gui_app
-            if hasattr(self.shell, 'gui_app') and hasattr(self.shell.gui_app, 'theme_manager'):
+            if hasattr(self.shell, "gui_app") and hasattr(self.shell.gui_app, "theme_manager"):
                 self.shell.gui_app.theme_manager.configure_toplevel(dialog)
-        except:
+        except Exception:
             pass
 
         return dialog
@@ -307,6 +302,7 @@ class BaseAdminView(ttk.Frame):
                 refresh_func()
         except Exception as e:
             import traceback
+
             details = traceback.format_exc()
             show_error_dialog(self, error_title, str(e), details)
 
@@ -350,8 +346,6 @@ class FormDialog:
         button_frame.pack(pady=10)
 
         for text, command in buttons:
-            ttk.Button(button_frame, text=text, command=command).pack(
-                side=tk.LEFT, padx=5
-            )
+            ttk.Button(button_frame, text=text, command=command).pack(side=tk.LEFT, padx=5)
 
         return button_frame
