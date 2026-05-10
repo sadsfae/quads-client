@@ -17,4 +17,5 @@ exclude =
     .claude,
     venv,
     env,
-    .venv
+    .venv,
+    ./test_*.py

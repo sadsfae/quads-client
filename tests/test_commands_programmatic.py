@@ -34,7 +34,7 @@ class TestServerCommandsProgrammatic:
 
         with patch("builtins.open", mock_open(read_data=yaml.dump(mock_config_data))):
             with patch("yaml.safe_load", return_value=mock_config_data):
-                with patch("yaml.dump") as mock_dump:
+                with patch("yaml.dump"):
                     with patch("requests.get") as mock_get:
                         # Mock successful server connection
                         mock_response = MagicMock()

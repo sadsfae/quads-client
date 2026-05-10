@@ -955,20 +955,40 @@ quads-client/
 │   ├── cli/
 │   │   ├── __init__.py
 │   │   └── main.py           - CLI entry point
-│   └── commands/             - Command modules
+│   ├── gui/                  - GUI application (MVC pattern, excluded from coverage)
+│   │   ├── __init__.py       - GUI entry point
+│   │   ├── main.py           - Main application window
+│   │   ├── theme.py          - Dark/light theme manager
+│   │   ├── controllers/
+│   │   │   └── gui_shell.py  - Adapter between GUI and command classes
+│   │   ├── views/            - Feature-specific views
+│   │   │   ├── onboarding.py - First-time setup wizard
+│   │   │   ├── connection.py - Server connection/auth view
+│   │   │   ├── schedule.py   - Self-scheduling view (SSM users)
+│   │   │   ├── my_hosts.py   - My hosts view
+│   │   │   ├── assignments.py- Assignments view
+│   │   │   ├── settings.py   - Settings/preferences view
+│   │   │   └── about.py      - About dialog
+│   │   └── widgets/          - Reusable custom widgets
+│   │       ├── base.py       - Base widget classes
+│   │       ├── dialogs.py    - Dialog helpers
+│   │       └── server_list.py- Server connection list widget
+│   └── commands/             - Command modules (business logic)
 │       ├── __init__.py
 │       ├── available.py      - Available hosts
 │       ├── cloud.py          - Cloud management
 │       ├── connection.py     - Connection commands
 │       ├── host.py           - Host management (admin)
 │       ├── schedule.py       - Schedule management (admin)
-│       ├── server.py         - Server configuration
+│       ├── server.py         - Server configuration (programmatic methods)
 │       ├── session.py        - Session management
-│       ├── user.py           - User registration & self-scheduling
+│       ├── user.py           - User registration & self-scheduling (programmatic methods)
 │       └── version.py        - Version command
 ├── conf/
 │   └── quads-client.yml.example - Example configuration
 ├── tests/                    - pytest test suite (519 tests, 71.0% coverage)
+│   ├── test_commands_programmatic.py - Tests for GUI-supporting programmatic methods
+│   └── ...                   - Other test files
 ├── rpm/
 │   └── quads-client.spec     - RPM package specification
 ├── images/                   - Screenshots and documentation images
@@ -976,7 +996,8 @@ quads-client/
 ├── pyproject.toml            - Modern Python project metadata
 ├── requirements.txt          - Production dependencies
 ├── requirements-dev.txt      - Development dependencies
-└── pytest.ini                - pytest configuration
+├── pytest.ini                - pytest configuration
+└── .coveragerc               - Coverage config (GUI excluded per MVC best practices)
 ```
 
 ## Dependencies
