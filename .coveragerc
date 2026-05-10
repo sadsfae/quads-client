@@ -7,6 +7,7 @@ omit =
     */site-packages/*
     */__pycache__/*
     */cli/main.py
+    src/quads_client/gui/*
 
 [report]
 precision = 2
