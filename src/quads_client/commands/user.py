@@ -355,10 +355,11 @@ class UserCommands:
 
             if hostname:
                 # Release specific host
-                response = input(f"Release {hostname} from assignment {assignment_id} (cloud: {cloud_name})? [y/N]: ")
-                if response.lower() != "y":
-                    self.shell.poutput("Host not released")
-                    return
+                if not getattr(self.shell, 'gui_mode', False):
+                    response = input(f"Release {hostname} from assignment {assignment_id} (cloud: {cloud_name})? [y/N]: ")
+                    if response.lower() != "y":
+                        self.shell.poutput("Host not released")
+                        return
 
                 schedules = self.shell.connection.api.get_schedules({"assignment_id": assignment_id, "host": hostname})
                 if not schedules:
@@ -369,10 +370,11 @@ class UserCommands:
                 self.shell.poutput(f"OK: Released {hostname} from assignment #{assignment_id}")
             else:
                 # Terminate entire assignment
-                response = input(f"Terminate assignment {assignment_id} (cloud: {cloud_name})? [y/N]: ")
-                if response.lower() != "y":
-                    self.shell.poutput("Assignment not terminated")
-                    return
+                if not getattr(self.shell, 'gui_mode', False):
+                    response = input(f"Terminate assignment {assignment_id} (cloud: {cloud_name})? [y/N]: ")
+                    if response.lower() != "y":
+                        self.shell.poutput("Assignment not terminated")
+                        return
 
                 result = self.shell.connection.api.terminate_assignment(assignment_id)
 

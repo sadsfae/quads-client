@@ -79,6 +79,19 @@ install -m 0644 conf/quads-client.yml.example %{buildroot}%{_datadir}/doc/quads-
 %clean
 rm -rf %{buildroot}
 
+%package gui
+Summary: GUI for QUADS Client
+Requires: %{name} = %{version}-%{release}
+Requires: python3-tkinter >= 3.13
+
+%description gui
+Graphical user interface for QUADS Client using tkinter.
+Provides an intuitive GUI for managing QUADS servers, scheduling
+hosts, and monitoring assignments. Requires X11/Wayland display.
+
+Theme packages (ttkthemes, sv-ttk) are installed as Python dependencies.
+Falls back to built-in 'clam' theme if pip packages unavailable.
+
 %files
 %doc README.md
 %license LICENSE
@@ -86,6 +99,9 @@ rm -rf %{buildroot}
 %{python3_sitelib}/quads_client/
 %{python3_sitelib}/quads_client-*.egg-info/
 %{_datadir}/doc/quads-client/
+
+%files gui
+%{_bindir}/quads-client-gui
 
 %post
 # Enable bash completion globally if available
@@ -101,11 +117,24 @@ echo "======================================================="
 echo "                                                       "
 echo " To get started:                                       "
 echo " Use the interactive add-quads-server command:         "
-echo "  quads-client                                         " 
+echo "  quads-client                                         "
 echo "  add-quads-server                                     "
 echo "  (follow prompts)                                     "
 echo "  connect <server_name>                                "
 echo "  register your.email@example.com YourPassword123      "
+echo "======================================================="
+fi
+:;
+
+%post gui
+if [ "$1" -eq 1 ]; then
+echo "======================================================="
+echo " QUADS Client GUI installed successfully               "
+echo "======================================================="
+echo "                                                       "
+echo " Launch with: quads-client-gui                         "
+echo "                                                       "
+echo " Note: Requires X11/Wayland display                    "
 echo "======================================================="
 fi
 :;

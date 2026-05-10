@@ -23,6 +23,11 @@ dependencies = [
     "requests>=2.31.0"
 ]
 
+# NOTE: ttkthemes and sv-ttk are NOT included as dependencies
+# They don't exist as Fedora RPMs, which would create drift between pip and RPM installs
+# GUI gracefully falls back to built-in 'clam' theme (looks good!)
+# Advanced users can manually: pip install ttkthemes sv-ttk for enhanced themes
+
 [project.optional-dependencies]
 dev = [
     "black==24.4.2",
@@ -37,6 +42,7 @@ test = [
 
 [project.scripts]
 quads-client = "quads_client.cli:main"
+quads-client-gui = "quads_client.gui:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]

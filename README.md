@@ -53,6 +53,7 @@ QUADS Client is an interactive TUI (Text User Interface) shell for managing mult
 - [Configuration](#configuration)
 - [How to Self-Schedule](#how-to-self-schedule)
 - [Usage](#usage)
+  - [GUI Mode](#gui-mode)
   - [Interactive Mode](#interactive-mode)
   - [One-Shot Commands](#one-shot-commands)
 - [Commands](#commands)
@@ -115,7 +116,7 @@ deactivate
 
 ### From RPM
 
-For Red Hat-based distributions (RHEL, Rocky, Fedora):
+For Fedora:
 
 ```bash
 dnf copr enable quadsdev/python3-quads -y
@@ -195,6 +196,32 @@ The client displays a visual security indicator in the prompt showing the SSL/TL
 > See the [QUADS SSL configuration guide](https://github.com/quadsproject/quads#using-ssl-with-flask-api-and-quads) for instructions on configuring nginx with SSL certificates.
 
 ## Usage
+
+### GUI Mode
+
+For a graphical interface (requires X11/Wayland):
+
+```bash
+quads-client-gui
+```
+
+**GUI Features:**
+- Onboarding wizard for first-time setup
+- Server/connection management with session switching
+- Self-scheduling interface for normal users
+- My Hosts view with status monitoring
+- Dark/light theme toggle
+- Cross-platform (Linux, macOS)
+
+**Installation:**
+```bash
+# Fedora
+dnf install quads-client-gui
+
+# pip
+pip install quads-client
+quads-client-gui
+```
 
 ### Interactive Mode
 
@@ -998,8 +1025,14 @@ pytest tests/ --cov=quads_client --cov-report=html --cov-report=term
 
 ### Manual Testing
 
+**CLI (Interactive Shell):**
 ```bash
 PYTHONPATH=src python3 -c "from quads_client.shell import QuadsClientShell; shell = QuadsClientShell(); shell.cmdloop()"
+```
+
+**GUI:**
+```bash
+PYTHONPATH=./src python3 -m quads_client.gui
 ```
 
 ## Contributing
