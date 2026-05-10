@@ -214,3 +214,15 @@ class ThemeManager:
             return "ttkthemes"
         else:
             return "Built-in (clam)"
+
+    def configure_toplevel(self, toplevel):
+        """Configure a Toplevel dialog with current theme colors"""
+        colors = (
+            self.DARK_THEME if self.current_theme_mode == "dark" else self.LIGHT_THEME
+        )
+        toplevel.configure(bg=colors["bg"])
+
+    @property
+    def current_mode(self):
+        """Get current theme mode"""
+        return self.current_theme_mode

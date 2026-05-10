@@ -1,0 +1,297 @@
+"""Available hosts view - shows available hosts for scheduling"""
+
+import tkinter as tk
+from tkinter import ttk
+
+from quads_client.gui.widgets.base import BaseAdminView, ScrolledTreeview
+
+
+class AvailableView(BaseAdminView):
+    """View for displaying available hosts"""
+
+    def __init__(self, parent, shell):
+        super().__init__(parent, shell, "Available Hosts", requires_admin=False)
+        self._create_ui()
+
+    def _create_ui(self):
+        """Create the UI"""
+        # Header with refresh button
+        self.create_header([("🔄 Refresh", self.refresh)])
+
+        # Check if connected
+        if not self.shell.is_authenticated():
+            # Show not connected message
+            message_frame = ttk.Frame(self)
+            message_frame.pack(fill=tk.BOTH, expand=True, padx=20, pady=50)
+
+            ttk.Label(
+                message_frame,
+                text="Not connected to any QUADS server",
+                font=("TkDefaultFont", 14),
+                foreground="gray"
+            ).pack(pady=20)
+
+            ttk.Label(
+                message_frame,
+                text="Please connect to a server from the Servers view",
+                foreground="gray"
+            ).pack(pady=10)
+
+            ttk.Button(
+                message_frame,
+                text="Go to Servers",
+                command=lambda: self.shell.gui_app._show_servers_view()
+            ).pack(pady=10)
+
+            # Status label
+            self.create_status_label()
+            return
+
+        # Filter frame
+        filter_frame = ttk.Frame(self)
+        filter_frame.pack(fill=tk.X, padx=20, pady=(0, 10))
+
+        ttk.Label(filter_frame, text="Days:").pack(side=tk.LEFT, padx=(0, 5))
+        self.days_entry = ttk.Entry(filter_frame, width=10)
+        self.days_entry.insert(0, "3")
+        self.days_entry.pack(side=tk.LEFT, padx=5)
+
+        ttk.Label(filter_frame, text="Model:").pack(side=tk.LEFT, padx=(20, 5))
+        # Use combobox with models from API
+        models = ["All"] + self.shell.get_available_models()
+        self.model_combo = ttk.Combobox(filter_frame, values=models, width=15, state="readonly")
+        self.model_combo.set("All")
+        self.model_combo.pack(side=tk.LEFT, padx=5)
+
+        ttk.Label(filter_frame, text="RAM (GB):").pack(side=tk.LEFT, padx=(20, 5))
+        self.ram_entry = ttk.Entry(filter_frame, width=10)
+        self.ram_entry.pack(side=tk.LEFT, padx=5)
+
+        ttk.Button(filter_frame, text="Apply", command=self._load_available).pack(
+            side=tk.LEFT, padx=10
+        )
+
+        # Content frame with scrolled treeview
+        content_frame = ttk.Frame(self)
+        content_frame.pack(fill=tk.BOTH, expand=True, padx=20, pady=(0, 20))
+
+        columns = ("host", "model", "type", "self_schedule")
+        column_configs = {
+            "host": ("Host", 300),
+            "model": ("Model", 120),
+            "type": ("Type", 100),
+            "self_schedule": ("Self-Schedule", 120),
+        }
+
+        # Enable multi-selection with Ctrl+click and Shift+click
+        self.tree = ScrolledTreeview(content_frame, columns, column_configs, selectmode="extended")
+        self.tree.pack(fill=tk.BOTH, expand=True)
+
+        # Enable copy/paste
+        self._setup_clipboard()
+
+        # Bind to selection events to update button states
+        self.tree.tree.bind("<<TreeviewSelect>>", self._on_selection_changed)
+
+        # Action buttons (store references for enable/disable)
+        action_frame = ttk.Frame(self)
+        action_frame.pack(fill=tk.X, padx=20, pady=(0, 10))
+
+        self.copy_selected_btn = ttk.Button(action_frame, text="Copy Selected", command=self._copy_selected)
+        self.copy_selected_btn.pack(side=tk.LEFT, padx=5)
+
+        ttk.Button(action_frame, text="Copy All", command=self._copy_all).pack(side=tk.LEFT, padx=5)
+
+        self.schedule_now_btn = ttk.Button(action_frame, text="Schedule Now", command=self._schedule_selected)
+        self.schedule_now_btn.pack(side=tk.LEFT, padx=5)
+
+        self.unselect_btn = ttk.Button(action_frame, text="Unselect All", command=self._unselect_all)
+        self.unselect_btn.pack(side=tk.LEFT, padx=5)
+
+        # Initially disable selection-dependent buttons
+        self._update_button_states()
+
+        # Status label
+        self.create_status_label()
+
+        # Initial load
+        self._load_available()
+
+    def _setup_clipboard(self):
+        """Setup clipboard keyboard shortcuts"""
+        # Ctrl+C / Cmd+C to copy
+        self.tree.tree.bind("<Control-c>", lambda e: self._copy_selected())
+        self.tree.tree.bind("<Command-c>", lambda e: self._copy_selected())
+
+    def _on_selection_changed(self, event=None):
+        """Handle tree selection changes"""
+        self._update_button_states()
+
+    def _update_button_states(self):
+        """Enable/disable buttons based on selection"""
+        if not hasattr(self, 'tree'):
+            return
+
+        selection = self.tree.selection()
+        has_selection = len(selection) > 0
+
+        # Enable/disable selection-dependent buttons
+        if hasattr(self, 'copy_selected_btn'):
+            self.copy_selected_btn.config(state=tk.NORMAL if has_selection else tk.DISABLED)
+
+        if hasattr(self, 'schedule_now_btn'):
+            self.schedule_now_btn.config(state=tk.NORMAL if has_selection else tk.DISABLED)
+
+        if hasattr(self, 'unselect_btn'):
+            self.unselect_btn.config(state=tk.NORMAL if has_selection else tk.DISABLED)
+
+    def _unselect_all(self):
+        """Clear all selections"""
+        if not hasattr(self, 'tree'):
+            return
+
+        # Clear selection
+        for item in self.tree.selection():
+            self.tree.tree.selection_remove(item)
+
+        self.update_status("Selection cleared")
+
+    def _load_available(self):
+        """Load available hosts from server"""
+        # Check if connected first
+        if not self.shell.is_authenticated():
+            self.update_status("Not connected to server")
+            return
+
+        # Check if tree exists (it won't if we showed the not-connected message)
+        if not hasattr(self, 'tree'):
+            return
+
+        self.tree.clear()
+
+        try:
+            days = self.days_entry.get().strip() or "3"
+            model = self.model_combo.get()
+            ram = self.ram_entry.get().strip()
+
+            self.update_status("Loading available hosts...")
+
+            # Use GUI shell method to get structured data
+            hosts = self.shell.get_available_hosts_data(days=days, model=model, ram=ram)
+
+            if not hosts:
+                self.update_status("No available hosts found")
+                return
+
+            # Populate table
+            for host in hosts:
+                self.tree.insert(
+                    "",
+                    tk.END,
+                    values=(
+                        host["name"],
+                        host["model"],
+                        host["host_type"],
+                        "Yes" if host["can_self_schedule"] else "No"
+                    )
+                )
+
+            self.update_status(f"Loaded {len(hosts)} available host(s)")
+
+            # Update button states after loading
+            self._update_button_states()
+
+        except Exception as e:
+            self.update_status(f"Error: {str(e)}")
+
+    def _copy_selected(self):
+        """Copy selected rows to clipboard"""
+        if not hasattr(self, 'tree'):
+            return
+
+        selection = self.tree.selection()
+        if not selection:
+            self.update_status("No items selected to copy")
+            return
+
+        lines = []
+        for item in selection:
+            values = self.tree.item(item, "values")
+            lines.append("\t".join(str(v) for v in values))
+
+        text = "\n".join(lines)
+        self.clipboard_clear()
+        self.clipboard_append(text)
+        self.update_status(f"Copied {len(lines)} row(s) to clipboard")
+
+    def _copy_all(self):
+        """Copy all rows to clipboard"""
+        if not hasattr(self, 'tree'):
+            return
+
+        items = self.tree.tree.get_children()
+        if not items:
+            self.update_status("No data to copy")
+            return
+
+        # Add header
+        columns = self.tree.tree["columns"]
+        header = "\t".join(self.tree.tree.heading(col)["text"] for col in columns)
+
+        lines = [header]
+        for item in items:
+            values = self.tree.item(item, "values")
+            lines.append("\t".join(str(v) for v in values))
+
+        text = "\n".join(lines)
+        self.clipboard_clear()
+        self.clipboard_append(text)
+        self.update_status(f"Copied {len(items)} row(s) with headers to clipboard")
+
+    def _schedule_selected(self):
+        """Schedule selected hosts - navigate to Schedule view with hosts pre-filled"""
+        if not hasattr(self, 'tree'):
+            return
+
+        selection = self.tree.selection()
+        if not selection:
+            self.update_status("No hosts selected - please select one or more hosts")
+            return
+
+        # Get selected hostnames
+        hostnames = []
+        for item in selection:
+            values = self.tree.item(item, "values")
+            hostname = values[0]
+            hostnames.append(hostname)
+
+        if not hostnames:
+            self.update_status("No valid hosts selected")
+            return
+
+        # Navigate to Schedule view and pre-fill hosts
+        self.shell.gui_app._show_schedule_view()
+
+        # Pre-fill the schedule view with selected hosts
+        if "schedule" in self.shell.gui_app.views:
+            schedule_view = self.shell.gui_app.views["schedule"]
+
+            # Switch to "Specific hostnames" mode
+            schedule_view.mode_var.set("hosts")
+            schedule_view._on_mode_changed()
+
+            # Fill in the hostnames
+            schedule_view.hosts_entry.delete(0, tk.END)
+            schedule_view.hosts_entry.insert(0, ",".join(hostnames))
+
+            # Update preview
+            schedule_view._update_preview()
+
+        self.update_status(f"Navigated to Schedule with {len(hostnames)} host(s) pre-filled")
+
+    def refresh(self):
+        """Public method to refresh the view"""
+        # Recreate UI to handle connection state changes
+        for widget in self.winfo_children():
+            widget.destroy()
+        self._create_ui()

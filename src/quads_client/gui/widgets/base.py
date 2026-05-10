@@ -8,7 +8,7 @@ from quads_client.gui.widgets.dialogs import show_error_dialog
 class ScrolledTreeview(ttk.Frame):
     """Treeview with vertical and horizontal scrollbars"""
 
-    def __init__(self, parent, columns, column_configs=None, **tree_kwargs):
+    def __init__(self, parent, columns, column_configs=None, enable_copy=True, **tree_kwargs):
         """
         Create a treeview with scrollbars
 
@@ -17,9 +17,11 @@ class ScrolledTreeview(ttk.Frame):
             columns: Tuple of column identifiers
             column_configs: Dict mapping column_id to (heading_text, width)
                            e.g., {"id": ("ID", 60), "name": ("Name", 200)}
+            enable_copy: Enable Ctrl+C / Cmd+C to copy selected rows
             **tree_kwargs: Additional arguments passed to Treeview
         """
         super().__init__(parent)
+        self.enable_copy = enable_copy
 
         # Scrollbars
         scrollbar_y = ttk.Scrollbar(self)
@@ -47,6 +49,31 @@ class ScrolledTreeview(ttk.Frame):
                 self.tree.column(col_id, width=width)
 
         self.tree.pack(fill=tk.BOTH, expand=True)
+
+        # Setup clipboard if enabled
+        if self.enable_copy:
+            self._setup_clipboard()
+
+    def _setup_clipboard(self):
+        """Setup clipboard keyboard shortcuts"""
+        self.tree.bind("<Control-c>", lambda e: self.copy_selected())
+        self.tree.bind("<Command-c>", lambda e: self.copy_selected())
+
+    def copy_selected(self):
+        """Copy selected rows to clipboard"""
+        selection = self.tree.selection()
+        if not selection:
+            return
+
+        lines = []
+        for item in selection:
+            values = self.tree.item(item, "values")
+            lines.append("\t".join(str(v) for v in values))
+
+        text = "\n".join(lines)
+        self.clipboard_clear()
+        self.clipboard_append(text)
+        return len(lines)
 
     def clear(self):
         """Clear all items from the tree"""
@@ -252,6 +279,15 @@ class BaseAdminView(ttk.Frame):
         dialog.resizable(False, False)
         dialog.transient(self)
         dialog.grab_set()
+
+        # Apply theme colors
+        try:
+            # Try to get theme manager from shell's gui_app
+            if hasattr(self.shell, 'gui_app') and hasattr(self.shell.gui_app, 'theme_manager'):
+                self.shell.gui_app.theme_manager.configure_toplevel(dialog)
+        except:
+            pass
+
         return dialog
 
     def safe_execute(self, command_func, success_message, error_title, refresh_func=None):

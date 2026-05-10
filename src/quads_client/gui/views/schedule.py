@@ -22,8 +22,31 @@ class ScheduleView(ttk.Frame):
         )
         title_label.pack(pady=20, padx=20, anchor=tk.W)
 
-        main_frame = ttk.Frame(self)
-        main_frame.pack(fill=tk.BOTH, expand=True, padx=20)
+        # Create a canvas with scrollbar for main content
+        canvas = tk.Canvas(self, highlightthickness=0)
+        scrollbar = ttk.Scrollbar(self, orient="vertical", command=canvas.yview)
+        scrollable_frame = ttk.Frame(canvas)
+
+        scrollable_frame.bind(
+            "<Configure>",
+            lambda e: canvas.configure(scrollregion=canvas.bbox("all"))
+        )
+
+        canvas.create_window((0, 0), window=scrollable_frame, anchor="nw")
+        canvas.configure(yscrollcommand=scrollbar.set)
+
+        canvas.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=(20, 0))
+        scrollbar.pack(side=tk.RIGHT, fill=tk.Y, padx=(0, 20))
+
+        # Enable mouse wheel scrolling
+        def _on_mousewheel(event):
+            canvas.yview_scroll(int(-1 * (event.delta / 120)), "units")
+
+        canvas.bind_all("<MouseWheel>", _on_mousewheel)  # Windows/MacOS
+        canvas.bind_all("<Button-4>", lambda e: canvas.yview_scroll(-1, "units"))  # Linux
+        canvas.bind_all("<Button-5>", lambda e: canvas.yview_scroll(1, "units"))  # Linux
+
+        main_frame = scrollable_frame
 
         ttk.Label(
             main_frame,
@@ -84,17 +107,123 @@ class ScheduleView(ttk.Frame):
             anchor=tk.W, pady=(10, 5)
         )
         self.description_entry = ttk.Entry(main_frame, width=50)
-        self.description_entry.pack(fill=tk.X, pady=(0, 20))
+        self.description_entry.pack(fill=tk.X, pady=(0, 10))
         self.description_entry.insert(0, "Development testing environment")
+
+        # Browse available hosts section
+        self.browse_available_var = tk.BooleanVar(value=False)
+        browse_check = ttk.Checkbutton(
+            main_frame,
+            text="Browse available hosts ▼",
+            variable=self.browse_available_var,
+            command=self._toggle_browse_available,
+        )
+        browse_check.pack(anchor=tk.W, pady=(0, 10))
+
+        self.available_frame = ttk.LabelFrame(
+            main_frame, text="Available Hosts", padding=10
+        )
+
+        available_controls = ttk.Frame(self.available_frame)
+        available_controls.pack(fill=tk.X, pady=(0, 10))
+
+        ttk.Label(available_controls, text="Days:").pack(side=tk.LEFT, padx=(0, 5))
+        self.avail_days_entry = ttk.Entry(available_controls, width=5)
+        self.avail_days_entry.insert(0, "3")
+        self.avail_days_entry.pack(side=tk.LEFT, padx=5)
+
+        ttk.Button(
+            available_controls,
+            text="Load Available Hosts",
+            command=self._load_available_hosts
+        ).pack(side=tk.LEFT, padx=10)
+
+        self.available_status = ttk.Label(
+            available_controls,
+            text="",
+            font=("TkDefaultFont", 8),
+            foreground="gray"
+        )
+        self.available_status.pack(side=tk.LEFT, padx=10)
+
+        # Scrollable list of available hosts
+        avail_list_frame = ttk.Frame(self.available_frame)
+        avail_list_frame.pack(fill=tk.BOTH, expand=True)
+
+        scrollbar = ttk.Scrollbar(avail_list_frame)
+        scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
+
+        self.available_listbox = tk.Listbox(
+            avail_list_frame,
+            selectmode=tk.MULTIPLE,
+            height=6,
+            yscrollcommand=scrollbar.set
+        )
+        scrollbar.config(command=self.available_listbox.yview)
+        self.available_listbox.pack(fill=tk.BOTH, expand=True)
+
+        avail_buttons = ttk.Frame(self.available_frame)
+        avail_buttons.pack(fill=tk.X, pady=(10, 0))
+
+        ttk.Button(
+            avail_buttons,
+            text="Use Selected Hosts",
+            command=self._use_selected_hosts
+        ).pack(side=tk.LEFT, padx=5)
+
+        ttk.Button(
+            avail_buttons,
+            text="Clear",
+            command=lambda: self.available_listbox.delete(0, tk.END)
+        ).pack(side=tk.LEFT, padx=5)
+
+        # Advanced options row with checkboxes
+        advanced_row = ttk.Frame(main_frame)
+        advanced_row.pack(fill=tk.X, pady=(0, 10))
 
         self.advanced_var = tk.BooleanVar(value=False)
         advanced_check = ttk.Checkbutton(
-            main_frame,
+            advanced_row,
             text="Show advanced options ▼",
             variable=self.advanced_var,
             command=self._toggle_advanced,
         )
-        advanced_check.pack(anchor=tk.W, pady=(0, 10))
+        advanced_check.pack(side=tk.LEFT)
+
+        # Checkboxes to the right of advanced options
+        options_right = ttk.Frame(advanced_row)
+        options_right.pack(side=tk.RIGHT)
+
+        # No Wipe checkbox
+        self.nowipe_var = tk.BooleanVar(value=False)
+        ttk.Checkbutton(
+            options_right,
+            text="No Wipe (preserve data)",
+            variable=self.nowipe_var,
+            command=self._update_preview
+        ).pack(side=tk.LEFT, padx=10)
+
+        # VLAN checkbox
+        self.use_vlan_var = tk.BooleanVar(value=False)
+        ttk.Checkbutton(
+            options_right,
+            text="Use VLAN",
+            variable=self.use_vlan_var,
+            command=self._toggle_vlan
+        ).pack(side=tk.LEFT, padx=5)
+
+        # VLAN dropdown (initially disabled)
+        free_vlans = self.shell.get_available_vlans()
+        vlan_values = ["Select VLAN..."] + free_vlans
+        self.vlan_combo = ttk.Combobox(
+            options_right,
+            values=vlan_values,
+            width=15,
+            state="disabled"
+        )
+        self.vlan_combo.set("Select VLAN...")
+        self.vlan_combo.pack(side=tk.LEFT, padx=5)
+        self.vlan_combo.bind("<<ComboboxSelected>>", lambda e: self._update_preview())
 
         self.advanced_frame = ttk.LabelFrame(
             main_frame, text="Advanced Options", padding=10
@@ -104,8 +233,10 @@ class ScheduleView(ttk.Frame):
         filters_frame.grid(row=0, column=0, columnspan=2, sticky=tk.W, pady=5)
 
         ttk.Label(filters_frame, text="Model:").pack(side=tk.LEFT, padx=(0, 5))
+        # Fetch models from API using existing quads-client code
+        models = ["All"] + self.shell.get_available_models()
         self.model_combo = ttk.Combobox(
-            filters_frame, values=["All", "r640", "r650", "r750"], width=15, state="readonly"
+            filters_frame, values=models, width=15, state="readonly"
         )
         self.model_combo.set("All")
         self.model_combo.pack(side=tk.LEFT, padx=5)
@@ -120,21 +251,12 @@ class ScheduleView(ttk.Frame):
         network_frame = ttk.Frame(self.advanced_frame)
         network_frame.grid(row=1, column=0, columnspan=2, sticky=tk.W, pady=10)
 
-        ttk.Label(network_frame, text="VLAN ID:").pack(side=tk.LEFT, padx=(0, 5))
-        self.vlan_entry = ttk.Entry(network_frame, width=15)
-        self.vlan_entry.pack(side=tk.LEFT, padx=5)
-
-        ttk.Label(network_frame, text="QinQ:").pack(side=tk.LEFT, padx=(20, 5))
+        ttk.Label(network_frame, text="QinQ:").pack(side=tk.LEFT, padx=(0, 5))
         self.qinq_combo = ttk.Combobox(
             network_frame, values=["Disabled", "0", "1"], width=10, state="readonly"
         )
         self.qinq_combo.set("Disabled")
         self.qinq_combo.pack(side=tk.LEFT, padx=5)
-
-        self.nowipe_var = tk.BooleanVar(value=False)
-        ttk.Checkbutton(
-            self.advanced_frame, text="No wipe (preserve existing data)", variable=self.nowipe_var
-        ).grid(row=2, column=0, columnspan=2, sticky=tk.W, pady=5)
 
         preview_frame = ttk.LabelFrame(main_frame, text="Preview", padding=10)
         preview_frame.pack(fill=tk.X, pady=(20, 20))
@@ -167,6 +289,13 @@ class ScheduleView(ttk.Frame):
 
         self._update_preview()
 
+    def _toggle_browse_available(self):
+        """Toggle browse available hosts section"""
+        if self.browse_available_var.get():
+            self.available_frame.pack(fill=tk.X, pady=(0, 10))
+        else:
+            self.available_frame.pack_forget()
+
     def _toggle_advanced(self):
         """Toggle advanced options"""
         if self.advanced_var.get():
@@ -174,6 +303,86 @@ class ScheduleView(ttk.Frame):
         else:
             self.advanced_frame.pack_forget()
 
+        self._update_preview()
+
+    def _toggle_vlan(self):
+        """Toggle VLAN dropdown based on checkbox"""
+        if self.use_vlan_var.get():
+            self.vlan_combo.config(state="readonly")
+        else:
+            self.vlan_combo.config(state="disabled")
+            self.vlan_combo.set("Select VLAN...")
+
+        self._update_preview()
+
+    def _load_available_hosts(self):
+        """Load available hosts and display in listbox"""
+        if not self.shell.is_authenticated():
+            self.available_status.config(text="Not connected")
+            return
+
+        try:
+            self.available_status.config(text="Loading...")
+            self.update()
+
+            # Build filter args
+            days = self.avail_days_entry.get().strip() or "3"
+
+            # Get available hosts data from API
+            hosts = self.shell.get_available_hosts_data(days=days, model=None, ram=None)
+
+            self.available_listbox.delete(0, tk.END)
+
+            if not hosts:
+                self.available_listbox.insert(tk.END, "No available hosts found")
+                self.available_status.config(text="No hosts found")
+                return
+
+            # Populate listbox with hostnames
+            for host in hosts:
+                self.available_listbox.insert(tk.END, host["name"])
+
+            self.available_status.config(text=f"Loaded {len(hosts)} host(s)")
+
+        except Exception as e:
+            self.available_status.config(text="Error")
+            import traceback
+            details = traceback.format_exc()
+            show_error_dialog(self, "Load Available Failed", str(e), details)
+
+    def _use_selected_hosts(self):
+        """Use selected hosts from listbox"""
+        selection_indices = self.available_listbox.curselection()
+        if not selection_indices:
+            messagebox.showwarning("No Selection", "Please select hosts from the list")
+            return
+
+        # Get selected hostnames
+        hostnames = []
+        for idx in selection_indices:
+            hostname = self.available_listbox.get(idx).strip()
+            # Only add if it looks like a hostname (contains a dot)
+            if hostname and "." in hostname:
+                hostnames.append(hostname)
+
+        if not hostnames:
+            messagebox.showinfo(
+                "Info",
+                "No valid hostnames selected.\n\n"
+                "Note: The available hosts view is currently informational.\n"
+                "Please manually enter hostnames in the 'Specific hostnames' field."
+            )
+            return
+
+        # Switch to "Specific hostnames" mode and populate
+        self.mode_var.set("hosts")
+        self._on_mode_changed()
+
+        # Join hostnames and set in entry
+        self.hosts_entry.delete(0, tk.END)
+        self.hosts_entry.insert(0, ",".join(hostnames))
+
+        messagebox.showinfo("Success", f"Added {len(hostnames)} host(s) to the schedule")
         self._update_preview()
 
     def _browse_file(self):
@@ -208,17 +417,23 @@ class ScheduleView(ttk.Frame):
         preview += "• Duration: 5 days or until Sunday 21:00 UTC\n"
         preview += "• Assignment will be activated immediately\n"
 
+        # Show VLAN if enabled
+        if self.use_vlan_var.get():
+            vlan = self.vlan_combo.get()
+            if vlan and vlan != "Select VLAN...":
+                preview += f"• VLAN: {vlan}\n"
+
+        # Show nowipe if enabled
+        if self.nowipe_var.get():
+            preview += "• No wipe (data will be preserved)\n"
+
         if self.advanced_var.get():
             if self.model_combo.get() != "All":
                 preview += f"• Filter: Model {self.model_combo.get()}\n"
             if self.ram_combo.get() != "Any":
                 preview += f"• Filter: RAM >= {self.ram_combo.get()} GB\n"
-            if self.vlan_entry.get():
-                preview += f"• VLAN: {self.vlan_entry.get()}\n"
             if self.qinq_combo.get() != "Disabled":
                 preview += f"• QinQ: {self.qinq_combo.get()}\n"
-            if self.nowipe_var.get():
-                preview += "• No wipe (data will be preserved)\n"
 
         self.preview_text.config(state=tk.NORMAL)
         self.preview_text.delete("1.0", tk.END)
@@ -257,17 +472,24 @@ class ScheduleView(ttk.Frame):
 
         args += f' description "{description}"'
 
+        # Add VLAN if enabled
+        if self.use_vlan_var.get():
+            vlan = self.vlan_combo.get()
+            if vlan and vlan != "Select VLAN...":
+                args += f" vlan {vlan}"
+
+        # Add nowipe if enabled
+        if self.nowipe_var.get():
+            args += " nowipe"
+
+        # Add advanced options if shown
         if self.advanced_var.get():
             if self.model_combo.get() != "All":
                 args += f" model {self.model_combo.get()}"
             if self.ram_combo.get() != "Any":
                 args += f" ram {self.ram_combo.get()}"
-            if self.vlan_entry.get():
-                args += f" vlan {self.vlan_entry.get()}"
             if self.qinq_combo.get() != "Disabled":
                 args += f" qinq {self.qinq_combo.get()}"
-            if self.nowipe_var.get():
-                args += " nowipe"
 
         try:
             self.shell.user_commands.cmd_schedule(args)
@@ -290,9 +512,11 @@ class ScheduleView(ttk.Frame):
         self.description_entry.insert(0, "Development testing environment")
         self.model_combo.set("All")
         self.ram_combo.set("Any")
-        self.vlan_entry.delete(0, tk.END)
         self.qinq_combo.set("Disabled")
         self.nowipe_var.set(False)
+        self.use_vlan_var.set(False)
+        self.vlan_combo.set("Select VLAN...")
+        self.vlan_combo.config(state="disabled")
         self.advanced_var.set(False)
         self.advanced_frame.pack_forget()
         self._on_mode_changed()

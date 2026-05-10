@@ -16,6 +16,8 @@ from quads_client.gui.views.assignments import AssignmentsView
 from quads_client.gui.views.clouds import CloudsView
 from quads_client.gui.views.hosts import HostsView
 from quads_client.gui.views.admin_schedule import AdminScheduleView
+from quads_client.gui.views.available import AvailableView
+from quads_client.gui.views.settings import SettingsView
 
 
 class QuadsClientApp(tk.Tk):
@@ -37,8 +39,8 @@ class QuadsClientApp(tk.Tk):
         self.shell = GuiShell(self)
 
         self._create_menu_bar()
-        self._create_main_layout()
         self._create_status_bar()
+        self._create_main_layout()
 
         self.protocol("WM_DELETE_WINDOW", self._on_closing)
 
@@ -135,6 +137,7 @@ class QuadsClientApp(tk.Tk):
         nav_items = [
             ("📡 Servers", self._show_servers_view, False),
             ("📅 Schedule", self._show_schedule_view, False),
+            ("📊 Available", self._show_available_view, False),
             ("💻 My Hosts", self._show_my_hosts_view, False),
             ("📋 Assignments", self._show_assignments_view, False),
             ("", None, False),  # Separator
@@ -188,11 +191,13 @@ class QuadsClientApp(tk.Tk):
 
         self.views["servers"] = ConnectionView(self.content_frame, self.shell)
         self.views["schedule"] = ScheduleView(self.content_frame, self.shell)
+        self.views["available"] = AvailableView(self.content_frame, self.shell)
         self.views["my_hosts"] = MyHostsView(self.content_frame, self.shell)
         self.views["assignments"] = AssignmentsView(self.content_frame, self.shell)
         self.views["admin_schedule"] = AdminScheduleView(self.content_frame, self.shell)
         self.views["clouds"] = CloudsView(self.content_frame, self.shell)
         self.views["hosts"] = HostsView(self.content_frame, self.shell)
+        self.views["settings"] = SettingsView(self.content_frame, self.shell)
 
         self._show_view("welcome")
 
@@ -305,10 +310,15 @@ class QuadsClientApp(tk.Tk):
         self._show_view("hosts")
         self.update_status("Host Management")
 
+    def _show_available_view(self):
+        """Show available hosts view"""
+        self._show_view("available")
+        self.update_status("Available Hosts")
+
     def _show_settings_view(self):
         """Show settings view"""
         self._show_view("settings")
-        self.update_status("Settings view - Not yet implemented")
+        self.update_status("Settings")
 
     def _show_about(self):
         """Show About dialog"""
@@ -443,7 +453,8 @@ class QuadsClientApp(tk.Tk):
 
     def update_status(self, message):
         """Update status bar message"""
-        self.status_label.config(text=message)
+        if hasattr(self, 'status_label') and self.status_label:
+            self.status_label.config(text=message)
 
     def update_role_visibility(self):
         """Update visibility of admin-only navigation items and visual indicators"""

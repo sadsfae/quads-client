@@ -12,11 +12,10 @@ class MyHostsView(ttk.Frame):
     def __init__(self, parent, shell):
         super().__init__(parent)
         self.shell = shell
-        self.auto_refresh_enabled = True
+        self.auto_refresh_enabled = False
         self.refresh_interval = 30000
 
         self._create_ui()
-        self._schedule_auto_refresh()
 
     def _create_ui(self):
         """Create the UI"""
@@ -32,7 +31,7 @@ class MyHostsView(ttk.Frame):
             header_frame, text="🔄 Refresh", command=self._manual_refresh
         ).pack(side=tk.RIGHT)
 
-        self.auto_refresh_var = tk.BooleanVar(value=True)
+        self.auto_refresh_var = tk.BooleanVar(value=False)
         ttk.Checkbutton(
             header_frame,
             text="Auto-refresh (30s)",

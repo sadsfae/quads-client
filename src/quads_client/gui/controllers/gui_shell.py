@@ -84,6 +84,149 @@ class GuiShell:
         """Feedback output to GUI (same as poutput for GUI)"""
         self.poutput(message)
 
+    def get_available_models(self):
+        """
+        Fetch unique host models from the API.
+        Uses existing host_commands to get data.
+
+        Returns:
+            list: Sorted list of unique model names, or empty list if error
+        """
+        if not self.is_authenticated():
+            return []
+
+        try:
+            # Use the existing API connection through host commands
+            hosts = self.connection.api.get_hosts()
+            if not hosts:
+                return []
+
+            # Extract unique models
+            models = set()
+            for host in hosts:
+                model = host.get("model", "").strip()
+                if model:
+                    models.add(model)
+
+            return sorted(list(models))
+
+        except Exception as e:
+            # Silently fail - this is a helper method
+            return []
+
+    def get_available_vlans(self):
+        """
+        Fetch available (free) VLANs from API.
+        Uses existing cloud_commands logic.
+
+        Returns:
+            list: List of free VLAN IDs
+        """
+        if not self.is_authenticated():
+            return []
+
+        try:
+            # Get all VLANs
+            vlans = self.connection.api.get_vlans()
+            if not vlans:
+                return []
+
+            # Get active assignments to check which VLANs are in use
+            try:
+                assignments = self.connection.api.filter_assignments({"active": True})
+            except:
+                assignments = []
+
+            # Find VLANs not assigned to any cloud
+            free_vlans = []
+            for vlan in vlans:
+                vlan_id = vlan.get("vlan_id")
+                if not vlan_id:
+                    continue
+
+                # Check if this VLAN is assigned
+                is_assigned = False
+                for assignment in assignments:
+                    if assignment.get("vlan", {}).get("vlan_id") == vlan_id:
+                        is_assigned = True
+                        break
+
+                if not is_assigned:
+                    free_vlans.append(str(vlan_id))
+
+            return sorted(free_vlans, key=lambda x: int(x) if x.isdigit() else 0)
+
+        except Exception as e:
+            # Silently fail
+            return []
+
+    def get_available_hosts_data(self, days=None, model=None, ram=None):
+        """
+        Fetch available hosts from API and return structured data.
+        Uses existing quads-client logic but returns data instead of printing.
+
+        Args:
+            days: Number of days to check (optional)
+            model: Model filter (optional)
+            ram: RAM filter in GB (optional)
+
+        Returns:
+            list: List of dicts with keys: name, model, host_type, can_self_schedule
+        """
+        if not self.is_authenticated():
+            return []
+
+        try:
+            from quads_client.utils import extract_host_field, get_available_hosts_filter
+
+            filters = {}
+
+            # Add model filter
+            if model and model != "All":
+                filters["model"] = model.upper()
+
+            # Add RAM filter
+            if ram:
+                try:
+                    filters["memory__gte"] = int(ram) * 1024
+                except ValueError:
+                    pass
+
+            # Get available hosts using filter_hosts for cloud01 (available pool)
+            host_filters = get_available_hosts_filter(**filters)
+            hosts = self.connection.api.filter_hosts(host_filters)
+
+            # Check if API returned an error
+            if isinstance(hosts, str) or not isinstance(hosts, list):
+                return []
+
+            if not hosts:
+                return []
+
+            # Build structured data
+            results = []
+            for host in hosts:
+                name = extract_host_field(host, "name", field_aliases=["hostname"], default="")
+                model_val = extract_host_field(host, "model", field_aliases=["host_model"], default="N/A")
+                host_type = extract_host_field(host, "host_type", field_aliases=["type"], default="N/A")
+                can_self_schedule = extract_host_field(host, "can_self_schedule", default=False)
+
+                if not name:
+                    continue
+
+                results.append({
+                    "name": name,
+                    "model": model_val,
+                    "host_type": host_type,
+                    "can_self_schedule": can_self_schedule
+                })
+
+            return results
+
+        except Exception as e:
+            # Silently fail
+            return []
+
     def execute_command(self, command_name, args=""):
         """
         Execute a command by name with arguments

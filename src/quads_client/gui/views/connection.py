@@ -211,43 +211,53 @@ class ConnectionView(ttk.Frame):
         server_name = values[0]
 
         self.selected_server = server_name
+        self._update_server_details()
 
-        if self.shell.config:
-            try:
-                server_config = self.shell.config.get_server(server_name)
-            except Exception:
-                server_config = {}
-            url = server_config.get("url", "N/A")
-            verify = server_config.get("verify", True)
+    def _update_server_details(self):
+        """Update server details display"""
+        if not self.selected_server or not self.shell.config:
+            return
 
-            is_connected = False
-            user = "N/A"
-            if self.shell.session_manager:
-                for session in self.shell.session_manager.sessions.values():
-                    if session.connection and session.connection.current_server == server_name:
-                        is_connected = True
-                        if session.connection.username:
-                            user = session.connection.username
-                        break
+        try:
+            server_config = self.shell.config.get_server(self.selected_server)
+        except Exception:
+            server_config = {}
 
-            self.details_text.config(state=tk.NORMAL)
-            self.details_text.delete("1.0", tk.END)
+        url = server_config.get("url", "N/A")
+        verify = server_config.get("verify", True)
 
-            self.details_text.insert(tk.END, f"URL: {url}\n")
-            self.details_text.insert(tk.END, f"SSL Verification: {'Enabled' if verify else 'Disabled'}\n")
-            self.details_text.insert(tk.END, "Status: ")
+        is_connected = False
+        user = "N/A"
+        role = "N/A"
+        if self.shell.session_manager:
+            for session in self.shell.session_manager.sessions.values():
+                if session.connection and session.connection.current_server == self.selected_server:
+                    is_connected = True
+                    if session.connection.username:
+                        user = session.connection.username
+                    if hasattr(session.connection, 'role'):
+                        role = session.connection.role or "User"
+                    break
 
-            status_tag = "connected" if is_connected else "disconnected"
-            status_text = "Connected" if is_connected else "Disconnected"
-            self.details_text.insert(tk.END, status_text + "\n", status_tag)
+        self.details_text.config(state=tk.NORMAL)
+        self.details_text.delete("1.0", tk.END)
 
-            if is_connected:
-                self.details_text.insert(tk.END, f"User: {user}\n")
+        self.details_text.insert(tk.END, f"URL: {url}\n")
+        self.details_text.insert(tk.END, f"SSL Verification: {'Enabled' if verify else 'Disabled'}\n")
+        self.details_text.insert(tk.END, "Status: ")
 
-            self.details_text.config(state=tk.DISABLED)
+        status_tag = "connected" if is_connected else "disconnected"
+        status_text = "Connected" if is_connected else "Disconnected"
+        self.details_text.insert(tk.END, status_text + "\n", status_tag)
 
-            self.connect_button.config(state=tk.NORMAL if not is_connected else tk.DISABLED)
-            self.disconnect_button.config(state=tk.NORMAL if is_connected else tk.DISABLED)
+        if is_connected:
+            self.details_text.insert(tk.END, f"User: {user}\n")
+            self.details_text.insert(tk.END, f"Role: {role}\n")
+
+        self.details_text.config(state=tk.DISABLED)
+
+        self.connect_button.config(state=tk.NORMAL if not is_connected else tk.DISABLED)
+        self.disconnect_button.config(state=tk.NORMAL if is_connected else tk.DISABLED)
 
     def _add_server(self):
         """Add a new server"""
@@ -316,7 +326,7 @@ class ConnectionView(ttk.Frame):
         try:
             self.shell.connection_commands.cmd_connect(self.selected_server)
             self._refresh_server_list()
-            self._on_server_selected(None)
+            self._update_server_details()
         except Exception as e:
             import traceback
             details = traceback.format_exc()
@@ -327,6 +337,7 @@ class ConnectionView(ttk.Frame):
         try:
             self.shell.connection_commands.cmd_disconnect("")
             self._refresh_server_list()
+            self._update_server_details()
             self._on_server_selected(None)
         except Exception as e:
             import traceback
