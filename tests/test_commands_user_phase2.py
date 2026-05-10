@@ -64,18 +64,27 @@ def test_register_api_error(mock_shell):
 def test_login_success(mock_shell):
     """Test login command"""
     mock_shell.connection.is_connected = True
-    mock_shell.connection.api.login.return_value = {
-        "auth_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJyb2xlIjoidXNlciJ9.test"
-    }
+    mock_shell.connection.current_server = "test-server"
+    mock_shell.connection.api.username = "test@example.com"
+    mock_shell.connection.api.password = "testpass"
+    mock_shell.config.get_server_url.return_value = "https://test.example.com"
+    mock_shell.config.get_server_verify.return_value = True
     mock_shell.connection._decode_role_from_token = MagicMock(return_value="user")
     mock_shell._update_visible_commands = MagicMock()
 
-    user_cmd = UserCommands(mock_shell)
-    user_cmd.cmd_login("")
+    # Mock QuadsApi
+    with patch("quads_lib.QuadsApi") as mock_api_class:
+        mock_api = MagicMock()
+        mock_api.login.return_value = {"auth_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJyb2xlIjoidXNlciJ9.test"}
+        mock_api.token = "test_token"
+        mock_api_class.return_value = mock_api
 
-    mock_shell.connection.api.login.assert_called_once()
-    mock_shell._update_visible_commands.assert_called_once()
-    assert mock_shell.poutput.call_count >= 1
+        user_cmd = UserCommands(mock_shell)
+        user_cmd.cmd_login("")
+
+        mock_api.login.assert_called_once()
+        mock_shell._update_visible_commands.assert_called_once()
+        assert mock_shell.poutput.call_count >= 1
 
 
 def test_login_no_token(mock_shell):
@@ -104,12 +113,22 @@ def test_login_not_connected(mock_shell):
 def test_login_api_error(mock_shell):
     """Test login with API error"""
     mock_shell.connection.is_connected = True
-    mock_shell.connection.api.login.side_effect = Exception("Login failed")
+    mock_shell.connection.current_server = "test-server"
+    mock_shell.connection.api.username = "test@example.com"
+    mock_shell.connection.api.password = "testpass"
+    mock_shell.config.get_server_url.return_value = "https://test.example.com"
+    mock_shell.config.get_server_verify.return_value = True
 
-    user_cmd = UserCommands(mock_shell)
-    user_cmd.cmd_login("")
+    # Mock QuadsApi to raise exception
+    with patch("quads_lib.QuadsApi") as mock_api_class:
+        mock_api = MagicMock()
+        mock_api.login.side_effect = Exception("Login failed")
+        mock_api_class.return_value = mock_api
 
-    mock_shell.perror.assert_called_with("Failed to login: Login failed")
+        user_cmd = UserCommands(mock_shell)
+        user_cmd.cmd_login("")
+
+        mock_shell.perror.assert_called_with("Failed to login: Login failed")
 
 
 def test_assignment_create_success(mock_shell):
@@ -375,6 +394,7 @@ def test_assignment_terminate_rejected(mock_shell):
     mock_shell.connection.is_authenticated = True
     mock_shell.connection.is_admin = False
     mock_shell.connection.username = "user@example.com"
+    mock_shell.gui_mode = False  # Explicitly set to False to ensure prompt is shown
     mock_shell.connection.api.filter_assignments.return_value = [
         {"id": 42, "cloud": {"name": "cloud17"}, "owner": "user"}
     ]

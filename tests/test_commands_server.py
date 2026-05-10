@@ -52,22 +52,18 @@ def test_servers_offline_status(mock_shell):
 
 def test_add_server_success(mock_shell):
     """Test add-server command"""
-    mock_shell.config.config_path = "~/.config/quads/quads-client.yml"
+    server_cmd = ServerCommands(mock_shell)
 
-    yaml_content = {"servers": {}}
+    # Mock the programmatic method
+    with patch.object(server_cmd, "add_server_programmatic") as mock_add:
+        mock_add.return_value = (True, "Server added successfully", "2.2.6")
 
-    with patch("quads_lib.QuadsApi") as mock_api:
-        mock_api.return_value.get_version.return_value = {"version": "2.2.6"}
+        server_cmd.cmd_add_server("quads3 https://quads3.example.com admin pass")
 
-        with patch("builtins.open", mock_open(read_data="servers: {}\n")):
-            with patch("yaml.safe_load", return_value=yaml_content):
-                with patch("yaml.dump") as mock_dump:
-                    with patch.object(ServerCommands, "cmd_config_reload"):
-                        server_cmd = ServerCommands(mock_shell)
-                        server_cmd.cmd_add_server("quads3 https://quads3.example.com admin pass")
-
-                        mock_dump.assert_called_once()
-                        assert mock_shell.poutput.call_count >= 2
+        # Verify the programmatic method was called
+        mock_add.assert_called_once_with("quads3", "https://quads3.example.com", "admin", "pass", True)
+        # Verify output was called
+        assert mock_shell.poutput.call_count >= 1
 
 
 def test_add_server_already_exists(mock_shell):
@@ -85,21 +81,17 @@ def test_add_server_already_exists(mock_shell):
 
 
 def test_add_server_connection_failed_reject(mock_shell):
-    """Test add-server with connection test failure (user rejects)"""
-    mock_shell.config.config_path = "~/.config/quads/quads-client.yml"
+    """Test add-server with connection test failure"""
+    server_cmd = ServerCommands(mock_shell)
 
-    yaml_content = {"servers": {}}
+    # Mock the programmatic method to return failure
+    with patch.object(server_cmd, "add_server_programmatic") as mock_add:
+        mock_add.return_value = (False, "Could not connect to server: Connection failed", None)
 
-    with patch("quads_lib.QuadsApi") as mock_api:
-        mock_api.return_value.get_version.side_effect = Exception("Connection failed")
+        server_cmd.cmd_add_server("quads3 https://quads3.example.com admin pass")
 
-        with patch("builtins.open", mock_open(read_data="servers: {}\n")):
-            with patch("yaml.safe_load", return_value=yaml_content):
-                with patch("builtins.input", return_value="n"):
-                    server_cmd = ServerCommands(mock_shell)
-                    server_cmd.cmd_add_server("quads3 https://quads3.example.com admin pass")
-
-                    mock_shell.poutput.assert_called_with("Server not added")
+        # Verify error was reported
+        mock_shell.perror.assert_called()
 
 
 def test_add_server_missing_args(mock_shell):
@@ -112,23 +104,16 @@ def test_add_server_missing_args(mock_shell):
 
 def test_add_server_no_verify_flag(mock_shell):
     """Test add-server with --no-verify flag"""
-    mock_shell.config.config_path = "~/.config/quads/quads-client.yml"
+    server_cmd = ServerCommands(mock_shell)
 
-    yaml_content = {"servers": {}}
+    # Mock the programmatic method
+    with patch.object(server_cmd, "add_server_programmatic") as mock_add:
+        mock_add.return_value = (True, "Server added successfully", "2.2.6")
 
-    with patch("quads_lib.QuadsApi") as mock_api:
-        mock_api.return_value.get_version.return_value = {"version": "2.2.6"}
+        server_cmd.cmd_add_server("quads3 https://quads3.example.com admin pass --no-verify")
 
-        with patch("builtins.open", mock_open(read_data="servers: {}\n")):
-            with patch("yaml.safe_load", return_value=yaml_content):
-                with patch("yaml.dump") as mock_dump:
-                    with patch.object(ServerCommands, "cmd_config_reload"):
-                        server_cmd = ServerCommands(mock_shell)
-                        server_cmd.cmd_add_server("quads3 https://quads3.example.com admin pass --no-verify")
-
-                        # Verify that verify was set to False
-                        call_args = mock_dump.call_args[0][0]
-                        assert call_args["servers"]["quads3"]["verify"] is False
+        # Verify the programmatic method was called with verify=False
+        mock_add.assert_called_once_with("quads3", "https://quads3.example.com", "admin", "pass", False)
 
 
 def test_edit_server_success(mock_shell):
