@@ -163,9 +163,7 @@ class TestUserCommandsProgrammatic:
             mock_api.token = "test_token_123"
             mock_api_class.return_value = mock_api
 
-            success, message, role = user_commands.login_programmatic(
-                email="test@example.com", password="testpass"
-            )
+            success, message, role = user_commands.login_programmatic(email="test@example.com", password="testpass")
 
             assert success is True
             assert "successfully" in message.lower()
@@ -183,9 +181,7 @@ class TestUserCommandsProgrammatic:
             mock_api.login.side_effect = Exception("Invalid credentials")
             mock_api_class.return_value = mock_api
 
-            success, message, role = user_commands.login_programmatic(
-                email="test@example.com", password="wrongpass"
-            )
+            success, message, role = user_commands.login_programmatic(email="test@example.com", password="wrongpass")
 
             assert success is False
             assert "Failed to login" in message
@@ -212,9 +208,7 @@ class TestUserCommandsProgrammatic:
             # Mock role detection
             mock_shell.connection._decode_role_from_token.return_value = "admin"
 
-            success, message, role = user_commands.login_programmatic(
-                email="admin@example.com", password="adminpass"
-            )
+            success, message, role = user_commands.login_programmatic(email="admin@example.com", password="adminpass")
 
             assert success is True
             assert role == "admin"

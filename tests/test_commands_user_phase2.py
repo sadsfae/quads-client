@@ -75,9 +75,7 @@ def test_login_success(mock_shell):
     # Mock QuadsApi
     with patch("quads_lib.QuadsApi") as mock_api_class:
         mock_api = MagicMock()
-        mock_api.login.return_value = {
-            "auth_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJyb2xlIjoidXNlciJ9.test"
-        }
+        mock_api.login.return_value = {"auth_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJyb2xlIjoidXNlciJ9.test"}
         mock_api.token = "test_token"
         mock_api_class.return_value = mock_api
 
