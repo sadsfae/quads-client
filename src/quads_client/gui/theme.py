@@ -147,6 +147,58 @@ class ThemeManager:
             )
 
         self.style.configure(
+            "Sidebar.TButton",
+            background=colors["bg"],
+            foreground=colors["fg"],
+            borderwidth=0,
+            relief="flat",
+            anchor="w",
+            padding=(10, 4),
+            font=("TkDefaultFont", 11),
+            bordercolor=colors["bg"],
+            lightcolor=colors["bg"],
+            darkcolor=colors["bg"],
+            focuscolor=colors["bg"],
+            shiftrelief=0,
+        )
+
+        self.style.map(
+            "Sidebar.TButton",
+            background=[("pressed", colors["panel_bg"]), ("active", colors["panel_bg"])],
+            foreground=[("pressed", colors["fg"]), ("active", colors["fg"])],
+            relief=[("pressed", "flat")],
+            bordercolor=[("pressed", colors["bg"]), ("active", colors["bg"])],
+            lightcolor=[("pressed", colors["bg"]), ("active", colors["bg"])],
+            darkcolor=[("pressed", colors["bg"]), ("active", colors["bg"])],
+        )
+
+        self.style.configure(
+            "Sidebar.Active.TButton",
+            background=colors["bg"],
+            foreground=colors["fg"],
+            borderwidth=2,
+            relief="solid",
+            anchor="w",
+            padding=(8, 2),
+            font=("TkDefaultFont", 11),
+            bordercolor=colors["accent"],
+            lightcolor=colors["accent"],
+            darkcolor=colors["accent"],
+            focuscolor=colors["bg"],
+            shiftrelief=0,
+        )
+
+        self.style.map(
+            "Sidebar.Active.TButton",
+            background=[("pressed", colors["panel_bg"]), ("active", colors["panel_bg"])],
+            foreground=[("pressed", colors["fg"]), ("active", colors["fg"])],
+            relief=[("pressed", "solid")],
+            bordercolor=[("pressed", colors["accent"]), ("active", colors["accent"])],
+            lightcolor=[("pressed", colors["accent"]), ("active", colors["accent"])],
+            darkcolor=[("pressed", colors["accent"]), ("active", colors["accent"])],
+        )
+
+        self.style.configure(
             "TEntry",
             fieldbackground=colors["entry_bg"],
             foreground=colors["entry_fg"],
