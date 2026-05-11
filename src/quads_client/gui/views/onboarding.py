@@ -292,7 +292,7 @@ class OnboardingWizard(tk.Toplevel):
         password = self.login_password_entry.get()
 
         if not email or not password:
-            self.status_label.config(text="Email and password required", foreground="#f48771")
+            self.status_label.config(text="Email and password required", foreground=self.parent.theme_manager.get_color("error"))
             return
 
         try:
@@ -311,7 +311,7 @@ class OnboardingWizard(tk.Toplevel):
                     except Exception:
                         pass  # Non-critical if this fails
 
-                self.status_label.config(text="✓ Login successful!", foreground="#4ec9b0")
+                self.status_label.config(text="✓ Login successful!", foreground=self.parent.theme_manager.get_color("success"))
                 self.next_button.config(state=tk.NORMAL)
 
                 # Update parent GUI status bar and connection indicator
@@ -324,9 +324,9 @@ class OnboardingWizard(tk.Toplevel):
 
                 self.after(1500, lambda: self._show_step(3))
             else:
-                self.status_label.config(text=f"Login failed: {message}", foreground="#f48771")
+                self.status_label.config(text=f"Login failed: {message}", foreground=self.parent.theme_manager.get_color("error"))
         except Exception as e:
-            self.status_label.config(text=f"Login failed: {e}", foreground="#f48771")
+            self.status_label.config(text=f"Login failed: {e}", foreground=self.parent.theme_manager.get_color("error"))
 
     def _do_register(self):
         """Perform registration"""
@@ -335,20 +335,20 @@ class OnboardingWizard(tk.Toplevel):
         confirm = self.register_confirm_entry.get()
 
         if not email or not password:
-            self.status_label.config(text="Email and password required", foreground="#f48771")
+            self.status_label.config(text="Email and password required", foreground=self.parent.theme_manager.get_color("error"))
             messagebox.showerror("Validation Error", "Email and password are required")
             return
 
         # Basic email validation
         if "@" not in email or "." not in email:
-            self.status_label.config(text="Invalid email format", foreground="#f48771")
+            self.status_label.config(text="Invalid email format", foreground=self.parent.theme_manager.get_color("error"))
             messagebox.showerror(
                 "Invalid Email", "Please enter a valid email address.\n\n" "Example: user@example.com"
             )
             return
 
         if len(password) < 6:
-            self.status_label.config(text="Password too short", foreground="#f48771")
+            self.status_label.config(text="Password too short", foreground=self.parent.theme_manager.get_color("error"))
             messagebox.showerror(
                 "Password Too Short",
                 "Password must be at least 6 characters long.\n\n" "Please choose a stronger password.",
@@ -356,7 +356,7 @@ class OnboardingWizard(tk.Toplevel):
             return
 
         if password != confirm:
-            self.status_label.config(text="Passwords don't match", foreground="#f48771")
+            self.status_label.config(text="Passwords don't match", foreground=self.parent.theme_manager.get_color("error"))
             messagebox.showerror(
                 "Password Mismatch",
                 "The passwords you entered do not match.\n\n"
@@ -389,7 +389,7 @@ class OnboardingWizard(tk.Toplevel):
                     already_exists = True
 
             if already_exists:
-                self.status_label.config(text="Email already registered - please login instead", foreground="#dcdcaa")
+                self.status_label.config(text="Email already registered - please login instead", foreground=self.parent.theme_manager.get_color("warning"))
                 messagebox.showwarning(
                     "Already Registered",
                     "This email address is already registered.\n\n"
@@ -398,7 +398,7 @@ class OnboardingWizard(tk.Toplevel):
                 return
 
             if success and self.shell.is_authenticated():
-                self.status_label.config(text="✓ Registration and login successful!", foreground="#4ec9b0")
+                self.status_label.config(text="✓ Registration and login successful!", foreground=self.parent.theme_manager.get_color("success"))
                 self.next_button.config(state=tk.NORMAL)
 
                 # Update parent GUI status bar and connection indicator
@@ -427,7 +427,7 @@ class OnboardingWizard(tk.Toplevel):
                             except Exception:
                                 pass
 
-                        self.status_label.config(text="✓ Registration and login successful!", foreground="#4ec9b0")
+                        self.status_label.config(text="✓ Registration and login successful!", foreground=self.parent.theme_manager.get_color("success"))
                         self.next_button.config(state=tk.NORMAL)
 
                         # Update parent GUI status bar and connection indicator
@@ -440,24 +440,24 @@ class OnboardingWizard(tk.Toplevel):
 
                         self.after(1500, lambda: self._show_step(3))
                     else:
-                        self.status_label.config(text="Registered - please login manually", foreground="#dcdcaa")
+                        self.status_label.config(text="Registered - please login manually", foreground=self.parent.theme_manager.get_color("warning"))
                         messagebox.showinfo(
                             "Registration Successful",
                             "Your account has been created successfully!\n\n"
                             "Please click the 'Login' tab above and sign in with your new credentials.",
                         )
                 except Exception:
-                    self.status_label.config(text="Registered - please login manually", foreground="#dcdcaa")
+                    self.status_label.config(text="Registered - please login manually", foreground=self.parent.theme_manager.get_color("warning"))
                     messagebox.showinfo(
                         "Registration Successful",
                         "Your account has been created successfully!\n\n"
                         "Please click the 'Login' tab above and sign in with your new credentials.",
                     )
             else:
-                self.status_label.config(text="Registration may have failed - check messages", foreground="#dcdcaa")
+                self.status_label.config(text="Registration may have failed - check messages", foreground=self.parent.theme_manager.get_color("warning"))
         except Exception as e:
             self.shell._capture_output = False
-            self.status_label.config(text=f"Registration failed: {e}", foreground="#f48771")
+            self.status_label.config(text=f"Registration failed: {e}", foreground=self.parent.theme_manager.get_color("error"))
             messagebox.showerror("Registration Failed", str(e))
 
     def _skip_setup(self):

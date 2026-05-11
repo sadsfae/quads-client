@@ -570,7 +570,7 @@ class QuadsClientApp(tk.Tk):
         is_connected = self.shell.is_authenticated() if self.shell else False
 
         if is_connected:
-            self.connection_indicator.config(foreground="#4ec9b0")
+            self.connection_indicator.config(foreground=self.theme_manager.get_color("success"))
             server = ""
             username = ""
             if self.shell.connection:
