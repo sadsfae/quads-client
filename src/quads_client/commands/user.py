@@ -1,4 +1,3 @@
-import json
 from tabulate import tabulate
 
 from quads_client.arg_parser import parse_schedule_ssm_args
