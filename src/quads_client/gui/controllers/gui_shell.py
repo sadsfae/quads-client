@@ -204,21 +204,6 @@ class GuiShell:
                 except ValueError:
                     pass
 
-            # Calculate date range for availability check
-            # Default to checking availability for the next N days (default=3)
-            days_int = 3  # default
-            if days:
-                try:
-                    days_int = int(days)
-                except ValueError:
-                    days_int = 3
-
-            # Start = now, End = now + N days
-            start_dt = datetime.utcnow()
-            end_dt = start_dt + timedelta(days=days_int)
-            start_iso = start_dt.isoformat()[:-3]  # Truncate microseconds
-            end_iso = end_dt.isoformat()[:-3]
-
             # Get available hosts using filter_hosts for cloud01 (available pool)
             host_filters = get_available_hosts_filter(**filters)
             hosts = self.connection.api.filter_hosts(host_filters)
@@ -230,8 +215,33 @@ class GuiShell:
             if not hosts:
                 return []
 
-            # Build structured data - but FILTER by schedule availability
-            # This matches quads-client ls-available behavior
+            # Get current schedules to filter out hosts that are scheduled to move
+            # A host may be IN cloud01 now but SCHEDULED to move to another cloud
+            current_schedules = []
+            try:
+                current_schedules = self.connection.api.get_current_schedules({})
+            except Exception:
+                # If we can't get schedules, proceed without filtering
+                pass
+
+            # Build set of hosts that have current schedules (excluding cloud01)
+            scheduled_hosts = set()
+            if current_schedules:
+                for schedule in current_schedules:
+                    if isinstance(schedule, dict):
+                        # Get the assignment/cloud this schedule is for
+                        assignment = schedule.get("assignment", {})
+                        if isinstance(assignment, dict):
+                            cloud = assignment.get("cloud", {})
+                            cloud_name = cloud.get("name") if isinstance(cloud, dict) else str(cloud)
+                            # If scheduled to a cloud other than cloud01, mark as unavailable
+                            if cloud_name and cloud_name != "cloud01":
+                                host = schedule.get("host", {})
+                                host_name = host.get("name") if isinstance(host, dict) else str(host)
+                                if host_name:
+                                    scheduled_hosts.add(host_name)
+
+            # Build structured data - filter out scheduled hosts
             results = []
             for host in hosts:
                 name = extract_host_field(host, "name", field_aliases=["hostname"], default="")
@@ -242,16 +252,8 @@ class GuiShell:
                 if not name:
                     continue
 
-                # CRITICAL: Check schedule availability using is_available() API
-                # This filters out hosts that have active schedules (scheduled to other clouds)
-                # even if they're currently in cloud01
-                try:
-                    is_available = self.connection.api.is_available(name, {"start": start_iso, "end": end_iso})
-                    if not is_available:
-                        # Host has schedule conflict - skip it
-                        continue
-                except Exception:
-                    # If availability check fails, skip the host to be safe
+                # Skip hosts that have active schedules to other clouds
+                if name in scheduled_hosts:
                     continue
 
                 results.append(
