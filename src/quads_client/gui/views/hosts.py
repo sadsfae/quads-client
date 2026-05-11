@@ -111,7 +111,7 @@ class HostsView(BaseAdminView):
             # Color code
             if host.get("broken", False):
                 self.tree.tree.item(item_id, tags=("broken",))
-                self.tree.tree.tag_configure("broken", foreground="#f48771")
+                self.tree.tree.tag_configure("broken", foreground=self.shell.gui_app.theme_manager.get_color("error"))
             elif host.get("retired", False):
                 self.tree.tree.item(item_id, tags=("retired",))
                 self.tree.tree.tag_configure("retired", foreground="#999999")
