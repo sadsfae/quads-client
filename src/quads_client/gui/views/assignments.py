@@ -303,9 +303,15 @@ class AssignmentsView(BaseAdminView):
 
             # Confirm action
             if mode == "now":
-                confirm_msg = f"End assignment #{assignment_id} ({cloud_name}) NOW?\n\nThis will terminate the assignment immediately."
+                confirm_msg = (
+                    f"End assignment #{assignment_id} ({cloud_name}) NOW?\n\n"
+                    "This will terminate the assignment immediately."
+                )
             else:
-                confirm_msg = f"Shrink assignment #{assignment_id} ({cloud_name}) by {value_str} {unit}?\n\nThis will shrink ALL schedules in this assignment."
+                confirm_msg = (
+                    f"Shrink assignment #{assignment_id} ({cloud_name}) by {value_str} {unit}?\n\n"
+                    "This will shrink ALL schedules in this assignment."
+                )
 
             if not self.confirm_action("Confirm Shrink", confirm_msg):
                 return

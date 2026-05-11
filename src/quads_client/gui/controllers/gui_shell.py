@@ -189,7 +189,6 @@ class GuiShell:
 
         try:
             from quads_client.utils import extract_host_field, get_available_hosts_filter
-            from datetime import datetime, timedelta
 
             filters = {}
 
