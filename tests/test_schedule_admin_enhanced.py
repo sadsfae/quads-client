@@ -63,7 +63,7 @@ class TestSchedulePreFlightChecks:
 
         schedule_cmd = ScheduleCommands(mock_shell)
         schedule_cmd.cmd_schedule_admin(
-            'cloud02 host01,host02 now "2026-06-11 22:00" description "Test" cloud-owner alice cloud-ticket JIRA-123'
+            'cloud02 host01,host02 now "2026-06-11 22:00" description "Test" cloud-owner alice cloud-ticket 123'
         )
 
         # Should use batch endpoint with "now"
@@ -72,7 +72,7 @@ class TestSchedulePreFlightChecks:
         assert batch_data["start"] == "now"
         assert batch_data["description"] == "Test"
         assert batch_data["owner"] == "alice"
-        assert batch_data["ticket"] == "JIRA-123"
+        assert batch_data["ticket"] == "123"
 
 
 class TestScheduleOrphanedCleanup:
@@ -90,13 +90,13 @@ class TestScheduleOrphanedCleanup:
         schedule_cmd = ScheduleCommands(mock_shell)
         schedule_cmd.cmd_schedule_admin(
             'cloud02 host01,host02 "2026-05-11 22:00" "2026-06-11 22:00" '
-            'description "Test" cloud-owner alice cloud-ticket JIRA-123'
+            'description "Test" cloud-owner alice cloud-ticket 123'
         )
 
         schedule_cmd = ScheduleCommands(mock_shell)
         schedule_cmd.cmd_schedule_admin(
             'cloud02 host01,host02 "2026-05-11 22:00" "2026-06-11 22:00" '
-            'description "Test" cloud-owner alice cloud-ticket JIRA-123'
+            'description "Test" cloud-owner alice cloud-ticket 123'
         )
 
         # Should show error from batch endpoint
@@ -119,7 +119,7 @@ class TestScheduleOrphanedCleanup:
         schedule_cmd = ScheduleCommands(mock_shell)
         schedule_cmd.cmd_schedule_admin(
             'cloud02 host01,host02 "2026-05-11 22:00" "2026-06-11 22:00" '
-            'description "Test" cloud-owner alice cloud-ticket JIRA-123'
+            'description "Test" cloud-owner alice cloud-ticket 123'
         )
 
         # Batch endpoint should succeed
@@ -166,7 +166,7 @@ class TestScheduleDateValidation:
         # End date before start date
         schedule_cmd.cmd_schedule_admin(
             'cloud02 host01 "2026-06-11 22:00" "2026-05-11 22:00" '
-            'description "Test" cloud-owner alice cloud-ticket JIRA-123'
+            'description "Test" cloud-owner alice cloud-ticket 123'
         )
 
         # Should error about date order
@@ -183,7 +183,7 @@ class TestScheduleDateValidation:
         schedule_cmd = ScheduleCommands(mock_shell)
         # Invalid date format
         schedule_cmd.cmd_schedule_admin(
-            'cloud02 host01 "2026-05-11" "2026-06-11" description "Test" cloud-owner alice cloud-ticket JIRA-123'
+            'cloud02 host01 "2026-05-11" "2026-06-11" description "Test" cloud-owner alice cloud-ticket 123'
         )
 
         # Should error about format
@@ -205,7 +205,7 @@ class TestScheduleRequiredFields:
         schedule_cmd = ScheduleCommands(mock_shell)
         # Has cloud-ticket but missing description
         schedule_cmd.cmd_schedule_admin(
-            'cloud02 host01 "2026-05-11 22:00" "2026-06-11 22:00" cloud-owner alice cloud-ticket JIRA-123'
+            'cloud02 host01 "2026-05-11 22:00" "2026-06-11 22:00" cloud-owner alice cloud-ticket 123'
         )
 
         # Should error about missing description
@@ -223,7 +223,7 @@ class TestScheduleRequiredFields:
         schedule_cmd = ScheduleCommands(mock_shell)
         # Has cloud-ticket but missing cloud-owner
         schedule_cmd.cmd_schedule_admin(
-            'cloud02 host01 "2026-05-11 22:00" "2026-06-11 22:00" description "Test" cloud-ticket JIRA-123'
+            'cloud02 host01 "2026-05-11 22:00" "2026-06-11 22:00" description "Test" cloud-ticket 123'
         )
 
         # Should error about missing cloud-owner

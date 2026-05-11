@@ -7,10 +7,13 @@
 [![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](https://www.gnu.org/licenses/gpl-3.0)
 [![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
 
-QUADS Client is an interactive TUI (Text User Interface) shell for managing multiple QUADS server instances.
+QUADS Client provides both a powerful CLI and an intuitive GUI for managing multiple QUADS servers.
 
 ## Features
 
+- **Dual Interface Options**:
+  - **Standalone CLI**: Interactive shell with tab completion, scripting support, and one-shot commands
+  - **Full-Featured Multi-Platform GUI**: Modern graphical interface for Linux/macOS with onboarding wizard, dark/light themes, and visual host management
 - **Multi-Server Support**: Connect to and manage multiple QUADS servers from a single interface
 - **Session Management**: Maintain multiple authenticated connections simultaneously and switch between them instantly
 - **Bearer Token Authentication**: Secure JWT-based authentication via python-quads-lib
@@ -24,26 +27,6 @@ QUADS Client is an interactive TUI (Text User Interface) shell for managing mult
 - **Connection Management**: Easy switching between QUADS server instances
 - **Thin Wrapper Design**: Server-side authorization via QUADS API
 
-<p align="left">
-  <img src="images/quads-client-1.png" alt="QUADS Client Screenshot 1" width="600">
-</p>
-
-<p align="left">
-  <img src="images/quads-client-2.png" alt="QUADS Client Screenshot 2" width="600">
-</p>
-
-<p align="left">
-  <img src="images/quads-client-3.png" alt="QUADS Client Screenshot 3" width="600">
-</p>
-
-<p align="left">
-  <img src="images/quads-client-4.png" alt="QUADS Client Screenshot 4" width="600">
-</p>
-
-<p align="left">
-  <img src="images/quads-client-one-shot-ssm.png" alt="QUADS Client One-Shot SSM" width="600">
-</p>
-
 ## Table of Contents
 
 - [Installation](#installation)
@@ -53,6 +36,7 @@ QUADS Client is an interactive TUI (Text User Interface) shell for managing mult
 - [Configuration](#configuration)
 - [How to Self-Schedule](#how-to-self-schedule)
 - [Usage](#usage)
+  - [GUI Mode](#gui-mode)
   - [Interactive Mode](#interactive-mode)
   - [One-Shot Commands](#one-shot-commands)
 - [Commands](#commands)
@@ -80,6 +64,9 @@ QUADS Client is an interactive TUI (Text User Interface) shell for managing mult
   - [Run Tests with Coverage](#run-tests-with-coverage)
   - [Manual Testing](#manual-testing)
 - [Contributing](#contributing)
+- [Screenshots](#screenshots)
+  - [TUI CLI](#tui-cli)
+  - [GUI](#gui)
 - [Links](#links)
 
 ## Installation
@@ -115,7 +102,7 @@ deactivate
 
 ### From RPM
 
-For Red Hat-based distributions (RHEL, Rocky, Fedora):
+For Fedora:
 
 ```bash
 dnf copr enable quadsdev/python3-quads -y
@@ -195,6 +182,34 @@ The client displays a visual security indicator in the prompt showing the SSL/TL
 > See the [QUADS SSL configuration guide](https://github.com/quadsproject/quads#using-ssl-with-flask-api-and-quads) for instructions on configuring nginx with SSL certificates.
 
 ## Usage
+
+### GUI Mode
+
+For a graphical interface:
+
+```bash
+quads-client-gui
+```
+
+**GUI Features:**
+- Onboarding wizard for first-time setup
+- Server/connection management with session switching
+- Self-scheduling interface for normal users
+- My Hosts view with status monitoring
+- Dark/light theme toggle
+- Cross-platform (Linux, macOS, Windows)
+
+**Installation:**
+```bash
+# Fedora (includes desktop file and icon)
+dnf install quads-client-gui
+
+# pip
+pip install quads-client
+quads-client-gui
+```
+
+**Note:** When installed via RPM, QUADS Client GUI will appear in your Applications menu under System or Network categories. You can also launch it from the terminal with `quads-client-gui`.
 
 ### Interactive Mode
 
@@ -925,20 +940,40 @@ quads-client/
 │   ├── cli/
 │   │   ├── __init__.py
 │   │   └── main.py           - CLI entry point
-│   └── commands/             - Command modules
+│   ├── gui/                  - GUI application (MVC pattern, excluded from coverage)
+│   │   ├── __init__.py       - GUI entry point
+│   │   ├── main.py           - Main application window
+│   │   ├── theme.py          - Dark/light theme manager
+│   │   ├── controllers/
+│   │   │   └── gui_shell.py  - Adapter between GUI and command classes
+│   │   ├── views/            - Feature-specific views
+│   │   │   ├── onboarding.py - First-time setup wizard
+│   │   │   ├── connection.py - Server connection/auth view
+│   │   │   ├── schedule.py   - Self-scheduling view (SSM users)
+│   │   │   ├── my_hosts.py   - My hosts view
+│   │   │   ├── assignments.py- Assignments view
+│   │   │   ├── settings.py   - Settings/preferences view
+│   │   │   └── about.py      - About dialog
+│   │   └── widgets/          - Reusable custom widgets
+│   │       ├── base.py       - Base widget classes
+│   │       ├── dialogs.py    - Dialog helpers
+│   │       └── server_list.py- Server connection list widget
+│   └── commands/             - Command modules (business logic)
 │       ├── __init__.py
 │       ├── available.py      - Available hosts
 │       ├── cloud.py          - Cloud management
 │       ├── connection.py     - Connection commands
 │       ├── host.py           - Host management (admin)
 │       ├── schedule.py       - Schedule management (admin)
-│       ├── server.py         - Server configuration
+│       ├── server.py         - Server configuration (programmatic methods)
 │       ├── session.py        - Session management
-│       ├── user.py           - User registration & self-scheduling
+│       ├── user.py           - User registration & self-scheduling (programmatic methods)
 │       └── version.py        - Version command
 ├── conf/
 │   └── quads-client.yml.example - Example configuration
 ├── tests/                    - pytest test suite (519 tests, 71.0% coverage)
+│   ├── test_commands_programmatic.py - Tests for GUI-supporting programmatic methods
+│   └── ...                   - Other test files
 ├── rpm/
 │   └── quads-client.spec     - RPM package specification
 ├── images/                   - Screenshots and documentation images
@@ -946,7 +981,8 @@ quads-client/
 ├── pyproject.toml            - Modern Python project metadata
 ├── requirements.txt          - Production dependencies
 ├── requirements-dev.txt      - Development dependencies
-└── pytest.ini                - pytest configuration
+├── pytest.ini                - pytest configuration
+└── .coveragerc               - Coverage config (GUI excluded per MVC best practices)
 ```
 
 ## Dependencies
@@ -998,13 +1034,85 @@ pytest tests/ --cov=quads_client --cov-report=html --cov-report=term
 
 ### Manual Testing
 
+**CLI (Interactive Shell):**
 ```bash
 PYTHONPATH=src python3 -c "from quads_client.shell import QuadsClientShell; shell = QuadsClientShell(); shell.cmdloop()"
+```
+
+**GUI:**
+```bash
+PYTHONPATH=./src python3 -m quads_client.gui
 ```
 
 ## Contributing
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines on how to contribute to this project.
+
+## Screenshots
+
+### TUI CLI
+
+**quads TUI client**
+
+<p align="left">
+  <img src="images/quads-client-1.png" alt="quads TUI client" width="600">
+</p>
+
+**TUI CLI servers list**
+
+<p align="left">
+  <img src="images/quads-client-2.png" alt="TUI CLI servers list" width="600">
+</p>
+
+**TUI CLI active sessions list**
+
+<p align="left">
+  <img src="images/quads-client-3.png" alt="TUI CLI active sessions list" width="600">
+</p>
+
+**TUI CLI self-scheduling**
+
+<p align="left">
+  <img src="images/quads-client-4.png" alt="TUI CLI self-scheduling" width="600">
+</p>
+
+**TUI CLI one-shot self-scheduling**
+
+<p align="left">
+  <img src="images/quads-client-one-shot-ssm.png" alt="TUI CLI one-shot self-scheduling" width="600">
+</p>
+
+### GUI
+
+**Setup Wizard**
+
+<p align="left">
+  <img src="images/gui-wizard.png" alt="Setup Wizard" width="600">
+</p>
+
+**Login or Register**
+
+<p align="left">
+  <img src="images/gui-wizard2.png" alt="Login or Register" width="600">
+</p>
+
+**GUI one-shot self-scheduling**
+
+<p align="left">
+  <img src="images/gui-ssm1.png" alt="GUI one-shot self-scheduling" width="600">
+</p>
+
+**Self-scheduling filtering by capability and model**
+
+<p align="left">
+  <img src="images/gui-ssm2.png" alt="Self-scheduling filtering by capability and model" width="600">
+</p>
+
+**Self-scheduling in action**
+
+<p align="left">
+  <img src="images/gui-ssm3.png" alt="Self-scheduling in action" width="600">
+</p>
 
 ## Links
 

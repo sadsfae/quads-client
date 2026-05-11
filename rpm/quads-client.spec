@@ -29,6 +29,7 @@ Vendor: QUADS Project
 Packager: QUADS Project
 BuildRequires: python3-devel >= 3.13
 BuildRequires: python3-setuptools
+BuildRequires: desktop-file-utils
 Requires: python3 >= 3.13
 Requires: python3-cmd2 >= 2.0.0
 Requires: quads-lib >= 0.1.9
@@ -76,8 +77,27 @@ mkdir -p %{buildroot}%{_datadir}/doc/quads-client
 # Install example configuration
 install -m 0644 conf/quads-client.yml.example %{buildroot}%{_datadir}/doc/quads-client/
 
+# Install GUI desktop file
+desktop-file-install --dir=%{buildroot}%{_datadir}/applications desktop/quads-client-gui.desktop
+
+# Install GUI icon
+install -Dm 0644 desktop/icons/quads-client.png %{buildroot}%{_datadir}/icons/hicolor/128x128/apps/quads-client.png
+
 %clean
 rm -rf %{buildroot}
+
+%package gui
+Summary: GUI for QUADS Client
+Requires: %{name} = %{version}-%{release}
+Requires: python3-tkinter >= 3.13
+
+%description gui
+Graphical user interface for QUADS Client using tkinter.
+Provides an intuitive GUI for managing QUADS servers, scheduling
+hosts, and monitoring assignments. Requires X11/Wayland display.
+
+Theme packages (ttkthemes, sv-ttk) are installed as Python dependencies.
+Falls back to built-in 'clam' theme if pip packages unavailable.
 
 %files
 %doc README.md
@@ -86,6 +106,11 @@ rm -rf %{buildroot}
 %{python3_sitelib}/quads_client/
 %{python3_sitelib}/quads_client-*.egg-info/
 %{_datadir}/doc/quads-client/
+
+%files gui
+%{_bindir}/quads-client-gui
+%{_datadir}/applications/quads-client-gui.desktop
+%{_datadir}/icons/hicolor/128x128/apps/quads-client.png
 
 %post
 # Enable bash completion globally if available
@@ -101,11 +126,35 @@ echo "======================================================="
 echo "                                                       "
 echo " To get started:                                       "
 echo " Use the interactive add-quads-server command:         "
-echo "  quads-client                                         " 
+echo "  quads-client                                         "
 echo "  add-quads-server                                     "
 echo "  (follow prompts)                                     "
 echo "  connect <server_name>                                "
 echo "  register your.email@example.com YourPassword123      "
+echo "======================================================="
+fi
+:;
+
+%post gui
+# Update desktop database
+if [ -x /usr/bin/update-desktop-database ]; then
+    /usr/bin/update-desktop-database %{_datadir}/applications &> /dev/null || :
+fi
+
+# Update icon cache
+if [ -x /usr/bin/gtk-update-icon-cache ]; then
+    /usr/bin/gtk-update-icon-cache %{_datadir}/icons/hicolor &> /dev/null || :
+fi
+
+if [ "$1" -eq 1 ]; then
+echo "======================================================="
+echo " QUADS Client GUI installed successfully               "
+echo "======================================================="
+echo "                                                       "
+echo " Launch with: quads-client-gui                         "
+echo " Or find it in your Applications menu                  "
+echo "                                                       "
+echo " Note: Requires X11/Wayland display                    "
 echo "======================================================="
 fi
 :;
@@ -115,6 +164,18 @@ fi
 
 %postun
 find %{python3_sitelib}/quads_client 2>/dev/null | grep -E "(/__pycache__$|\.pyc$|\.pyo$)" | xargs rm -rf 2>/dev/null || true
+:;
+
+%postun gui
+# Update desktop database
+if [ -x /usr/bin/update-desktop-database ]; then
+    /usr/bin/update-desktop-database %{_datadir}/applications &> /dev/null || :
+fi
+
+# Update icon cache
+if [ -x /usr/bin/gtk-update-icon-cache ]; then
+    /usr/bin/gtk-update-icon-cache %{_datadir}/icons/hicolor &> /dev/null || :
+fi
 :;
 
 %changelog

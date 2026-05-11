@@ -323,6 +323,135 @@ class ServerCommands:
         except Exception as e:
             self.shell.perror(f"Failed to save configuration: {e}")
 
+    def add_server_programmatic(self, name, url, username="", password="", verify=True, test_connection=True):
+        """
+        Non-interactive server add for GUI and scripting.
+
+        Args:
+            name: Server name (e.g., quads1.example.com)
+            url: Server URL (e.g., https://quads1.example.com)
+            username: Username (optional, empty string for registration mode)
+            password: Password (optional, empty string for registration mode)
+            verify: Enable SSL verification (default: True)
+            test_connection: Test connection before adding (default: True)
+
+        Returns:
+            (success: bool, message: str, version: str or None)
+        """
+        if not self.shell.config:
+            return (False, "Configuration not loaded", None)
+
+        # Ensure URL starts with http:// or https://
+        if not url.startswith(("http://", "https://")):
+            url = f"https://{url}"
+
+        config_path = Path(self.shell.config.config_path).expanduser()
+
+        try:
+            with open(config_path, "r") as f:
+                config_data = yaml.safe_load(f) or {}
+
+            if "servers" not in config_data:
+                config_data["servers"] = {}
+
+            if name in config_data["servers"]:
+                return (False, f"Server '{name}' already exists. Use edit-server to modify.", None)
+        except Exception as e:
+            return (False, f"Failed to read configuration: {e}", None)
+
+        version_info = None
+        if test_connection:
+            try:
+                import requests
+                import urllib3
+
+                # Suppress SSL warnings when certificate verification is disabled
+                if not verify:
+                    urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
+
+                response = requests.get(f"{url}/api/v3/version", verify=verify, timeout=5)
+                if response.status_code == 200:
+                    try:
+                        version_data = response.json()
+                        version_info = version_data.get("version", "unknown")
+                    except Exception:
+                        version_info = "unknown"
+                elif response.status_code not in [401, 403]:
+                    return (False, f"Server returned status code: {response.status_code}", None)
+            except Exception as e:
+                return (False, f"Could not connect to server: {e}", None)
+
+        # Add server to config
+        config_data["servers"][name] = {
+            "url": url,
+            "username": username,
+            "password": password,
+            "verify": verify,
+        }
+
+        try:
+            with open(config_path, "w") as f:
+                yaml.dump(config_data, f, default_flow_style=False, sort_keys=False)
+
+            # Automatically reload config so tab completion works immediately
+            self.cmd_config_reload("")
+
+            return (True, f"Server '{name}' added successfully", version_info)
+
+        except Exception as e:
+            return (False, f"Failed to save configuration: {e}", None)
+
+    def edit_server_programmatic(self, name, url=None, username=None, password=None, verify=None):
+        """
+        Non-interactive server edit for GUI and scripting.
+
+        Args:
+            name: Server name to edit
+            url: New URL (optional, None = no change)
+            username: New username (optional, None = no change)
+            password: New password (optional, None = no change)
+            verify: New SSL verification setting (optional, None = no change)
+
+        Returns:
+            (success: bool, message: str)
+        """
+        if not self.shell.config:
+            return (False, "Configuration not loaded")
+
+        config_path = Path(self.shell.config.config_path).expanduser()
+
+        try:
+            with open(config_path, "r") as f:
+                config_data = yaml.safe_load(f) or {}
+
+            if "servers" not in config_data or name not in config_data["servers"]:
+                return (False, f"Server '{name}' not found")
+
+            server = config_data["servers"][name]
+
+            # Update only provided fields
+            if url is not None:
+                server["url"] = url
+            if username is not None:
+                server["username"] = username
+            if password is not None:
+                server["password"] = password
+            if verify is not None:
+                server["verify"] = verify
+
+            config_data["servers"][name] = server
+
+            with open(config_path, "w") as f:
+                yaml.dump(config_data, f, default_flow_style=False, sort_keys=False)
+
+            # Automatically reload config
+            self.cmd_config_reload("")
+
+            return (True, f"Server '{name}' updated successfully")
+
+        except Exception as e:
+            return (False, f"Failed to edit server: {e}")
+
     def cmd_add_server(self, args):
         """Add a new server to configuration. Usage: add-server <name> <url> <username> <password>"""
         parts = args.split()
@@ -336,64 +465,19 @@ class ServerCommands:
         password = parts[3]
         verify = "--no-verify" not in parts
 
-        if not self.shell.config:
-            self.shell.perror("Configuration not loaded")
-            return
+        success, message, version = self.add_server_programmatic(name, url, username, password, verify)
 
-        config_path = Path(self.shell.config.config_path).expanduser()
-
-        try:
-            with open(config_path, "r") as f:
-                config_data = yaml.safe_load(f) or {}
-
-            if "servers" not in config_data:
-                config_data["servers"] = {}
-
-            if name in config_data["servers"]:
-                self.shell.perror(f"Server '{name}' already exists. Use edit-server to modify.")
-                return
-
-            self.shell.poutput(f"Testing connection to {url}...")
-            try:
-                from quads_lib import QuadsApi
-
-                api = QuadsApi(base_url=url, username=username, password=password, verify=verify)
-                version = api.get_version()
-                if self.rich_console:
-                    self.rich_console.print_success(
-                        f"Connected successfully (QUADS version: {version.get('version', 'unknown')})"
-                    )
-                else:
-                    self.shell.poutput(
-                        f"OK: Connected successfully (QUADS version: {version.get('version', 'unknown')})"
-                    )
-            except Exception as e:
-                self.shell.pwarning(f"Warning: Could not connect to server: {e}")
-                response = input("Add server anyway? [y/N]: ")
-                if response.lower() != "y":
-                    self.shell.poutput("Server not added")
-                    return
-
-            config_data["servers"][name] = {
-                "url": url,
-                "username": username,
-                "password": password,
-                "verify": verify,
-            }
-
-            with open(config_path, "w") as f:
-                yaml.dump(config_data, f, default_flow_style=False, sort_keys=False)
-
-            # Automatically reload config so tab completion works immediately
-            self.cmd_config_reload("")
-
+        if success:
             if self.rich_console:
-                self.rich_console.print_success(f"Server '{name}' added successfully")
+                self.rich_console.print_success(message)
+                if version:
+                    self.rich_console.print_info(f"QUADS version: {version}")
             else:
-                self.shell.poutput(f"OK: Server '{name}' added successfully")
-
-        except Exception as e:
-            self.shell.perror(f"Failed to add server: {e}")
+                self.shell.poutput(f"OK: {message}")
+                if version:
+                    self.shell.poutput(f"  QUADS version: {version}")
+        else:
+            self.shell.perror(message)
 
     def cmd_edit_server(self, args):
         """Edit an existing server.
@@ -408,57 +492,42 @@ class ServerCommands:
 
         name = parts[0]
 
-        if not self.shell.config:
-            self.shell.perror("Configuration not loaded")
+        # Parse updates
+        updates = {}
+        i = 1
+        while i < len(parts):
+            if parts[i] == "url" and i + 1 < len(parts):
+                updates["url"] = parts[i + 1]
+                i += 2
+            elif parts[i] == "username" and i + 1 < len(parts):
+                updates["username"] = parts[i + 1]
+                i += 2
+            elif parts[i] == "password" and i + 1 < len(parts):
+                updates["password"] = parts[i + 1]
+                i += 2
+            elif parts[i] == "verify" and i + 1 < len(parts):
+                updates["verify"] = parts[i + 1].lower() == "true"
+                i += 2
+            else:
+                i += 1
+
+        if not updates:
+            self.shell.perror("No updates specified")
             return
 
-        config_path = Path(self.shell.config.config_path).expanduser()
+        # Use programmatic method
+        success, message = self.edit_server_programmatic(
+            name,
+            url=updates.get("url"),
+            username=updates.get("username"),
+            password=updates.get("password"),
+            verify=updates.get("verify"),
+        )
 
-        try:
-            with open(config_path, "r") as f:
-                config_data = yaml.safe_load(f) or {}
-
-            if "servers" not in config_data or name not in config_data["servers"]:
-                self.shell.perror(f"Server '{name}' not found")
-                return
-
-            server = config_data["servers"][name]
-            updates = {}
-
-            i = 1
-            while i < len(parts):
-                if parts[i] == "url" and i + 1 < len(parts):
-                    updates["url"] = parts[i + 1]
-                    i += 2
-                elif parts[i] == "username" and i + 1 < len(parts):
-                    updates["username"] = parts[i + 1]
-                    i += 2
-                elif parts[i] == "password" and i + 1 < len(parts):
-                    updates["password"] = parts[i + 1]
-                    i += 2
-                elif parts[i] == "verify" and i + 1 < len(parts):
-                    updates["verify"] = parts[i + 1].lower() == "true"
-                    i += 2
-                else:
-                    i += 1
-
-            if not updates:
-                self.shell.perror("No updates specified")
-                return
-
-            server.update(updates)
-            config_data["servers"][name] = server
-
-            with open(config_path, "w") as f:
-                yaml.dump(config_data, f, default_flow_style=False, sort_keys=False)
-
-            # Automatically reload config
-            self.cmd_config_reload("")
-
-            self.shell.poutput(f"OK: Server '{name}' updated successfully")
-
-        except Exception as e:
-            self.shell.perror(f"Failed to edit server: {e}")
+        if success:
+            self.shell.poutput(f"OK: {message}")
+        else:
+            self.shell.perror(message)
 
     def cmd_rm_server(self, args):
         """Remove a server from configuration. Usage: rm-server <name>"""
