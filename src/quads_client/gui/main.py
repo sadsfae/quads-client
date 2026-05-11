@@ -328,7 +328,7 @@ class QuadsClientApp(tk.Tk):
         """Show preferences dialog"""
         old_font_size = self.preferences.get("font_size", "medium")
 
-        dialog = PreferencesDialog(self, self.shell.config, self.theme_manager)
+        dialog = PreferencesDialog(self, self.shell.config, self.theme_manager, self.shell)
         self.wait_window(dialog)
 
         result = dialog.get_result()

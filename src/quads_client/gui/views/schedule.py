@@ -12,6 +12,7 @@ class ScheduleView(ttk.Frame):
     def __init__(self, parent, shell):
         super().__init__(parent)
         self.shell = shell
+        self._validating = False  # Prevent validation loops
 
         self._create_ui()
 
@@ -389,6 +390,16 @@ class ScheduleView(ttk.Frame):
             )
             return
 
+        # Validate selected hostnames before using them
+        is_valid, errors = self._validate_hostnames(hostnames)
+
+        if not is_valid:
+            error_msg = "The following selected hosts are invalid:\n\n"
+            error_msg += "\n".join(f"  • {err}" for err in errors)
+            error_msg += "\n\nPlease select different hosts or contact an admin."
+            messagebox.showerror("Invalid Hostnames", error_msg)
+            return
+
         # Switch to "Specific hostnames" mode and populate
         self.mode_var.set("hosts")
         self._on_mode_changed()
@@ -404,7 +415,7 @@ class ScheduleView(ttk.Frame):
         """Browse for host list file"""
         filename = filedialog.askopenfilename(
             title="Select Host List File",
-            filetypes=[("Text files", "*.txt"), ("All files", "*.*")],
+            filetypes=[("All files", "*.*"), ("Text files", "*.txt")],
         )
         if filename:
             self.file_entry.delete(0, tk.END)
@@ -458,6 +469,49 @@ class ScheduleView(ttk.Frame):
         self.preview_text.insert("1.0", preview)
         self.preview_text.config(state=tk.DISABLED)
 
+    def _validate_hostnames(self, hostnames):
+        """Validate hostnames exist and are eligible for SSM scheduling
+
+        Args:
+            hostnames: List of hostname strings
+
+        Returns:
+            tuple: (is_valid, error_list) where error_list contains hostname:reason pairs
+        """
+        errors = []
+
+        for hostname in hostnames:
+            hostname = hostname.strip()
+            if not hostname:
+                continue
+
+            try:
+                # Check if host exists
+                host = self.shell.connection.api.get_host(hostname)
+
+                if not host:
+                    errors.append(f"{hostname}: Host not found (typo?)")
+                    continue
+
+                # Check if host is broken or retired
+                if host.get("broken"):
+                    errors.append(f"{hostname}: Host is marked as broken")
+                    continue
+
+                if host.get("retired"):
+                    errors.append(f"{hostname}: Host is retired")
+                    continue
+
+                # Check if host can self-schedule
+                if not host.get("can_self_schedule"):
+                    errors.append(f"{hostname}: Not enabled for self-scheduling")
+                    continue
+
+            except Exception as e:
+                errors.append(f"{hostname}: Error checking host ({str(e)})")
+
+        return (len(errors) == 0, errors)
+
     def _schedule(self):
         """Perform the scheduling"""
         if not self.shell.is_authenticated():
@@ -472,21 +526,62 @@ class ScheduleView(ttk.Frame):
         mode = self.mode_var.get()
         args = ""
 
-        if mode == "count":
-            count = self.count_spinbox.get()
-            args = f"{count}"
-        elif mode == "hosts":
+        # Validate hostnames for "hosts" and "file" modes (pre-flight validation)
+        if mode == "hosts":
             hosts = self.hosts_entry.get().strip()
             if not hosts:
                 messagebox.showerror("Error", "Hostnames are required")
                 return
+
+            # Parse and validate hostnames
+            hostname_list = [h.strip() for h in hosts.split(",") if h.strip()]
+            is_valid, errors = self._validate_hostnames(hostname_list)
+
+            if not is_valid:
+                error_msg = "The following hostnames are invalid:\n\n"
+                error_msg += "\n".join(f"  • {err}" for err in errors)
+                error_msg += "\n\nPlease fix these issues before scheduling."
+                messagebox.showerror("Invalid Hostnames", error_msg)
+                return
+
             args = hosts
+
         elif mode == "file":
             file_path = self.file_entry.get().strip()
             if not file_path:
                 messagebox.showerror("Error", "Please select a host list file")
                 return
+
+            # Read and validate hostnames from file
+            try:
+                with open(file_path, "r") as f:
+                    hostname_list = [line.strip() for line in f if line.strip()]
+
+                if not hostname_list:
+                    messagebox.showerror("Error", f"No hostnames found in file: {file_path}")
+                    return
+
+                is_valid, errors = self._validate_hostnames(hostname_list)
+
+                if not is_valid:
+                    error_msg = f"The following hostnames in {file_path} are invalid:\n\n"
+                    error_msg += "\n".join(f"  • {err}" for err in errors)
+                    error_msg += "\n\nPlease fix these issues before scheduling."
+                    messagebox.showerror("Invalid Hostnames", error_msg)
+                    return
+
+            except FileNotFoundError:
+                messagebox.showerror("Error", f"File not found: {file_path}")
+                return
+            except Exception as e:
+                messagebox.showerror("Error", f"Failed to read file: {e}")
+                return
+
             args = f"host-list {file_path}"
+
+        elif mode == "count":
+            count = self.count_spinbox.get()
+            args = f"{count}"
 
         args += f' description "{description}"'
 
