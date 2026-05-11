@@ -258,7 +258,7 @@ class CloudCommands:
 
         Examples:
           mod-cloud cloud05 description "Updated test environment"
-          mod-cloud cloud02 cloud-owner alice cloud-ticket JIRA-456
+          mod-cloud cloud02 cloud-owner alice cloud-ticket 456
           mod-cloud cloud03 vlan 1234 qinq 1
           mod-cloud cloud04 wipe
           mod-cloud cloud06 cc-users "bob,alice,charlie"
@@ -281,7 +281,7 @@ class CloudCommands:
             self.shell.poutput("  nowipe                   Disable host wiping")
             self.shell.poutput("\nExamples:")
             self.shell.poutput('  mod-cloud cloud05 description "Updated test environment"')
-            self.shell.poutput("  mod-cloud cloud02 cloud-owner alice cloud-ticket JIRA-456")
+            self.shell.poutput("  mod-cloud cloud02 cloud-owner alice cloud-ticket 456")
             self.shell.poutput("  mod-cloud cloud03 vlan 1234 qinq 1")
             self.shell.poutput("  mod-cloud cloud04 wipe")
             self.shell.poutput('  mod-cloud cloud06 cc-users "bob,alice,charlie"')

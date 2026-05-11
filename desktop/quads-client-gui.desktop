@@ -1,0 +1,12 @@
+[Desktop Entry]
+Version=1.0
+Type=Application
+Name=QUADS Client GUI
+GenericName=QUADS Server Management
+Comment=Graphical interface for managing QUADS servers
+Exec=quads-client-gui
+Icon=quads-client
+Terminal=false
+Categories=System;Network;RemoteAccess;
+Keywords=quads;server;cloud;host;scheduling;
+StartupNotify=true

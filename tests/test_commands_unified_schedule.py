@@ -488,7 +488,7 @@ class TestBatchScheduleEndpoint:
         schedule_cmd = ScheduleCommands(mock_shell)
         cmd = (
             'cloud02 host01,host02 "2026-05-11 22:00" "2026-06-11 22:00" '
-            'description "Testing" cloud-owner jdoe cloud-ticket JIRA-123 '
+            'description "Testing" cloud-owner jdoe cloud-ticket 123 '
             "cc-users wfoster vlan 1234 qinq 1"
         )
         schedule_cmd.cmd_schedule_admin(cmd)
@@ -497,7 +497,7 @@ class TestBatchScheduleEndpoint:
         batch_data = mock_shell.connection.api.create_schedules_batch.call_args[0][0]
         assert batch_data["description"] == "Testing"
         assert batch_data["owner"] == "jdoe"
-        assert batch_data["ticket"] == "JIRA-123"
+        assert batch_data["ticket"] == "123"
         assert batch_data["ccuser"] == "wfoster"
         assert batch_data["vlan"] == 1234
         assert batch_data["qinq"] == 1

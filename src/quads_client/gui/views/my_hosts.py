@@ -12,10 +12,53 @@ class MyHostsView(ttk.Frame):
     def __init__(self, parent, shell):
         super().__init__(parent)
         self.shell = shell
-        self.auto_refresh_enabled = False
-        self.refresh_interval = 30000
+
+        # Load preferences
+        prefs = self._get_preferences()
+        self.auto_refresh_enabled = prefs.get("auto_refresh_my_hosts", True)
+        self.refresh_interval = prefs.get("auto_refresh_interval", 30) * 1000  # Convert to ms
 
         self._create_ui()
+
+    def _get_preferences(self):
+        """Get GUI preferences from config"""
+        if self.shell.config and hasattr(self.shell.config, "config_data"):
+            return self.shell.config.config_data.get("gui_preferences", {})
+        return {}
+
+    def _auto_login(self):
+        """Auto-login to default or only server"""
+        prefs = self._get_preferences()
+        default_server = prefs.get("default_server")
+
+        # Get all configured servers
+        servers = {}
+        if self.shell.config:
+            servers = self.shell.config.get_all_servers()
+
+        # Determine which server to connect to
+        target_server = None
+        if default_server and default_server in servers:
+            target_server = default_server
+        elif len(servers) == 1:
+            # Only one server configured
+            target_server = list(servers.keys())[0]
+        elif len(servers) > 1:
+            # Multiple servers, no default - switch to connection view
+            self.shell.gui_app._show_connection_view()
+            return
+
+        if target_server:
+            try:
+                # Connect to the server
+                self.shell.connection_commands.cmd_connect(target_server)
+                # Refresh this view
+                self._load_assignments()
+            except Exception as e:
+                show_error_dialog(self, "Login Failed", f"Failed to connect to {target_server}", str(e))
+        else:
+            # No servers configured - show onboarding
+            self.shell.gui_app._show_servers_view()
 
     def _create_ui(self):
         """Create the UI"""
@@ -27,13 +70,19 @@ class MyHostsView(ttk.Frame):
 
         ttk.Button(header_frame, text="🔄 Refresh", command=self._manual_refresh).pack(side=tk.RIGHT)
 
-        self.auto_refresh_var = tk.BooleanVar(value=False)
-        ttk.Checkbutton(
+        interval_sec = self.refresh_interval // 1000
+        self.auto_refresh_var = tk.BooleanVar(value=self.auto_refresh_enabled)
+        self.auto_refresh_check = ttk.Checkbutton(
             header_frame,
-            text="Auto-refresh (30s)",
+            text=f"Auto-refresh ({interval_sec}s)",
             variable=self.auto_refresh_var,
             command=self._toggle_auto_refresh,
-        ).pack(side=tk.RIGHT, padx=10)
+        )
+        self.auto_refresh_check.pack(side=tk.RIGHT, padx=10)
+
+        # Start auto-refresh if enabled
+        if self.auto_refresh_enabled:
+            self.after(100, self._schedule_auto_refresh)
 
         self.content_frame = ttk.Frame(self)
         self.content_frame.pack(fill=tk.BOTH, expand=True, padx=20, pady=(0, 20))
@@ -49,11 +98,18 @@ class MyHostsView(ttk.Frame):
             widget.destroy()
 
         if not self.shell.is_authenticated():
+            # Not logged in - show message and login button
+            message_frame = ttk.Frame(self.content_frame)
+            message_frame.pack(pady=50)
+
             ttk.Label(
-                self.content_frame,
+                message_frame,
                 text="Please login to view your hosts",
                 font=("TkDefaultFont", 12),
-            ).pack(pady=50)
+            ).pack(pady=(0, 20))
+
+            ttk.Button(message_frame, text="Login", command=self._auto_login).pack()
+
             self.status_label.config(text="Not authenticated")
             return
 
@@ -114,7 +170,11 @@ class MyHostsView(ttk.Frame):
                             if isinstance(hostname, dict):
                                 hostname = hostname.get("name", "")
 
-                            hosts.append({"name": str(hostname), "status": "active", "progress": 100})
+                            # TODO: When QUADS server adds validation/provisioning status API,
+                            # pull actual status instead of defaulting to "provisioning"
+                            # For now, mark as provisioning with N/A progress until we have
+                            # proper validation polling support
+                            hosts.append({"name": str(hostname), "status": "provisioning", "progress": "N/A"})
 
                     assignments_data.append(
                         {
@@ -176,13 +236,15 @@ class MyHostsView(ttk.Frame):
 
             if host["status"] == "active":
                 tree.item(item_id, tags=("active",))
-                tree.tag_configure("active", foreground="#4ec9b0")
+                tree.tag_configure("active", foreground=self.shell.gui_app.theme_manager.get_color("success"))
             elif host["status"] == "provisioning":
                 tree.item(item_id, tags=("provisioning",))
-                tree.tag_configure("provisioning", foreground="#dcdcaa")
+                tree.tag_configure(
+                    "provisioning", foreground=self.shell.gui_app.theme_manager.get_color("provisioning")
+                )
             elif host["status"] == "failed":
                 tree.item(item_id, tags=("failed",))
-                tree.tag_configure("failed", foreground="#f48771")
+                tree.tag_configure("failed", foreground=self.shell.gui_app.theme_manager.get_color("error"))
 
         tree.pack(fill=tk.BOTH, expand=True)
 
@@ -207,18 +269,23 @@ class MyHostsView(ttk.Frame):
 
     def _get_progress_bar(self, progress):
         """Get text progress bar"""
+        if progress == "N/A":
+            return "░" * 10 + " N/A"
         filled = int(progress / 10)
         empty = 10 - filled
         return "█" * filled + "░" * empty + f" {progress}%"
 
     def _terminate_assignment(self, assignment_id):
         """Terminate an assignment"""
-        if not messagebox.askyesno(
-            "Confirm Termination",
-            f"Are you sure you want to terminate assignment #{assignment_id}?\n\n"
-            "This will release all hosts in this assignment.",
-        ):
-            return
+        # Check if we should confirm
+        prefs = self._get_preferences()
+        if prefs.get("confirm_terminate", True):
+            if not messagebox.askyesno(
+                "Confirm Termination",
+                f"Are you sure you want to terminate assignment #{assignment_id}?\n\n"
+                "This will release all hosts in this assignment.",
+            ):
+                return
 
         try:
             # Set GUI mode to bypass terminal confirmation prompt
@@ -262,3 +329,20 @@ class MyHostsView(ttk.Frame):
     def refresh(self):
         """Public method to refresh the view"""
         self._load_assignments()
+
+    def apply_preferences(self, preferences):
+        """Apply updated preferences"""
+        # Update interval
+        new_interval = preferences.get("auto_refresh_interval", 30) * 1000
+        if new_interval != self.refresh_interval:
+            self.refresh_interval = new_interval
+            interval_sec = self.refresh_interval // 1000
+            self.auto_refresh_check.config(text=f"Auto-refresh ({interval_sec}s)")
+
+        # Update enabled state
+        new_enabled = preferences.get("auto_refresh_my_hosts", True)
+        if new_enabled != self.auto_refresh_enabled:
+            self.auto_refresh_enabled = new_enabled
+            self.auto_refresh_var.set(new_enabled)
+            if new_enabled:
+                self._schedule_auto_refresh()

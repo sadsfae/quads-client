@@ -214,7 +214,7 @@ def test_assignment_status_success(mock_shell):
             "cloud": {"name": "cloud17"},
             "owner": "user@example.com",
             "description": "Test environment",
-            "ticket": "JIRA-123",
+            "ticket": "123",
             "qinq": 1234,
             "wipe": True,
             "validated": True,

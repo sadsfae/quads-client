@@ -126,7 +126,7 @@ class BaseAdminView(ttk.Frame):
         header_frame = ttk.Frame(self)
         header_frame.pack(fill=tk.X, padx=20, pady=10)
 
-        title_label = ttk.Label(header_frame, text=self.title_text, font=("TkDefaultFont", 14, "bold"))
+        title_label = ttk.Label(header_frame, text=self.title_text, font=("TkHeadingFont",))
         title_label.pack(side=tk.LEFT)
 
         if buttons:

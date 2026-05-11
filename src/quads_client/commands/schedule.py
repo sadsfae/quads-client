@@ -169,11 +169,11 @@ class ScheduleCommands:
 
         Examples:
           schedule cloud02 host01,host02 2026-05-11 2026-06-11 description "Test Env" \\
-            cloud-owner jdoe cloud-ticket JIRA-123
+            cloud-owner jdoe cloud-ticket 123
           schedule cloud17 host-list ~/hosts.txt now 2026-07-01 \\
-            description "OpenStack Testing" cloud-owner alice cloud-ticket JIRA-456
+            description "OpenStack Testing" cloud-owner alice cloud-ticket 456
           schedule cloud05 host03 2026-05-15 2026-06-01 description "Performance Test" \\
-            cloud-owner jdoe cloud-ticket JIRA-789 vlan 1234 qinq 1 nowipe
+            cloud-owner jdoe cloud-ticket 789 vlan 1234 qinq 1 nowipe
         """
         if not require_admin(self.shell):
             return

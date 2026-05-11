@@ -47,6 +47,33 @@ class AssignmentsView(BaseAdminView):
         """Load assignments from server"""
         from quads_client.utils import get_username_short, extract_assignment_id, extract_cloud_name
 
+        # Check authentication first and show login button if needed
+        if not self.shell.is_authenticated():
+            self.tree.clear()
+            # Show login button in the tree area
+            for widget in self.tree.winfo_children():
+                if isinstance(widget, ttk.Frame) and hasattr(widget, "_login_frame"):
+                    return  # Already showing login UI
+
+            # Create login frame
+            login_frame = ttk.Frame(self.tree)
+            login_frame._login_frame = True  # Mark it
+            login_frame.place(relx=0.5, rely=0.5, anchor=tk.CENTER)
+
+            ttk.Label(login_frame, text="Please login to view your assignments", font=("TkDefaultFont", 12)).pack(
+                pady=(0, 20)
+            )
+
+            ttk.Button(login_frame, text="Login", command=self._auto_login).pack()
+
+            self.update_status("Not authenticated")
+            return
+
+        # Remove login frame if it exists
+        for widget in self.tree.winfo_children():
+            if isinstance(widget, ttk.Frame) and hasattr(widget, "_login_frame"):
+                widget.destroy()
+
         def load_data():
             # Use short username (without @domain.com) and filter for active assignments
             username = get_username_short(self.shell.connection.username)
@@ -71,6 +98,48 @@ class AssignmentsView(BaseAdminView):
                     tk.END,
                     values=(assignment_id, cloud_name, description, owner, validated),
                 )
+
+    def _auto_login(self):
+        """Auto-login to default or only server"""
+        from quads_client.gui.widgets.dialogs import show_error_dialog
+
+        prefs = self._get_preferences()
+        default_server = prefs.get("default_server")
+
+        # Get all configured servers
+        servers = {}
+        if self.shell.config:
+            servers = self.shell.config.get_all_servers()
+
+        # Determine which server to connect to
+        target_server = None
+        if default_server and default_server in servers:
+            target_server = default_server
+        elif len(servers) == 1:
+            # Only one server configured
+            target_server = list(servers.keys())[0]
+        elif len(servers) > 1:
+            # Multiple servers, no default - switch to connection view
+            self.shell.gui_app._show_connection_view()
+            return
+
+        if target_server:
+            try:
+                # Connect to the server
+                self.shell.connection_commands.cmd_connect(target_server)
+                # Refresh this view
+                self._load_assignments()
+            except Exception as e:
+                show_error_dialog(self, "Login Failed", f"Failed to connect to {target_server}", str(e))
+        else:
+            # No servers configured - show onboarding
+            self.shell.gui_app._show_servers_view()
+
+    def _get_preferences(self):
+        """Get GUI preferences from config"""
+        if self.shell.config and hasattr(self.shell.config, "config_data"):
+            return self.shell.config.config_data.get("gui_preferences", {})
+        return {}
 
     def _terminate_selected(self):
         """Terminate selected assignment"""

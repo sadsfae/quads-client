@@ -223,3 +223,117 @@ def test_config_read_error(tmp_path, monkeypatch):
     finally:
         # Restore permissions for cleanup
         os.chmod(config_file, 0o644)
+
+
+def test_config_data_property(tmp_path):
+    """Test config_data property returns internal config dict"""
+    config_file = tmp_path / "quads-client.yml"
+    config_data = {
+        "servers": {"test_server": {"url": "https://test.example.com", "username": "test@example.com"}},
+        "default_server": "test_server",
+    }
+    config_file.write_text(yaml.dump(config_data))
+
+    config = QuadsClientConfig(config_path=str(config_file))
+    data = config.config_data
+
+    assert isinstance(data, dict)
+    assert "servers" in data
+    assert "test_server" in data["servers"]
+    assert data["default_server"] == "test_server"
+
+
+def test_save_config_basic(tmp_path):
+    """Test save_config() method writes to file"""
+    config_file = tmp_path / "quads-client.yml"
+    config_data = {"servers": {"test_server": {"url": "https://test.example.com"}}}
+    config_file.write_text(yaml.dump(config_data))
+
+    config = QuadsClientConfig(config_path=str(config_file))
+
+    # Modify config via config_data property
+    config.config_data["default_server"] = "test_server"
+
+    # Save changes
+    config.save_config()
+
+    # Verify changes were written to file
+    with open(config_file, "r") as f:
+        saved_data = yaml.safe_load(f)
+    assert saved_data["default_server"] == "test_server"
+
+
+def test_save_config_gui_preferences(tmp_path):
+    """Test saving GUI preferences via config_data"""
+    config_file = tmp_path / "quads-client.yml"
+    config_data = {"servers": {"test_server": {"url": "https://test.example.com"}}}
+    config_file.write_text(yaml.dump(config_data))
+
+    config = QuadsClientConfig(config_path=str(config_file))
+
+    # Add GUI preferences
+    gui_prefs = {
+        "auto_refresh_interval": 30,
+        "auto_refresh_my_hosts": True,
+        "confirm_terminate": True,
+        "font_size": "large",
+    }
+    config.config_data["gui_preferences"] = gui_prefs
+
+    # Save changes
+    config.save_config()
+
+    # Verify preferences were written to file
+    with open(config_file, "r") as f:
+        saved_data = yaml.safe_load(f)
+    assert "gui_preferences" in saved_data
+    assert saved_data["gui_preferences"]["font_size"] == "large"
+    assert saved_data["gui_preferences"]["auto_refresh_interval"] == 30
+
+
+def test_save_config_preserves_gui_preferences(tmp_path):
+    """Test that GUI preferences persist across loads"""
+    config_file = tmp_path / "quads-client.yml"
+    config_data = {
+        "servers": {"test_server": {"url": "https://test.example.com"}},
+        "gui_preferences": {"font_size": "medium", "confirm_terminate": False},
+    }
+    config_file.write_text(yaml.dump(config_data))
+
+    # Load config
+    config = QuadsClientConfig(config_path=str(config_file))
+
+    # Verify preferences loaded
+    assert config.config_data["gui_preferences"]["font_size"] == "medium"
+
+    # Modify preferences
+    config.config_data["gui_preferences"]["font_size"] = "large"
+    config.save_config()
+
+    # Reload config
+    config2 = QuadsClientConfig(config_path=str(config_file))
+
+    # Verify changes persisted
+    assert config2.config_data["gui_preferences"]["font_size"] == "large"
+    assert config2.config_data["gui_preferences"]["confirm_terminate"] is False
+
+
+def test_save_config_write_error(tmp_path):
+    """Test save_config() error handling"""
+    config_file = tmp_path / "quads-client.yml"
+    config_data = {"servers": {"test_server": {"url": "https://test.example.com"}}}
+    config_file.write_text(yaml.dump(config_data))
+
+    config = QuadsClientConfig(config_path=str(config_file))
+
+    # Make directory unwritable
+    import os
+
+    os.chmod(tmp_path, 0o444)
+
+    try:
+        with pytest.raises(ConfigError, match="Failed to save config file"):
+            config.save_config()
+    finally:
+        # Restore permissions for cleanup
+        os.chmod(tmp_path, 0o755)
