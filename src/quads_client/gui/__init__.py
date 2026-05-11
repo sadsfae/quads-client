@@ -9,8 +9,15 @@ def main():
         import tkinter  # noqa: F401
     except ImportError:
         print("ERROR: GUI dependencies not available.")
-        print("\nPlease use the CLI instead: quads-client")
-        print("Or install the GUI package: dnf install quads-client-gui")
+        print("\ntkinter is required for the GUI but is not installed.")
+        print("\nOn Linux (Fedora/RHEL/CentOS):")
+        print("  sudo dnf install python3-tkinter")
+        print("\nOn Linux (Debian/Ubuntu):")
+        print("  sudo apt install python3-tk")
+        print("\nOn macOS:")
+        print("  tkinter should be included with Python from python.org")
+        print("  If missing, reinstall Python from https://www.python.org/downloads/")
+        print("\nAlternatively, use the CLI instead: quads-client")
         return 1
 
     from quads_client.gui.main import QuadsClientApp

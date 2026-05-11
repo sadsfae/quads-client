@@ -2,8 +2,10 @@
 
 import tkinter as tk
 from tkinter import ttk, messagebox, filedialog
+from datetime import datetime
 
 from quads_client.gui.widgets.base import BaseAdminView, ScrolledTreeview, FormDialog
+from quads_client.gui.widgets.date_picker import DatePickerDialog, get_next_sunday_22utc, get_two_weeks_sunday_22utc
 
 
 class AdminScheduleView(BaseAdminView):
@@ -69,11 +71,41 @@ class AdminScheduleView(BaseAdminView):
         # Initial load
         self._load_schedules()
 
+    def _get_free_clouds(self):
+        """Get list of free clouds (no active assignments)"""
+        try:
+            # Get all clouds
+            clouds = self.shell.connection.api.get_clouds()
+            if not clouds:
+                return []
+
+            free_clouds = []
+
+            for cloud in clouds:
+                cloud_name = cloud.get("name")
+
+                # Skip cloud01 (spare pool)
+                if cloud_name == "cloud01":
+                    continue
+
+                # Check if cloud has current schedules
+                current_schedules = self.shell.connection.api.get_current_schedules({"cloud": cloud_name})
+
+                # If no current schedules, cloud is free
+                if not current_schedules:
+                    free_clouds.append(cloud_name)
+
+            return sorted(free_clouds)
+
+        except Exception as e:
+            self.update_status(f"Error getting free clouds: {e}")
+            return []
+
     def _load_schedules(self):
         """Load schedules from server"""
 
         def load_data():
-            filters = {}
+            filters = {"active": True}  # Only show active schedules
             if self.cloud_filter.get().strip():
                 filters["cloud"] = self.cloud_filter.get().strip()
             if self.host_filter.get().strip():
@@ -105,6 +137,54 @@ class AdminScheduleView(BaseAdminView):
                 values=(schedule_id, host_name, cloud_name, owner, start, end),
             )
 
+    def _validate_hosts_availability(self, hostnames, start_date, end_date):
+        """Validate hosts are available for the specified date range
+
+        Args:
+            hostnames: List of hostname strings
+            start_date: Start date string (YYYY-MM-DD HH:MM)
+            end_date: End date string (YYYY-MM-DD HH:MM)
+
+        Returns:
+            tuple: (is_valid, error_list) where error_list contains hostname:reason pairs
+        """
+        errors = []
+
+        for hostname in hostnames:
+            hostname = hostname.strip()
+            if not hostname:
+                continue
+
+            try:
+                # Check if host exists
+                host = self.shell.connection.api.get_host(hostname)
+
+                if not host:
+                    errors.append(f"{hostname}: Host not found (typo?)")
+                    continue
+
+                # Check if host is broken or retired
+                if host.get("broken"):
+                    errors.append(f"{hostname}: Host is marked as broken")
+                    continue
+
+                if host.get("retired"):
+                    errors.append(f"{hostname}: Host is retired")
+                    continue
+
+                # Check if host is available for the date range
+                # Use is_available() API to check schedule conflicts
+                is_available = self.shell.connection.api.is_available(hostname, start_date, end_date)
+
+                if not is_available:
+                    errors.append(f"{hostname}: Not available for {start_date} to {end_date}")
+                    continue
+
+            except Exception as e:
+                errors.append(f"{hostname}: Error checking availability ({str(e)})")
+
+        return (len(errors) == 0, errors)
+
     def _create_schedule(self):
         """Create new schedule with admin parameters"""
         dialog = self.create_simple_dialog("Create Schedule (Admin)", "600x550")
@@ -116,10 +196,33 @@ class AdminScheduleView(BaseAdminView):
         ).pack(pady=10, padx=20)
 
         form_frame = ttk.Frame(dialog)
-        form_frame.pack(fill=tk.BOTH, expand=True, padx=20, pady=10)
+        form_frame.pack(fill=tk.X, padx=20, pady=10)
 
-        # Cloud
-        cloud_entry = FormDialog.create_labeled_entry(form_frame, "Cloud:", 0, 30)
+        # Load admin preferences
+        prefs = {}
+        if self.shell.config and hasattr(self.shell.config, "config_data"):
+            prefs = self.shell.config.config_data.get("gui_preferences", {})
+
+        cadence = prefs.get("admin_schedule_cadence", "2 weeks")
+        start_hour = prefs.get("admin_schedule_start_hour", 22)
+        end_hour = prefs.get("admin_schedule_end_hour", 22)
+
+        # Cloud - populate with free clouds
+        ttk.Label(form_frame, text="Cloud:").grid(row=0, column=0, sticky=tk.W, pady=5)
+        cloud_frame = ttk.Frame(form_frame)
+        cloud_frame.grid(row=0, column=1, pady=5, sticky=tk.W)
+
+        free_clouds = self._get_free_clouds()
+        cloud_var = tk.StringVar()
+        cloud_combo = ttk.Combobox(cloud_frame, textvariable=cloud_var, values=free_clouds, width=27, state="readonly")
+        cloud_combo.pack(side=tk.LEFT)
+
+        if free_clouds:
+            cloud_combo.current(0)  # Select first free cloud by default
+
+        ttk.Label(cloud_frame, text=f"({len(free_clouds)} free)", font=("TkDefaultFont", 8), foreground="gray").pack(
+            side=tk.LEFT, padx=5
+        )
 
         # Hosts selection mode
         ttk.Label(form_frame, text="Hosts:").grid(row=1, column=0, sticky=tk.W, pady=5)
@@ -146,21 +249,54 @@ class AdminScheduleView(BaseAdminView):
 
         ttk.Button(file_frame, text="Browse", command=browse_file).pack(side=tk.LEFT, padx=5)
 
-        # Dates
+        # Dates with smart defaults (using admin preferences)
+        default_start = get_next_sunday_22utc(start_hour)
+        default_end = get_two_weeks_sunday_22utc(default_start, cadence, end_hour)
+
         ttk.Label(form_frame, text="Start Date:").grid(row=2, column=0, sticky=tk.W, pady=5)
         start_frame = ttk.Frame(form_frame)
         start_frame.grid(row=2, column=1, pady=5, sticky=tk.W)
-        start_entry = ttk.Entry(start_frame, width=30)
+        start_entry = ttk.Entry(start_frame, width=25)
         start_entry.pack(side=tk.LEFT)
-        start_entry.insert(0, "YYYY-MM-DD HH:MM or 'now'")
+        start_entry.insert(0, default_start.strftime("%Y-%m-%d %H:%M"))
+
+        def pick_start_date():
+            picker = DatePickerDialog(dialog, "Select Start Date", start_entry.get())
+            dialog.wait_window(picker)
+            result = picker.get_result()
+            if result:
+                start_entry.delete(0, tk.END)
+                start_entry.insert(0, result)
+                # Update end date using admin preferences
+                new_end = get_two_weeks_sunday_22utc(result, cadence, end_hour)
+                end_entry.delete(0, tk.END)
+                end_entry.insert(0, new_end.strftime("%Y-%m-%d %H:%M"))
+
+        def set_start_now():
+            now = datetime.utcnow()
+            start_entry.delete(0, tk.END)
+            start_entry.insert(0, now.strftime("%Y-%m-%d %H:%M"))
+
+        ttk.Button(start_frame, text="📅", command=pick_start_date, width=3).pack(side=tk.LEFT, padx=2)
+        ttk.Button(start_frame, text="Now", command=set_start_now, width=5).pack(side=tk.LEFT, padx=2)
         ttk.Label(start_frame, text="(UTC)", font=("TkDefaultFont", 8)).pack(side=tk.LEFT, padx=5)
 
         ttk.Label(form_frame, text="End Date:").grid(row=3, column=0, sticky=tk.W, pady=5)
         end_frame = ttk.Frame(form_frame)
         end_frame.grid(row=3, column=1, pady=5, sticky=tk.W)
-        end_entry = ttk.Entry(end_frame, width=30)
+        end_entry = ttk.Entry(end_frame, width=25)
         end_entry.pack(side=tk.LEFT)
-        end_entry.insert(0, "YYYY-MM-DD HH:MM")
+        end_entry.insert(0, default_end.strftime("%Y-%m-%d %H:%M"))
+
+        def pick_end_date():
+            picker = DatePickerDialog(dialog, "Select End Date", end_entry.get())
+            dialog.wait_window(picker)
+            result = picker.get_result()
+            if result:
+                end_entry.delete(0, tk.END)
+                end_entry.insert(0, result)
+
+        ttk.Button(end_frame, text="📅", command=pick_end_date, width=3).pack(side=tk.LEFT, padx=2)
         ttk.Label(end_frame, text="(UTC)", font=("TkDefaultFont", 8)).pack(side=tk.LEFT, padx=5)
 
         # Assignment parameters
@@ -179,7 +315,7 @@ class AdminScheduleView(BaseAdminView):
         ttk.Checkbutton(form_frame, text="No wipe", variable=nowipe_var).grid(row=10, column=1, sticky=tk.W, pady=5)
 
         def on_create():
-            cloud = cloud_entry.get().strip()
+            cloud = cloud_var.get().strip()
             start = start_entry.get().strip()
             end = end_entry.get().strip()
 
@@ -187,18 +323,56 @@ class AdminScheduleView(BaseAdminView):
                 messagebox.showerror("Error", "Cloud, start, and end dates are required", parent=dialog)
                 return
 
-            # Build host argument
+            # Build host argument and validate
+            hostname_list = []
             if mode_var.get() == "list":
                 hosts = hosts_entry.get().strip()
                 if not hosts:
                     messagebox.showerror("Error", "Host list is required", parent=dialog)
                     return
+
+                # Parse comma-separated hostnames
+                hostname_list = [h.strip() for h in hosts.split(",") if h.strip()]
+
             else:
                 hosts_file = file_entry.get().strip()
                 if not hosts_file:
                     messagebox.showerror("Error", "Host file is required", parent=dialog)
                     return
+
+                # Read hostnames from file
+                try:
+                    with open(hosts_file, "r") as f:
+                        hostname_list = [line.strip() for line in f if line.strip()]
+
+                    if not hostname_list:
+                        messagebox.showerror("Error", f"No hostnames found in file: {hosts_file}", parent=dialog)
+                        return
+
+                except FileNotFoundError:
+                    messagebox.showerror("Error", f"File not found: {hosts_file}", parent=dialog)
+                    return
+                except Exception as e:
+                    messagebox.showerror("Error", f"Failed to read file: {e}", parent=dialog)
+                    return
+
                 hosts = f"host-list {hosts_file}"
+
+            # Validate hostnames before scheduling
+            is_valid, errors = self._validate_hosts_availability(hostname_list, start, end)
+
+            if not is_valid:
+                error_msg = "The following hosts are invalid or unavailable:\n\n"
+                error_msg += "\n".join(f"  • {err}" for err in errors)
+                error_msg += "\n\nPlease fix these issues before scheduling."
+                messagebox.showerror("Invalid Hostnames", error_msg, parent=dialog)
+                return
+
+            # Build host argument for CLI
+            if mode_var.get() == "list":
+                hosts = hosts_entry.get().strip()
+            else:
+                hosts = f"host-list {file_entry.get().strip()}"
 
             # Build args string
             args = f"{cloud} {hosts} {start} {end}"

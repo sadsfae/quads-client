@@ -200,16 +200,36 @@ quads-client-gui
 - Cross-platform (Linux, macOS, Windows)
 
 **Installation:**
-```bash
-# Fedora (includes desktop file and icon)
-dnf install quads-client-gui
 
-# pip
+**Option 1: Fedora/RHEL (Recommended for Linux)**
+```bash
+# Includes desktop file, icon, and all dependencies
+dnf install quads-client-gui
+```
+
+**Option 2: pip (Linux/macOS)**
+```bash
+# Linux: Install tkinter first (system package)
+# Fedora/RHEL/CentOS:
+sudo dnf install python3-tkinter
+
+# Debian/Ubuntu:
+sudo apt install python3-tk
+
+# macOS: tkinter included with Python from python.org
+# No extra steps needed
+
+# Then install quads-client via pip
+python3 -m venv venv
+source venv/bin/activate
 pip install quads-client
 quads-client-gui
 ```
 
-**Note:** When installed via RPM, QUADS Client GUI will appear in your Applications menu under System or Network categories. You can also launch it from the terminal with `quads-client-gui`.
+**Notes:**
+- **Linux**: `tkinter` is a system package, not available via pip. Must be installed at the system level before creating your venv.
+- **macOS**: `tkinter` is included with Python from python.org. No extra steps needed.
+- **RPM**: When installed via RPM, QUADS Client GUI appears in your Applications menu under System or Network categories.
 
 ### Interactive Mode
 

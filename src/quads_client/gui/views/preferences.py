@@ -7,11 +7,12 @@ from tkinter import ttk
 class PreferencesDialog(tk.Toplevel):
     """Modal dialog for user preferences"""
 
-    def __init__(self, parent, config, theme_manager):
+    def __init__(self, parent, config, theme_manager, shell=None):
         super().__init__(parent)
         self.parent = parent
         self.config = config
         self.theme_manager = theme_manager
+        self.shell = shell
         self.result = None
 
         self.title("Preferences")
@@ -48,6 +49,10 @@ class PreferencesDialog(tk.Toplevel):
             "auto_connect": False,
             "default_server": "",
             "font_size": "large",
+            # Admin-only scheduling defaults
+            "admin_schedule_cadence": "2 weeks",  # "1 week" or "2 weeks"
+            "admin_schedule_start_hour": 22,  # 0-23
+            "admin_schedule_end_hour": 22,  # 0-23
         }
 
         # Merge with saved preferences
@@ -164,6 +169,57 @@ class PreferencesDialog(tk.Toplevel):
         )
         self.server_combo.pack(side=tk.LEFT, padx=10)
 
+        # Admin-only Scheduling Section
+        if self.shell and self.shell.is_admin():
+            admin_frame = ttk.LabelFrame(scrollable_frame, text="Admin Scheduling Defaults", padding=15)
+            admin_frame.pack(fill=tk.X, pady=(0, 10), padx=10)
+
+            ttk.Label(
+                admin_frame,
+                text="These settings control default values in Admin Schedule creation",
+                foreground="gray",
+                font=("TkDefaultFont", 9),
+            ).pack(anchor=tk.W, pady=(0, 10))
+
+            # Cadence
+            cadence_row = ttk.Frame(admin_frame)
+            cadence_row.pack(fill=tk.X, pady=5)
+
+            ttk.Label(cadence_row, text="Default cadence:").pack(side=tk.LEFT)
+            self.admin_cadence_var = tk.StringVar(value=self.prefs["admin_schedule_cadence"])
+            cadence_combo = ttk.Combobox(
+                cadence_row,
+                textvariable=self.admin_cadence_var,
+                values=["1 week", "2 weeks"],
+                state="readonly",
+                width=12,
+            )
+            cadence_combo.pack(side=tk.LEFT, padx=10)
+
+            # Start hour
+            start_hour_row = ttk.Frame(admin_frame)
+            start_hour_row.pack(fill=tk.X, pady=5)
+
+            ttk.Label(start_hour_row, text="Default start time:").pack(side=tk.LEFT)
+            self.admin_start_hour_var = tk.IntVar(value=self.prefs["admin_schedule_start_hour"])
+            start_hour_spin = ttk.Spinbox(
+                start_hour_row, from_=0, to=23, width=5, textvariable=self.admin_start_hour_var, format="%02.0f"
+            )
+            start_hour_spin.pack(side=tk.LEFT, padx=10)
+            ttk.Label(start_hour_row, text=":00 UTC").pack(side=tk.LEFT)
+
+            # End hour
+            end_hour_row = ttk.Frame(admin_frame)
+            end_hour_row.pack(fill=tk.X, pady=5)
+
+            ttk.Label(end_hour_row, text="Default end time:").pack(side=tk.LEFT)
+            self.admin_end_hour_var = tk.IntVar(value=self.prefs["admin_schedule_end_hour"])
+            end_hour_spin = ttk.Spinbox(
+                end_hour_row, from_=0, to=23, width=5, textvariable=self.admin_end_hour_var, format="%02.0f"
+            )
+            end_hour_spin.pack(side=tk.LEFT, padx=10)
+            ttk.Label(end_hour_row, text=":00 UTC").pack(side=tk.LEFT)
+
         # Buttons
         button_frame = ttk.Frame(scrollable_frame)
         button_frame.pack(fill=tk.X, pady=(20, 10), padx=10)
@@ -191,6 +247,12 @@ class PreferencesDialog(tk.Toplevel):
             "default_server": self.default_server_var.get(),
             "font_size": self.font_size_var.get(),
         }
+
+        # Add admin settings if user is admin
+        if self.shell and self.shell.is_admin():
+            new_prefs["admin_schedule_cadence"] = self.admin_cadence_var.get()
+            new_prefs["admin_schedule_start_hour"] = self.admin_start_hour_var.get()
+            new_prefs["admin_schedule_end_hour"] = self.admin_end_hour_var.get()
 
         # Save to config file
         if self.config and hasattr(self.config, "config_data"):
