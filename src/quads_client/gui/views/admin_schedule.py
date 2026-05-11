@@ -43,14 +43,13 @@ class AdminScheduleView(BaseAdminView):
         content_frame = ttk.Frame(self)
         content_frame.pack(fill=tk.BOTH, expand=True, padx=20, pady=(0, 20))
 
-        columns = ("id", "host", "cloud", "owner", "start", "end")
+        columns = ("id", "cloud", "description", "owner", "validated")
         column_configs = {
-            "id": ("ID", 60),
-            "host": ("Host", 200),
-            "cloud": ("Cloud", 100),
+            "id": ("ID", 80),
+            "cloud": ("Cloud", 120),
+            "description": ("Description", 300),
             "owner": ("Owner", 150),
-            "start": ("Start", 150),
-            "end": ("End", 150),
+            "validated": ("Validated", 100),
         }
 
         self.tree = ScrolledTreeview(content_frame, columns, column_configs)
@@ -59,9 +58,9 @@ class AdminScheduleView(BaseAdminView):
         # Action buttons
         self.create_action_bar(
             [
-                ("Extend", self._extend_schedule),
-                ("Shrink", self._shrink_schedule),
-                ("Delete", self._delete_schedule),
+                ("Extend", self._extend_assignment),
+                ("Shrink", self._shrink_assignment),
+                ("Terminate", self._terminate_assignment),
             ]
         )
 
@@ -102,41 +101,35 @@ class AdminScheduleView(BaseAdminView):
             return []
 
     def _load_schedules(self):
-        """Load schedules from server"""
+        """Load all active assignments from server"""
+        from quads_client.utils import extract_assignment_id, extract_cloud_name
 
         def load_data():
-            filters = {}
+            filters = {"active": True}
             if self.cloud_filter.get().strip():
                 filters["cloud"] = self.cloud_filter.get().strip()
-            if self.host_filter.get().strip():
-                filters["host"] = self.host_filter.get().strip()
-            # Use get_current_schedules to get only active schedules
-            return self.shell.connection.api.get_current_schedules(filters)
+            # Load all active assignments (admin sees everything)
+            return self.shell.connection.api.filter_assignments(filters)
 
         self.tree.clear()
-        schedules = self.safe_load_data(load_data, success_message="Showing {count} schedule(s)")
+        assignments = self.safe_load_data(load_data, success_message="Showing {count} assignment(s)")
 
-        if not schedules:
+        if not assignments:
             return
 
-        for sched in schedules:
-            schedule_id = sched.get("id", "")
-            host = sched.get("host", {})
-            host_name = host.get("name", "") if isinstance(host, dict) else str(host)
+        for assignment in assignments:
+            if isinstance(assignment, dict):
+                assignment_id = extract_assignment_id(assignment)
+                cloud_name = extract_cloud_name(assignment)
+                description = assignment.get("description", "No description")
+                owner = assignment.get("owner", "N/A")
+                validated = "✓" if assignment.get("validated") else "○"
 
-            assignment = sched.get("assignment", {})
-            cloud = assignment.get("cloud", {})
-            cloud_name = cloud.get("name", "") if isinstance(cloud, dict) else str(cloud)
-            owner = assignment.get("owner", "")
-
-            start = sched.get("start", "")
-            end = sched.get("end", "")
-
-            self.tree.insert(
-                "",
-                tk.END,
-                values=(schedule_id, host_name, cloud_name, owner, start, end),
-            )
+                self.tree.insert(
+                    "",
+                    tk.END,
+                    values=(assignment_id, cloud_name, description, owner, validated),
+                )
 
     def _validate_hosts_availability(self, hostnames, start_date, end_date):
         """Validate hosts are available for the specified date range
@@ -455,106 +448,201 @@ class AdminScheduleView(BaseAdminView):
         ttk.Button(button_frame, text="Cancel", command=dialog.destroy).pack(side=tk.LEFT, padx=5)
         ttk.Button(button_frame, text="Create", command=on_create).pack(side=tk.LEFT, padx=5)
 
-    def _extend_schedule(self):
-        """Extend selected schedule"""
-        _, values = self.get_selected_item("Please select a schedule to extend")
+    def _extend_assignment(self):
+        """Extend selected assignment (admin only)"""
+        _, values = self.get_selected_item("Please select an assignment to extend")
         if not values:
             return
 
-        schedule_id = values[0]
-        current_end = values[5]
+        assignment_id = values[0]
+        cloud_name = values[1]
 
-        dialog = self.create_simple_dialog(f"Extend Schedule #{schedule_id}", "400x200")
+        # Create dialog for extend options
+        dialog = self.create_simple_dialog(f"Extend Assignment #{assignment_id}", "350x200")
 
-        ttk.Label(dialog, text=f"Extend schedule #{schedule_id}", font=("TkDefaultFont", 10, "bold")).pack(pady=10)
-        ttk.Label(dialog, text=f"Current end: {current_end}").pack(pady=5)
+        ttk.Label(
+            dialog, text=f"Extend assignment #{assignment_id} ({cloud_name})", font=("TkDefaultFont", 10, "bold")
+        ).pack(pady=10)
 
-        ttk.Label(dialog, text="New end date (YYYY-MM-DD HH:MM):").pack(pady=10)
-        date_entry = ttk.Entry(dialog, width=30)
-        date_entry.pack()
+        # Weeks input
+        input_frame = ttk.Frame(dialog)
+        input_frame.pack(pady=10)
+
+        ttk.Label(input_frame, text="Number of weeks:").pack(side=tk.LEFT, padx=5)
+        weeks_var = tk.StringVar(value="2")
+        weeks_entry = ttk.Entry(input_frame, textvariable=weeks_var, width=10)
+        weeks_entry.pack(side=tk.LEFT, padx=5)
+        weeks_entry.focus()
 
         def on_extend():
-            new_date = date_entry.get().strip()
-            if not new_date:
-                messagebox.showerror("Error", "Date is required", parent=dialog)
+            weeks_str = weeks_var.get().strip()
+
+            # Validate integer
+            try:
+                weeks = int(weeks_str)
+                if weeks <= 0:
+                    messagebox.showerror("Invalid Input", "Weeks must be a positive integer", parent=dialog)
+                    return
+            except ValueError:
+                messagebox.showerror("Invalid Input", "Please enter a valid integer for weeks", parent=dialog)
                 return
 
-            args = f"{schedule_id} {new_date}"
+            dialog.destroy()
+
+            # Confirm action
+            if not self.confirm_action(
+                "Confirm Extend",
+                f"Extend assignment #{assignment_id} ({cloud_name}) by {weeks} week(s)?\n\n"
+                "This will extend ALL schedules in this assignment.",
+            ):
+                return
+
+            # Call extend command with cloud name
             self.safe_execute(
-                lambda: self.shell.schedule_commands.cmd_extend(args),
-                f"Schedule #{schedule_id} extended",
+                lambda: self.shell.schedule_commands.cmd_extend(f"{cloud_name} weeks {weeks}"),
+                f"Extended assignment #{assignment_id} by {weeks} week(s)",
                 "Extend Failed",
                 self._load_schedules,
             )
-            dialog.destroy()
 
-        FormDialog.create_button_row(
-            dialog,
-            [
-                ("Cancel", dialog.destroy),
-                ("Extend", on_extend),
-            ],
-        )
+        # Buttons
+        button_frame = ttk.Frame(dialog)
+        button_frame.pack(pady=10)
+        ttk.Button(button_frame, text="Cancel", command=dialog.destroy).pack(side=tk.LEFT, padx=5)
+        ttk.Button(button_frame, text="Extend", command=on_extend).pack(side=tk.LEFT, padx=5)
 
-    def _shrink_schedule(self):
-        """Shrink selected schedule"""
-        _, values = self.get_selected_item("Please select a schedule to shrink")
+    def _shrink_assignment(self):
+        """Shrink selected assignment (admin only)"""
+        _, values = self.get_selected_item("Please select an assignment to shrink")
         if not values:
             return
 
-        schedule_id = values[0]
-        current_end = values[5]
+        assignment_id = values[0]
+        cloud_name = values[1]
 
-        dialog = self.create_simple_dialog(f"Shrink Schedule #{schedule_id}", "400x200")
+        # Create dialog for shrink options
+        dialog = self.create_simple_dialog(f"Shrink Assignment #{assignment_id}", "400x250")
 
-        ttk.Label(dialog, text=f"Shrink schedule #{schedule_id}", font=("TkDefaultFont", 10, "bold")).pack(pady=10)
-        ttk.Label(dialog, text=f"Current end: {current_end}").pack(pady=5)
+        ttk.Label(
+            dialog, text=f"Shrink assignment #{assignment_id} ({cloud_name})", font=("TkDefaultFont", 10, "bold")
+        ).pack(pady=10)
 
-        ttk.Label(dialog, text="New end date (YYYY-MM-DD HH:MM):").pack(pady=10)
-        date_entry = ttk.Entry(dialog, width=30)
-        date_entry.pack()
+        # Mode selection
+        mode_frame = ttk.Frame(dialog)
+        mode_frame.pack(pady=10)
+
+        mode_var = tk.StringVar(value="weeks")
+
+        ttk.Radiobutton(mode_frame, text="By weeks:", variable=mode_var, value="weeks").grid(
+            row=0, column=0, sticky=tk.W, padx=5, pady=2
+        )
+        weeks_var = tk.StringVar(value="1")
+        weeks_entry = ttk.Entry(mode_frame, textvariable=weeks_var, width=10)
+        weeks_entry.grid(row=0, column=1, sticky=tk.W, padx=5, pady=2)
+
+        ttk.Radiobutton(mode_frame, text="By days:", variable=mode_var, value="days").grid(
+            row=1, column=0, sticky=tk.W, padx=5, pady=2
+        )
+        days_var = tk.StringVar(value="7")
+        days_entry = ttk.Entry(mode_frame, textvariable=days_var, width=10)
+        days_entry.grid(row=1, column=1, sticky=tk.W, padx=5, pady=2)
+
+        ttk.Radiobutton(mode_frame, text="End now (terminate)", variable=mode_var, value="now").grid(
+            row=2, column=0, columnspan=2, sticky=tk.W, padx=5, pady=2
+        )
 
         def on_shrink():
-            new_date = date_entry.get().strip()
-            if not new_date:
-                messagebox.showerror("Error", "Date is required", parent=dialog)
+            mode = mode_var.get()
+
+            if mode == "weeks":
+                value_str = weeks_var.get().strip()
+                unit = "week(s)"
+                try:
+                    value = int(value_str)
+                    if value <= 0:
+                        messagebox.showerror("Invalid Input", "Weeks must be a positive integer", parent=dialog)
+                        return
+                except ValueError:
+                    messagebox.showerror("Invalid Input", "Please enter a valid integer for weeks", parent=dialog)
+                    return
+            elif mode == "days":
+                value_str = days_var.get().strip()
+                unit = "day(s)"
+                try:
+                    value = int(value_str)
+                    if value <= 0:
+                        messagebox.showerror("Invalid Input", "Days must be a positive integer", parent=dialog)
+                        return
+                except ValueError:
+                    messagebox.showerror("Invalid Input", "Please enter a valid integer for days", parent=dialog)
+                    return
+            else:  # now
+                value = 0
+                value_str = "0"
+                unit = "(end now)"
+
+            dialog.destroy()
+
+            # Confirm action
+            if mode == "now":
+                confirm_msg = f"End assignment #{assignment_id} ({cloud_name}) NOW?\n\nThis will terminate the assignment immediately."
+            else:
+                confirm_msg = f"Shrink assignment #{assignment_id} ({cloud_name}) by {value_str} {unit}?\n\nThis will shrink ALL schedules in this assignment."
+
+            if not self.confirm_action("Confirm Shrink", confirm_msg):
                 return
 
-            args = f"{schedule_id} {new_date}"
+            # Build command based on mode
+            if mode == "weeks":
+                cmd_args = f"{cloud_name} weeks {value}"
+            elif mode == "days":
+                # Convert days to weeks for the command
+                weeks_value = value / 7.0
+                cmd_args = f"{cloud_name} weeks {weeks_value:.2f}"
+            else:  # now
+                # Terminate the assignment
+                self.safe_execute(
+                    lambda: self.shell.user_commands.cmd_terminate(str(assignment_id)),
+                    f"Assignment #{assignment_id} terminated",
+                    "Terminate Failed",
+                    self._load_schedules,
+                )
+                return
+
+            # Call shrink command
             self.safe_execute(
-                lambda: self.shell.schedule_commands.cmd_shrink(args),
-                f"Schedule #{schedule_id} shrunk",
+                lambda: self.shell.schedule_commands.cmd_shrink(cmd_args),
+                f"Shrunk assignment #{assignment_id} by {value_str} {unit}",
                 "Shrink Failed",
                 self._load_schedules,
             )
-            dialog.destroy()
 
-        FormDialog.create_button_row(
-            dialog,
-            [
-                ("Cancel", dialog.destroy),
-                ("Shrink", on_shrink),
-            ],
-        )
+        # Buttons
+        button_frame = ttk.Frame(dialog)
+        button_frame.pack(pady=10)
+        ttk.Button(button_frame, text="Cancel", command=dialog.destroy).pack(side=tk.LEFT, padx=5)
+        ttk.Button(button_frame, text="Shrink", command=on_shrink).pack(side=tk.LEFT, padx=5)
 
-    def _delete_schedule(self):
-        """Delete selected schedule"""
-        _, values = self.get_selected_item("Please select a schedule to delete")
+    def _terminate_assignment(self):
+        """Terminate selected assignment"""
+        _, values = self.get_selected_item("Please select an assignment to terminate")
         if not values:
             return
 
-        schedule_id = values[0]
-        host_name = values[1]
+        assignment_id = values[0]
 
         if not self.confirm_action(
-            "Confirm Deletion", f"Delete schedule #{schedule_id} for {host_name}?\n\n" "This action cannot be undone."
+            "Confirm Termination",
+            f"Are you sure you want to terminate assignment #{assignment_id}?\n\n"
+            "This will release all hosts in this assignment.",
         ):
             return
 
         self.safe_execute(
-            lambda: self.shell.schedule_commands.cmd_rm_schedule(schedule_id),
-            f"Schedule #{schedule_id} deleted",
-            "Delete Failed",
+            lambda: self.shell.user_commands.cmd_terminate(str(assignment_id)),
+            f"Assignment #{assignment_id} terminated\n\n"
+            "Note: It may take a few moments for the termination to complete.",
+            "Termination Failed",
             self._load_schedules,
         )
 

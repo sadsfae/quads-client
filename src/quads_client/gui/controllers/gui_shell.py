@@ -173,8 +173,11 @@ class GuiShell:
         Fetch available hosts from API and return structured data.
         Uses existing quads-client logic but returns data instead of printing.
 
+        IMPORTANT: This method checks ACTUAL availability using is_available() API
+        to filter out hosts with active schedules, matching quads-client ls-available behavior.
+
         Args:
-            days: Number of days to check (optional)
+            days: Number of days to check (optional, default=3)
             model: Model filter (optional)
             ram: RAM filter in GB (optional)
 
@@ -186,6 +189,7 @@ class GuiShell:
 
         try:
             from quads_client.utils import extract_host_field, get_available_hosts_filter
+            from datetime import datetime, timedelta
 
             filters = {}
 
@@ -200,6 +204,21 @@ class GuiShell:
                 except ValueError:
                     pass
 
+            # Calculate date range for availability check
+            # Default to checking availability for the next N days (default=3)
+            days_int = 3  # default
+            if days:
+                try:
+                    days_int = int(days)
+                except ValueError:
+                    days_int = 3
+
+            # Start = now, End = now + N days
+            start_dt = datetime.utcnow()
+            end_dt = start_dt + timedelta(days=days_int)
+            start_iso = start_dt.isoformat()[:-3]  # Truncate microseconds
+            end_iso = end_dt.isoformat()[:-3]
+
             # Get available hosts using filter_hosts for cloud01 (available pool)
             host_filters = get_available_hosts_filter(**filters)
             hosts = self.connection.api.filter_hosts(host_filters)
@@ -211,7 +230,8 @@ class GuiShell:
             if not hosts:
                 return []
 
-            # Build structured data
+            # Build structured data - but FILTER by schedule availability
+            # This matches quads-client ls-available behavior
             results = []
             for host in hosts:
                 name = extract_host_field(host, "name", field_aliases=["hostname"], default="")
@@ -220,6 +240,18 @@ class GuiShell:
                 can_self_schedule = extract_host_field(host, "can_self_schedule", default=False)
 
                 if not name:
+                    continue
+
+                # CRITICAL: Check schedule availability using is_available() API
+                # This filters out hosts that have active schedules (scheduled to other clouds)
+                # even if they're currently in cloud01
+                try:
+                    is_available = self.connection.api.is_available(name, {"start": start_iso, "end": end_iso})
+                    if not is_available:
+                        # Host has schedule conflict - skip it
+                        continue
+                except Exception:
+                    # If availability check fails, skip the host to be safe
                     continue
 
                 results.append(

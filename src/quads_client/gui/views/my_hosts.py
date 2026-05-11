@@ -145,10 +145,14 @@ class MyHostsView(ttk.Frame):
 
     def _fetch_assignments(self):
         """Fetch assignments from the server via CLI command"""
+        from quads_client.utils import get_username_short
+
         assignments_data = []
 
         try:
-            user_assignments = self.shell.connection.api.filter_assignments({"owner": self.shell.connection.username})
+            # Use short username (without @domain.com) to match how assignments are created
+            username = get_username_short(self.shell.connection.username)
+            user_assignments = self.shell.connection.api.filter_assignments({"owner": username, "active": True})
 
             if not user_assignments:
                 return []

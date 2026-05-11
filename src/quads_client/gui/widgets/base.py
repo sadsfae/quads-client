@@ -296,7 +296,24 @@ class BaseAdminView(ttk.Frame):
             refresh_func: Optional function to call after success
         """
         try:
+            # Capture shell output during command execution
+            if hasattr(self.shell, "_capture_output"):
+                self.shell._capture_output = True
+                self.shell._captured_messages = []
+
             command_func()
+
+            # Check for errors in captured output
+            if hasattr(self.shell, "_captured_messages"):
+                errors = [msg for level, msg in self.shell._captured_messages if level == "error"]
+                self.shell._capture_output = False
+
+                if errors:
+                    # Command reported errors via perror()
+                    error_msg = "\n".join(errors)
+                    messagebox.showerror(error_title, error_msg)
+                    return
+
             messagebox.showinfo("Success", success_message)
             if refresh_func:
                 refresh_func()
