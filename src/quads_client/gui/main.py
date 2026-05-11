@@ -271,17 +271,15 @@ class QuadsClientApp(tk.Tk):
         target_server = self.shell.get_auto_login_server()
 
         if target_server:
-            try:
-                # Connect to the server
-                self.shell.connection_commands.cmd_connect(target_server)
-                # Update welcome view to remove login button
+            success, error = self.shell.connect_to_server(target_server)
+            if success:
                 self.views["welcome"].destroy()
                 self.views["welcome"] = self._create_welcome_view()
                 self._show_view("welcome")
-            except Exception as e:
-                show_error_dialog(self, "Login Failed", f"Failed to connect to {target_server}", str(e))
+                self.update_role_visibility()
+            else:
+                show_error_dialog(self, "Login Failed", f"Failed to connect to {target_server}", error or "")
         else:
-            # No servers configured - show servers view
             self._show_servers_view()
 
     def _create_status_bar(self):
@@ -823,20 +821,16 @@ class QuadsClientApp(tk.Tk):
         if not default_server:
             return
 
-        # Check if server exists
-        try:
-            if self.shell.config:
-                servers = self.shell.config.get_all_servers()
-                if default_server in servers:
-                    # Auto-connect
-                    self.update_status(f"Auto-connecting to {default_server}...")
-                    try:
-                        self.shell.connection_commands.cmd_connect(default_server)
-                        self.update_status(f"Connected to {default_server}")
-                    except Exception as e:
-                        self.update_status(f"Auto-connect failed: {e}")
-        except Exception:
-            pass
+        if self.shell.config:
+            servers = self.shell.config.get_all_servers()
+            if default_server in servers:
+                self.update_status(f"Auto-connecting to {default_server}...")
+                success, error = self.shell.connect_to_server(default_server)
+                if success:
+                    self.update_status(f"Connected to {default_server}")
+                    self.update_role_visibility()
+                else:
+                    self.update_status(f"Auto-connect failed: {error}")
 
     def _save_window_preferences(self):
         """Save window size and position to preferences"""

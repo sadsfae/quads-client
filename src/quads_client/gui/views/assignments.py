@@ -120,11 +120,11 @@ class AssignmentsView(BaseAdminView):
         target_server = self.shell.get_auto_login_server()
 
         if target_server:
-            try:
-                self.shell.connection_commands.cmd_connect(target_server)
+            success, error = self.shell.connect_to_server(target_server)
+            if success:
                 self._load_assignments()
-            except Exception as e:
-                show_error_dialog(self, "Login Failed", f"Failed to connect to {target_server}", str(e))
+            else:
+                show_error_dialog(self, "Login Failed", f"Failed to connect to {target_server}", error or "")
         else:
             self.shell.gui_app._show_servers_view()
 

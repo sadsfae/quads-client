@@ -632,9 +632,6 @@ class ScheduleView(ttk.Frame):
 
             self.shell.user_commands.cmd_schedule(args)
 
-            # Stop capturing
-            self.shell._capture_output = False
-
             # Display captured messages in result box
             if self.shell._captured_messages:
                 result_text = "\n".join([msg[1] for msg in self.shell._captured_messages])
@@ -646,18 +643,25 @@ class ScheduleView(ttk.Frame):
                 # Show result frame
                 self.result_frame.pack(fill=tk.X, pady=(10, 20))
 
-            # Also show success message
-            messagebox.showinfo(
-                "Success",
-                "Hosts scheduled successfully!\n\n" "View your assignments in the 'My Hosts' or 'Assignments' tab.",
-            )
+            # Check for errors in captured output before declaring success
+            errors = [msg for level, msg in self.shell._captured_messages if level == "error"]
+            if errors:
+                error_msg = "\n".join(errors)
+                messagebox.showerror("Scheduling Failed", error_msg)
+            else:
+                messagebox.showinfo(
+                    "Success",
+                    "Hosts scheduled successfully!\n\n"
+                    "View your assignments in the 'My Hosts' or 'Assignments' tab.",
+                )
 
         except Exception as e:
-            self.shell._capture_output = False
             import traceback
 
             details = traceback.format_exc()
             show_error_dialog(self, "Scheduling Failed", str(e), details)
+        finally:
+            self.shell._capture_output = False
 
     def _reset_form(self):
         """Reset the form to defaults"""
@@ -703,11 +707,11 @@ class ScheduleView(ttk.Frame):
         target_server = self.shell.get_auto_login_server()
 
         if target_server:
-            try:
-                self.shell.connection_commands.cmd_connect(target_server)
+            success, error = self.shell.connect_to_server(target_server)
+            if success:
                 self.refresh()
-            except Exception as e:
-                show_error_dialog(self, "Login Failed", f"Failed to connect to {target_server}", str(e))
+            else:
+                show_error_dialog(self, "Login Failed", f"Failed to connect to {target_server}", error or "")
         else:
             self.shell.gui_app._show_servers_view()
 

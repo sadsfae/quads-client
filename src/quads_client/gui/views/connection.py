@@ -174,25 +174,38 @@ class ConnectionView(ttk.Frame):
         if not self.shell.config:
             return
 
+        active_session = self.shell.session_manager.active_session if self.shell.session_manager else None
+        active_server = active_session.connection.current_server if active_session and active_session.connection else None
+
         servers = self.shell.config.get_all_servers()
         for name, server_config in servers.items():
             url = server_config.get("url", "")
 
             is_connected = False
+            is_active_server = False
             if self.shell.session_manager:
                 for session in self.shell.session_manager.sessions.values():
                     if session.connection and session.connection.current_server == name:
                         is_connected = True
+                        if name == active_server:
+                            is_active_server = True
                         break
 
-            status = "● Connected" if is_connected else "○ Disconnected"
+            if is_active_server:
+                status = "✓ Connected"
+            elif is_connected:
+                status = "● Idle"
+            else:
+                status = "○ Disconnected"
 
             item_id = self.server_tree.insert("", tk.END, values=(name, url, "-", status))
 
-            if is_connected and self.shell.session_manager.active_session:
-                if self.shell.session_manager.active_session.connection.current_server == name:
-                    self.server_tree.item(item_id, tags=("active",))
-                    self.server_tree.tag_configure("active", foreground="#4ec9b0")
+            if is_active_server:
+                self.server_tree.item(item_id, tags=("active",))
+                self.server_tree.tag_configure("active", foreground="#4ec9b0")
+            elif is_connected:
+                self.server_tree.item(item_id, tags=("idle",))
+                self.server_tree.tag_configure("idle", foreground="#dcdcaa")
 
         self._refresh_session_list()
 
@@ -254,7 +267,9 @@ class ConnectionView(ttk.Frame):
             pass
 
     def _refresh_session_list(self):
-        """Refresh the session list"""
+        """Refresh the session list (matches TUI session-list format)"""
+        from datetime import datetime
+
         for item in self.sessions_tree.get_children():
             self.sessions_tree.delete(item)
 
@@ -266,8 +281,28 @@ class ConnectionView(ttk.Frame):
         for session_id, session in self.shell.session_manager.sessions.items():
             server_name = session.server_name or (session.connection.current_server if session.connection else "N/A")
             label = session.label or "-"
-            status = "Active" if session_id == active_id else "Inactive"
-            last_active = "Just now" if session_id == active_id else "N/A"
+
+            if session.connection and session.connection.is_connected:
+                if session_id == active_id:
+                    status = "✓ Active"
+                else:
+                    status = "● Idle"
+            else:
+                status = "✗ Offline"
+
+            now = datetime.now()
+            delta = now - session.last_active
+            if delta.total_seconds() < 60:
+                last_active = "now"
+            elif delta.total_seconds() < 3600:
+                minutes = int(delta.total_seconds() / 60)
+                last_active = f"{minutes}m ago"
+            elif delta.total_seconds() < 86400:
+                hours = int(delta.total_seconds() / 3600)
+                last_active = f"{hours}h ago"
+            else:
+                days = int(delta.total_seconds() / 86400)
+                last_active = f"{days}d ago"
 
             session_marker = f"{session_id} (*)" if session_id == active_id else str(session_id)
 
@@ -278,6 +313,9 @@ class ConnectionView(ttk.Frame):
             if session_id == active_id:
                 self.sessions_tree.item(item_id, tags=("active",))
                 self.sessions_tree.tag_configure("active", foreground="#4ec9b0")
+            elif session.connection and session.connection.is_connected:
+                self.sessions_tree.item(item_id, tags=("idle",))
+                self.sessions_tree.tag_configure("idle", foreground="#dcdcaa")
 
     def _on_server_selected(self, event):
         """Handle server selection"""
@@ -306,12 +344,17 @@ class ConnectionView(ttk.Frame):
         verify = server_config.get("verify", True)
 
         is_connected = False
+        is_active_server = False
         user = "N/A"
         role = "N/A"
+        active_session = self.shell.session_manager.active_session if self.shell.session_manager else None
+        active_server = active_session.connection.current_server if active_session and active_session.connection else None
+
         if self.shell.session_manager:
             for session in self.shell.session_manager.sessions.values():
                 if session.connection and session.connection.current_server == self.selected_server:
                     is_connected = True
+                    is_active_server = (self.selected_server == active_server)
                     if session.connection.username:
                         user = session.connection.username
                     if session.connection.user_role:
@@ -327,9 +370,12 @@ class ConnectionView(ttk.Frame):
         self.details_text.insert(tk.END, f"SSL Verification: {'Enabled' if verify else 'Disabled'}\n")
         self.details_text.insert(tk.END, "Status: ")
 
-        status_tag = "connected" if is_connected else "disconnected"
-        status_text = "Connected" if is_connected else "Disconnected"
-        self.details_text.insert(tk.END, status_text + "\n", status_tag)
+        if is_active_server:
+            self.details_text.insert(tk.END, "Connected (active)\n", "connected")
+        elif is_connected:
+            self.details_text.insert(tk.END, "Idle\n", "connected")
+        else:
+            self.details_text.insert(tk.END, "Disconnected\n", "disconnected")
 
         if is_connected:
             self.details_text.insert(tk.END, f"User: {user}\n")
@@ -455,29 +501,47 @@ class ConnectionView(ttk.Frame):
         ttk.Button(button_frame, text="Add", command=save_server).pack(side=tk.LEFT, padx=5)
 
     def _connect_server(self):
-        """Connect to selected server"""
+        """Connect to selected server (one session per server, zombie cleanup on failure)"""
         if not self.selected_server:
             return
 
-        try:
-            self.shell.connection_commands.cmd_connect(self.selected_server)
-            self._refresh_server_list()
-            self._update_server_details()
-            self._clear_status()
-        except Exception as e:
-            import traceback
+        success, error = self.shell.connect_to_server(self.selected_server)
 
-            details = traceback.format_exc()
-            show_error_dialog(self, "Connection Failed", str(e), details)
+        if not success:
+            show_error_dialog(self, "Connection Failed", f"Could not connect to {self.selected_server}", error or "")
+
+        self._refresh_server_list()
+        self._update_server_details()
+        if success:
+            self._clear_status()
+        if hasattr(self.shell, "gui_app"):
+            self.shell.gui_app.update_role_visibility()
 
     def _disconnect_server(self):
-        """Disconnect from selected server"""
+        """Disconnect the session connected to the selected server"""
+        if not self.selected_server or not self.shell.session_manager:
+            return
+
+        # Find the session connected to the selected server
+        target_session = None
+        for session in self.shell.session_manager.sessions.values():
+            if session.connection and session.connection.current_server == self.selected_server:
+                target_session = session
+                break
+
+        if not target_session:
+            messagebox.showwarning("Not Connected", f"No active connection to '{self.selected_server}'")
+            return
+
         try:
-            self.shell.connection_commands.cmd_disconnect("")
+            server = target_session.connection.current_server
+            target_session.connection.disconnect()
+            self.shell.poutput(f"Disconnected from {server}")
             self._refresh_server_list()
             self._update_server_details()
-            self._on_server_selected(None)
             self._clear_status()
+            if hasattr(self.shell, "gui_app"):
+                self.shell.gui_app.update_role_visibility()
         except Exception as e:
             import traceback
 
@@ -567,8 +631,15 @@ class ConnectionView(ttk.Frame):
                     f"Server URL changed.\n\nReconnect to '{server_name}' with the new settings?",
                 ):
                     try:
-                        self.shell.connection_commands.cmd_disconnect("")
-                        self.shell.connection_commands.cmd_connect(server_name)
+                        # Disconnect the specific session for this server
+                        for s in self.shell.session_manager.sessions.values():
+                            if s.connection and s.connection.current_server == server_name:
+                                s.connection.disconnect()
+                                break
+                        # Reconnect using centralized method
+                        success, error = self.shell.connect_to_server(server_name)
+                        if not success:
+                            messagebox.showwarning("Reconnect Failed", f"Could not reconnect: {error}")
                     except Exception as e:
                         messagebox.showwarning("Reconnect Failed", f"Could not reconnect: {e}")
 
@@ -602,7 +673,7 @@ class ConnectionView(ttk.Frame):
                 messagebox.showerror("Error", f"Failed to remove server: {e}")
 
     def _switch_session(self):
-        """Switch to selected session"""
+        """Switch to selected session (matches TUI: does not auto-reconnect)"""
         selection = self.sessions_tree.selection()
         if not selection:
             messagebox.showwarning("No Selection", "Please select a session to switch to")
@@ -613,16 +684,7 @@ class ConnectionView(ttk.Frame):
         session_id_str = values[0].replace(" (*)", "").strip()
 
         try:
-            session_id = int(session_id_str)
-            self.shell.session_commands.cmd_session_switch(str(session_id))
-
-            # If switched session isn't connected, try to connect using its server_name
-            active = self.shell.session_manager.active_session
-            if active and not active.connection.is_connected and active.server_name:
-                try:
-                    active.connection.connect(active.server_name)
-                except Exception:
-                    pass
+            self.shell.session_commands.cmd_session_switch(session_id_str)
 
             self._refresh_session_list()
             self._refresh_server_list()

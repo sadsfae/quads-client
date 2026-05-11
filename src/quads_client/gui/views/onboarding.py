@@ -272,8 +272,10 @@ class OnboardingWizard(tk.Toplevel):
                 messagebox.showerror("Error", message)
                 return False
 
-            # Connect to server
-            self.shell.connection_commands.cmd_connect(name)
+            # Connect to server (with session dedup and zombie cleanup)
+            success_conn, error = self.shell.connect_to_server(name)
+            if not success_conn:
+                messagebox.showwarning("Connection", f"Server added but could not connect: {error}")
 
         except Exception as e:
             import traceback

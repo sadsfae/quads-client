@@ -306,10 +306,8 @@ class BaseAdminView(ttk.Frame):
             # Check for errors in captured output
             if hasattr(self.shell, "_captured_messages"):
                 errors = [msg for level, msg in self.shell._captured_messages if level == "error"]
-                self.shell._capture_output = False
 
                 if errors:
-                    # Command reported errors via perror()
                     error_msg = "\n".join(errors)
                     messagebox.showerror(error_title, error_msg)
                     return
@@ -322,6 +320,9 @@ class BaseAdminView(ttk.Frame):
 
             details = traceback.format_exc()
             show_error_dialog(self, error_title, str(e), details)
+        finally:
+            if hasattr(self.shell, "_capture_output"):
+                self.shell._capture_output = False
 
 
 class FormDialog:

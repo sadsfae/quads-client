@@ -364,6 +364,47 @@ class GuiShell:
         # Last resort: first server
         return list(servers.keys())[0]
 
+    def connect_to_server(self, server_name):
+        """
+        Connect to a server with session dedup and zombie cleanup.
+        Reuses existing session if one exists for this server.
+        Cleans up the session if the connection fails.
+
+        Returns:
+            (success: bool, error_message: str or None)
+        """
+        from quads_client.connection import ConnectionError as ConnError
+
+        if not self.session_manager:
+            return False, "Configuration not loaded"
+
+        # Check if a session already exists for this server
+        existing_session = None
+        for session in self.session_manager.sessions.values():
+            if session.server_name == server_name:
+                existing_session = session
+                break
+
+        try:
+            if existing_session:
+                if existing_session.id != self.session_manager.active_session_id:
+                    self.session_manager.switch_session(existing_session.id)
+
+                if not existing_session.connection.is_connected:
+                    existing_session.connection.connect(server_name)
+
+                return True, None
+            else:
+                session = self.session_manager.create_session(server_name)
+                try:
+                    session.connection.connect(server_name)
+                    return True, None
+                except (ConnError, Exception) as e:
+                    self.session_manager.close_session(session.id)
+                    return False, str(e)
+        except (ConnError, Exception) as e:
+            return False, str(e)
+
     def _update_prompt(self):
         """Update prompt (no-op for GUI, used by CLI)"""
         pass
