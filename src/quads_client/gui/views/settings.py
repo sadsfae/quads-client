@@ -22,9 +22,21 @@ class SettingsView(ttk.Frame):
         title_label = ttk.Label(header_frame, text="Settings", font=("TkDefaultFont", 14, "bold"))
         title_label.pack(side=tk.LEFT)
 
-        # Content frame
-        content_frame = ttk.Frame(self)
-        content_frame.pack(fill=tk.BOTH, expand=True, padx=20, pady=(0, 20))
+        # Create scrollable container
+        container = ttk.Frame(self)
+        container.pack(fill=tk.BOTH, expand=True, padx=20, pady=(0, 10))
+
+        canvas = tk.Canvas(container, highlightthickness=0, bg=self.shell.gui_app.theme_manager.get_color("bg"))
+        scrollbar = ttk.Scrollbar(container, orient="vertical", command=canvas.yview)
+        content_frame = ttk.Frame(canvas)
+
+        content_frame.bind("<Configure>", lambda e: canvas.configure(scrollregion=canvas.bbox("all")))
+
+        canvas.create_window((0, 0), window=content_frame, anchor="nw")
+        canvas.configure(yscrollcommand=scrollbar.set)
+
+        canvas.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+        scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
 
         # Appearance section
         appearance_frame = ttk.LabelFrame(content_frame, text="Appearance", padding=15)
@@ -140,7 +152,12 @@ F1         Show Shortcuts Help
     def _toggle_theme(self):
         """Toggle theme"""
         new_mode = self.shell.gui_app.theme_manager.toggle_theme()
-        self.shell.gui_app.theme_label.config(text=f"Theme: {self.shell.gui_app.theme_manager.get_theme_info()}")
+
+        # Refresh theme-aware widgets in all views
+        for view in self.shell.gui_app.views.values():
+            if hasattr(view, "refresh_theme"):
+                view.refresh_theme()
+
         self.status_label.config(text=f"Theme switched to {new_mode} mode")
 
         # Refresh the settings view to show updated theme name

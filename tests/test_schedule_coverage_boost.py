@@ -23,7 +23,7 @@ class TestScheduleOptionalParameters:
         schedule_cmd = ScheduleCommands(mock_shell)
         schedule_cmd.cmd_schedule_admin(
             'cloud02 host01 "2026-05-11 22:00" "2026-06-11 22:00" '
-            'description "Test" cloud-owner alice cloud-ticket JIRA-123 '
+            'description "Test" cloud-owner alice cloud-ticket 123 '
             "cc-users bob@example.com,charlie@example.com"
         )
 
@@ -48,7 +48,7 @@ class TestScheduleOptionalParameters:
         schedule_cmd = ScheduleCommands(mock_shell)
         schedule_cmd.cmd_schedule_admin(
             'cloud02 host01 "2026-05-11 22:00" "2026-06-11 22:00" '
-            'description "Test" cloud-owner alice cloud-ticket JIRA-123 vlan 1234'
+            'description "Test" cloud-owner alice cloud-ticket 123 vlan 1234'
         )
 
         # Verify vlan was included in batch data
@@ -72,7 +72,7 @@ class TestScheduleOptionalParameters:
         schedule_cmd = ScheduleCommands(mock_shell)
         schedule_cmd.cmd_schedule_admin(
             'cloud02 host01 "2026-05-11 22:00" "2026-06-11 22:00" '
-            'description "Test" cloud-owner alice cloud-ticket JIRA-123 qinq 1'
+            'description "Test" cloud-owner alice cloud-ticket 123 qinq 1'
         )
 
         # Verify qinq was included in batch data
@@ -97,7 +97,7 @@ class TestScheduleAssignmentErrors:
         schedule_cmd = ScheduleCommands(mock_shell)
         schedule_cmd.cmd_schedule_admin(
             'cloud02 host01 "2026-05-11 22:00" "2026-06-11 22:00" '
-            'description "Test" cloud-owner alice cloud-ticket JIRA-123'
+            'description "Test" cloud-owner alice cloud-ticket 123'
         )
 
         # Should show error
@@ -119,7 +119,7 @@ class TestScheduleAssignmentErrors:
         schedule_cmd = ScheduleCommands(mock_shell)
         schedule_cmd.cmd_schedule_admin(
             'cloud02 host01,host02 "2026-05-11 22:00" "2026-06-11 22:00" '
-            'description "Test" cloud-owner alice cloud-ticket JIRA-123'
+            'description "Test" cloud-owner alice cloud-ticket 123'
         )
 
         # Should succeed even if JIRA failed
@@ -140,7 +140,7 @@ class TestScheduleAssignmentErrors:
         schedule_cmd = ScheduleCommands(mock_shell)
         schedule_cmd.cmd_schedule_admin(
             'cloud02 host01,host02,host03 "2026-05-11 22:00" "2026-06-11 22:00" '
-            'description "Test" cloud-owner alice cloud-ticket JIRA-123'
+            'description "Test" cloud-owner alice cloud-ticket 123'
         )
 
         # Should call batch endpoint once with all hosts
@@ -158,7 +158,7 @@ class TestScheduleAssignmentErrors:
         schedule_cmd = ScheduleCommands(mock_shell)
         schedule_cmd.cmd_schedule_admin(
             'cloud02 host01 "2026-05-11 22:00" "2026-06-11 22:00" '
-            'description "Test" cloud-owner alice cloud-ticket JIRA-123'
+            'description "Test" cloud-owner alice cloud-ticket 123'
         )
 
         # Should show error
@@ -228,7 +228,7 @@ class TestScheduleExistingAssignment:
         schedule_cmd = ScheduleCommands(mock_shell)
         schedule_cmd.cmd_schedule_admin(
             'cloud02 host01 "2026-05-11 22:00" "2026-06-11 22:00" '
-            'description "Test" cloud-owner alice cloud-ticket JIRA-123'
+            'description "Test" cloud-owner alice cloud-ticket 123'
         )
 
         # Should call batch endpoint with assignment params
@@ -236,4 +236,4 @@ class TestScheduleExistingAssignment:
         batch_data = mock_shell.connection.api.create_schedules_batch.call_args[0][0]
         assert batch_data["description"] == "Test"
         assert batch_data["owner"] == "alice"
-        assert batch_data["ticket"] == "JIRA-123"
+        assert batch_data["ticket"] == "123"

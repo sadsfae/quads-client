@@ -67,11 +67,21 @@ class ConnectionView(ttk.Frame):
         details_frame = ttk.LabelFrame(content_frame, text="Server Details", padding=10)
         details_frame.pack(fill=tk.X, pady=(20, 10))
 
-        self.details_text = tk.Text(details_frame, height=8, width=60, wrap=tk.WORD, state=tk.DISABLED, bg="white")
+        # Details text with theme-aware colors
+        self.details_text = tk.Text(
+            details_frame,
+            height=8,
+            width=60,
+            wrap=tk.WORD,
+            state=tk.DISABLED,
+            bg=self.shell.gui_app.theme_manager.get_color("text_bg"),
+            fg=self.shell.gui_app.theme_manager.get_color("text_fg"),
+        )
         self.details_text.pack(fill=tk.BOTH, expand=True)
 
-        self.details_text.tag_config("connected", foreground="#4ec9b0")
-        self.details_text.tag_config("disconnected", foreground="gray")
+        # Tag configs with theme-aware colors
+        self.details_text.tag_config("connected", foreground=self.shell.gui_app.theme_manager.get_color("success"))
+        self.details_text.tag_config("disconnected", foreground=self.shell.gui_app.theme_manager.get_color("fg"))
 
         button_frame = ttk.Frame(details_frame)
         button_frame.pack(fill=tk.X, pady=(10, 0))
@@ -452,3 +462,14 @@ class ConnectionView(ttk.Frame):
     def refresh(self):
         """Public method to refresh the view"""
         self._refresh_server_list()
+
+    def refresh_theme(self):
+        """Update colors when theme changes"""
+        # Update details text colors
+        self.details_text.config(
+            bg=self.shell.gui_app.theme_manager.get_color("text_bg"),
+            fg=self.shell.gui_app.theme_manager.get_color("text_fg"),
+        )
+        # Update tag colors
+        self.details_text.tag_config("connected", foreground=self.shell.gui_app.theme_manager.get_color("success"))
+        self.details_text.tag_config("disconnected", foreground=self.shell.gui_app.theme_manager.get_color("fg"))

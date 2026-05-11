@@ -11,7 +11,7 @@ def test_cloud_list_detail_success(mock_shell):
             "name": "cloud17",
             "owner": "alice",
             "description": "Development CI/CD Pipeline",
-            "ticket": "JIRA-12345",
+            "ticket": "12345",
             "ccusers": ["bob@example.com", "charlie@example.com"],
             "vlan": {"vlan_id": 1117},
             "wipe": True,
@@ -135,10 +135,10 @@ def test_mod_cloud_ticket(mock_shell):
     mock_shell.connection.api.update_cloud.return_value = {"status": "success"}
 
     cloud_cmd = CloudCommands(mock_shell)
-    cloud_cmd.cmd_mod_cloud("cloud17 cloud-ticket JIRA-54321")
+    cloud_cmd.cmd_mod_cloud("cloud17 cloud-ticket 54321")
 
     call_args = mock_shell.connection.api.update_cloud.call_args[0]
-    assert call_args[1]["ticket"] == "JIRA-54321"
+    assert call_args[1]["ticket"] == "54321"
 
 
 def test_mod_cloud_ccusers(mock_shell):
@@ -183,12 +183,12 @@ def test_mod_cloud_multiple_options(mock_shell):
     mock_shell.connection.api.update_cloud.return_value = {"status": "success"}
 
     cloud_cmd = CloudCommands(mock_shell)
-    cloud_cmd.cmd_mod_cloud("cloud17 cloud-owner alice wipe cloud-ticket JIRA-123")
+    cloud_cmd.cmd_mod_cloud("cloud17 cloud-owner alice wipe cloud-ticket 123")
 
     call_args = mock_shell.connection.api.update_cloud.call_args[0]
     assert call_args[1]["owner"] == "alice"
     assert call_args[1]["wipe"] is True
-    assert call_args[1]["ticket"] == "JIRA-123"
+    assert call_args[1]["ticket"] == "123"
 
 
 def test_mod_cloud_no_cloud_name(mock_shell):

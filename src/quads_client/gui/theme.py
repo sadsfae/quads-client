@@ -11,30 +11,36 @@ class ThemeManager:
         "bg": "#1e1e1e",
         "fg": "#d4d4d4",
         "accent": "#007acc",
-        "success": "#4ec9b0",
-        "warning": "#dcdcaa",
-        "error": "#f48771",
+        "success": "#4ec9b0",  # Cyan-green for dark backgrounds (active/complete)
+        "provisioning": "#dcdcaa",  # Light yellow for in-progress state
+        "warning": "#dcdcaa",  # Yellow for warnings
+        "error": "#f48771",  # Red-orange for errors
         "panel_bg": "#252526",
         "border": "#3e3e42",
         "button_bg": "#0e639c",
         "button_fg": "#ffffff",
-        "entry_bg": "#3c3c3c",
-        "entry_fg": "#cccccc",
+        "entry_bg": "#343638",  # Dark gray per CustomTkinter/Material Design
+        "entry_fg": "#dce4ee",  # Light text for readability
+        "text_bg": "#1e1e1e",  # Match main background for Text widgets
+        "text_fg": "#d4d4d4",  # Match main foreground
     }
 
     LIGHT_THEME = {
         "bg": "#ffffff",
         "fg": "#000000",
         "accent": "#0066cc",
-        "success": "#16825d",
-        "warning": "#bf8803",
-        "error": "#cd3131",
+        "success": "#006200",  # Dark green for WCAG AAA compliance (active/complete)
+        "provisioning": "#d97706",  # Amber-600 for in-progress state (WCAG AA compliant)
+        "warning": "#bf8803",  # Orange-brown for warnings
+        "error": "#a31515",  # Darker red for better contrast
         "panel_bg": "#f3f3f3",
         "border": "#cccccc",
         "button_bg": "#0066cc",
         "button_fg": "#ffffff",
         "entry_bg": "#ffffff",
         "entry_fg": "#000000",
+        "text_bg": "#ffffff",  # White background for Text widgets
+        "text_fg": "#000000",  # Black text
     }
 
     def __init__(self, root, initial_theme="dark"):

@@ -27,26 +27,6 @@ QUADS Client provides both a powerful CLI and an intuitive GUI for managing mult
 - **Connection Management**: Easy switching between QUADS server instances
 - **Thin Wrapper Design**: Server-side authorization via QUADS API
 
-<p align="left">
-  <img src="images/quads-client-1.png" alt="QUADS Client Screenshot 1" width="600">
-</p>
-
-<p align="left">
-  <img src="images/quads-client-2.png" alt="QUADS Client Screenshot 2" width="600">
-</p>
-
-<p align="left">
-  <img src="images/quads-client-3.png" alt="QUADS Client Screenshot 3" width="600">
-</p>
-
-<p align="left">
-  <img src="images/quads-client-4.png" alt="QUADS Client Screenshot 4" width="600">
-</p>
-
-<p align="left">
-  <img src="images/quads-client-one-shot-ssm.png" alt="QUADS Client One-Shot SSM" width="600">
-</p>
-
 ## Table of Contents
 
 - [Installation](#installation)
@@ -84,6 +64,9 @@ QUADS Client provides both a powerful CLI and an intuitive GUI for managing mult
   - [Run Tests with Coverage](#run-tests-with-coverage)
   - [Manual Testing](#manual-testing)
 - [Contributing](#contributing)
+- [Screenshots](#screenshots)
+  - [TUI CLI](#tui-cli)
+  - [GUI](#gui)
 - [Links](#links)
 
 ## Installation
@@ -218,13 +201,15 @@ quads-client-gui
 
 **Installation:**
 ```bash
-# Fedora
+# Fedora (includes desktop file and icon)
 dnf install quads-client-gui
 
 # pip
 pip install quads-client
 quads-client-gui
 ```
+
+**Note:** When installed via RPM, QUADS Client GUI will appear in your Applications menu under System or Network categories. You can also launch it from the terminal with `quads-client-gui`.
 
 ### Interactive Mode
 
@@ -1062,6 +1047,72 @@ PYTHONPATH=./src python3 -m quads_client.gui
 ## Contributing
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines on how to contribute to this project.
+
+## Screenshots
+
+### TUI CLI
+
+**quads TUI client**
+
+<p align="left">
+  <img src="images/quads-client-1.png" alt="quads TUI client" width="600">
+</p>
+
+**TUI CLI servers list**
+
+<p align="left">
+  <img src="images/quads-client-2.png" alt="TUI CLI servers list" width="600">
+</p>
+
+**TUI CLI active sessions list**
+
+<p align="left">
+  <img src="images/quads-client-3.png" alt="TUI CLI active sessions list" width="600">
+</p>
+
+**TUI CLI self-scheduling**
+
+<p align="left">
+  <img src="images/quads-client-4.png" alt="TUI CLI self-scheduling" width="600">
+</p>
+
+**TUI CLI one-shot self-scheduling**
+
+<p align="left">
+  <img src="images/quads-client-one-shot-ssm.png" alt="TUI CLI one-shot self-scheduling" width="600">
+</p>
+
+### GUI
+
+**Setup Wizard**
+
+<p align="left">
+  <img src="images/gui-wizard.png" alt="Setup Wizard" width="600">
+</p>
+
+**Login or Register**
+
+<p align="left">
+  <img src="images/gui-wizard2.png" alt="Login or Register" width="600">
+</p>
+
+**GUI one-shot self-scheduling**
+
+<p align="left">
+  <img src="images/gui-ssm1.png" alt="GUI one-shot self-scheduling" width="600">
+</p>
+
+**Self-scheduling filtering by capability and model**
+
+<p align="left">
+  <img src="images/gui-ssm2.png" alt="Self-scheduling filtering by capability and model" width="600">
+</p>
+
+**Self-scheduling in action**
+
+<p align="left">
+  <img src="images/gui-ssm3.png" alt="Self-scheduling in action" width="600">
+</p>
 
 ## Links
 

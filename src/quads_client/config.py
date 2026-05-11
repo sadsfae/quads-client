@@ -111,8 +111,26 @@ class QuadsClientConfig:
         self._config["servers"] = normalized_servers
 
         # Write to file
+        self.save_config()
+
+    def save_config(self) -> None:
+        """Save current config to file"""
+        # Normalize all servers to maintain consistent ordering
+        if "servers" in self._config:
+            normalized_servers = {
+                server_name: self._normalize_server_fields(server_config)
+                for server_name, server_config in self._config["servers"].items()
+            }
+            self._config["servers"] = normalized_servers
+
+        # Write to file
         try:
             with open(self.config_path, "w") as f:
                 yaml.dump(self._config, f, default_flow_style=False, sort_keys=False)
         except Exception as e:
-            raise ConfigError(f"Failed to update config file: {e}")
+            raise ConfigError(f"Failed to save config file: {e}")
+
+    @property
+    def config_data(self) -> dict[str, Any]:
+        """Access to the raw config data for GUI preferences, etc."""
+        return self._config

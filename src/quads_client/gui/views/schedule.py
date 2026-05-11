@@ -240,7 +240,16 @@ class ScheduleView(ttk.Frame):
         preview_frame = ttk.LabelFrame(main_frame, text="Preview", padding=10)
         preview_frame.pack(fill=tk.X, pady=(20, 20))
 
-        self.preview_text = tk.Text(preview_frame, height=5, width=60, wrap=tk.WORD, state=tk.DISABLED)
+        # Preview text with theme-aware colors
+        self.preview_text = tk.Text(
+            preview_frame,
+            height=5,
+            width=60,
+            wrap=tk.WORD,
+            state=tk.DISABLED,
+            bg=self.shell.gui_app.theme_manager.get_color("text_bg"),
+            fg=self.shell.gui_app.theme_manager.get_color("text_fg"),
+        )
         self.preview_text.pack(fill=tk.BOTH, expand=True)
 
         self._update_preview()
@@ -248,8 +257,15 @@ class ScheduleView(ttk.Frame):
         # Result/Status box (initially hidden)
         self.result_frame = ttk.LabelFrame(main_frame, text="Scheduling Result", padding=10)
 
+        # Result text with theme-aware success color
         self.result_text = tk.Text(
-            self.result_frame, height=4, width=60, wrap=tk.WORD, state=tk.DISABLED, fg="#4ec9b0"  # Success green color
+            self.result_frame,
+            height=4,
+            width=60,
+            wrap=tk.WORD,
+            state=tk.DISABLED,
+            bg=self.shell.gui_app.theme_manager.get_color("text_bg"),
+            fg=self.shell.gui_app.theme_manager.get_color("success"),
         )
         self.result_text.pack(fill=tk.BOTH, expand=True)
 
@@ -557,3 +573,16 @@ class ScheduleView(ttk.Frame):
     def refresh(self):
         """Public method to refresh the view"""
         self._update_preview()
+
+    def refresh_theme(self):
+        """Update colors when theme changes"""
+        # Update preview text colors
+        self.preview_text.config(
+            bg=self.shell.gui_app.theme_manager.get_color("text_bg"),
+            fg=self.shell.gui_app.theme_manager.get_color("text_fg"),
+        )
+        # Update result text colors
+        self.result_text.config(
+            bg=self.shell.gui_app.theme_manager.get_color("text_bg"),
+            fg=self.shell.gui_app.theme_manager.get_color("success"),
+        )
