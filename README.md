@@ -74,7 +74,10 @@ QUADS Client provides both a powerful CLI and an intuitive GUI for managing mult
 
 ### From PyPI (pip)
 
-* For Linux and Mac (with Python setup)
+> [!IMPORTANT]
+> `quads-client` and `quads-client-gui` require Python3.13 or higher.
+
+* For Linux and Mac [(with Python setup)](https://www.python.org/downloads/macos/)
 * Install the latest stable release from PyPI:
 
 ```bash
