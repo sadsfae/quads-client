@@ -1,6 +1,57 @@
 # CHANGELOG
 
 
+## v0.4.0 (2026-05-11)
+
+### Chores
+
+- Absolve GUI from tests
+  ([`7aba36b`](https://github.com/quadsproject/quads-client/commit/7aba36b13ae7c1cb4d9d28e3ff0c3c732786728a))
+
+related-to: https://github.com/quadsproject/quads-client/issues/57
+
+- Black styling for tests
+  ([`d385eda`](https://github.com/quadsproject/quads-client/commit/d385edad034144e8c3d79d32db9793c0b42c647e))
+
+- Fix tests
+  ([`c643966`](https://github.com/quadsproject/quads-client/commit/c643966752f9dda824ebc7d7e7182ee3119f8e6c))
+
+- Update RPM spec version to 0.3.5
+  ([`27856a9`](https://github.com/quadsproject/quads-client/commit/27856a9e9327a0423ea9a28ee59150ed10ebee07))
+
+### Features
+
+- Add quads-client tkinter UI beginnings.
+  ([`c565580`](https://github.com/quadsproject/quads-client/commit/c565580019bebd0d11c0b8f60f6e9fbe231daa8e))
+
+* No tests yet * Still needs testing
+
+- Fully tested SSM workflows, refactor.
+  ([`ea1eae9`](https://github.com/quadsproject/quads-client/commit/ea1eae9f0248c6d6d67837d67427490647c87c1e))
+
+* ready to use for SSM * RPM sub-package for quads-client-gui * proper desktop structure, icon.
+
+- More UI fixes/testing
+  ([`c0b0820`](https://github.com/quadsproject/quads-client/commit/c0b08206d64df996219871b9c323e0469627b9d2))
+
+- Quads CLIENT GUI, native python tkinter
+  ([`137dde1`](https://github.com/quadsproject/quads-client/commit/137dde1d415b9b75e934cc4670a494e1abbd90a6))
+
+feat: QUADS CLIENT GUI, native python tkinter
+
+- Quads-client GUI MVP, tested for SSM
+  ([`cc999a4`](https://github.com/quadsproject/quads-client/commit/cc999a4cee9e60a0d29eea554ebefde4ea351504))
+
+feat: quads-client GUI MVP, tested for SSM
+
+fixes: https://github.com/quadsproject/quads-client/issues/57
+
+- Quads-client GUI MVP, tested for SSM.
+  ([`79aa90e`](https://github.com/quadsproject/quads-client/commit/79aa90ec6ac247cdba4040faed8af7da3f19707e))
+
+* Tested onboarding wizard * Tested SSM * TODO: testing admin mode.
+
+
 ## v0.3.5 (2026-05-08)
 
 ### Bug Fixes
