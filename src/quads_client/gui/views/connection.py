@@ -164,7 +164,7 @@ class ConnectionView(ttk.Frame):
     def _clear_status(self):
         """Clear the status bar error message"""
         if hasattr(self.shell, "gui_app"):
-            self.shell.gui_app.update_status("Servers & Connections")
+            self.shell.gui_app.update_status("")
 
     def _refresh_server_list(self):
         """Refresh the server list"""
