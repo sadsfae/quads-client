@@ -381,13 +381,18 @@ class ServerCommands:
             except Exception as e:
                 return (False, f"Could not connect to server: {e}", None)
 
-        # Add server to config
+        is_first_server = len(config_data["servers"]) == 0
+
         config_data["servers"][name] = {
             "url": url,
             "username": username,
             "password": password,
             "verify": verify,
         }
+
+        # First server added becomes the default
+        if is_first_server:
+            config_data["default_server"] = name
 
         try:
             with open(config_path, "w") as f:

@@ -135,6 +135,15 @@ class UserCommands:
                 return (True, "Logged in successfully", None)
 
         except Exception as e:
+            # Check if error message indicates wrong credentials (JSON decode errors from 401)
+            error_msg = str(e).lower()
+            if (
+                "expecting value" in error_msg
+                or "jsondecode" in error_msg
+                or "401" in error_msg
+                or "unauthorized" in error_msg
+            ):
+                return (False, "Login failed: incorrect username or password", None)
             return (False, f"Failed to login: {e}", None)
 
     def cmd_login(self, args):

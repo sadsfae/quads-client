@@ -12,11 +12,17 @@ class ScheduleView(ttk.Frame):
     def __init__(self, parent, shell):
         super().__init__(parent)
         self.shell = shell
+        self._validating = False  # Prevent validation loops
 
         self._create_ui()
 
     def _create_ui(self):
         """Create the UI"""
+        # Check if authenticated - if not, show login prompt
+        if not self.shell.is_authenticated():
+            self._show_login_prompt()
+            return
+
         title_label = ttk.Label(self, text="Schedule Hosts", font=("TkDefaultFont", 14, "bold"))
         title_label.pack(pady=20, padx=20, anchor=tk.W)
 
@@ -25,7 +31,10 @@ class ScheduleView(ttk.Frame):
         container.pack(fill=tk.BOTH, expand=True, padx=20, pady=(0, 10))
 
         # Create a canvas with scrollbar for main content
-        canvas = tk.Canvas(container, highlightthickness=0, bg=self.shell.gui_app.theme_manager.get_color("bg"))
+        # Use ttk style lookup to get proper background color for current theme
+        style = ttk.Style()
+        bg_color = style.lookup("TFrame", "background")
+        canvas = tk.Canvas(container, highlightthickness=0, bg=bg_color)
         scrollbar = ttk.Scrollbar(container, orient="vertical", command=canvas.yview)
         scrollable_frame = ttk.Frame(canvas)
 
@@ -47,13 +56,22 @@ class ScheduleView(ttk.Frame):
         canvas.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
         scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
 
-        # Enable mouse wheel scrolling
+        # Enable mouse wheel scrolling (guarded to avoid errors if canvas is destroyed)
         def _on_mousewheel(event):
-            canvas.yview_scroll(int(-1 * (event.delta / 120)), "units")
+            if canvas.winfo_exists():
+                canvas.yview_scroll(int(-1 * (event.delta / 120)), "units")
 
-        canvas.bind_all("<MouseWheel>", _on_mousewheel)  # Windows/MacOS
-        canvas.bind_all("<Button-4>", lambda e: canvas.yview_scroll(-1, "units"))  # Linux
-        canvas.bind_all("<Button-5>", lambda e: canvas.yview_scroll(1, "units"))  # Linux
+        def _on_scroll_up(event):
+            if canvas.winfo_exists():
+                canvas.yview_scroll(-1, "units")
+
+        def _on_scroll_down(event):
+            if canvas.winfo_exists():
+                canvas.yview_scroll(1, "units")
+
+        canvas.bind_all("<MouseWheel>", _on_mousewheel)
+        canvas.bind_all("<Button-4>", _on_scroll_up)
+        canvas.bind_all("<Button-5>", _on_scroll_down)
 
         main_frame = scrollable_frame
 
@@ -389,6 +407,16 @@ class ScheduleView(ttk.Frame):
             )
             return
 
+        # Validate selected hostnames before using them
+        is_valid, errors = self._validate_hostnames(hostnames)
+
+        if not is_valid:
+            error_msg = "The following selected hosts are invalid:\n\n"
+            error_msg += "\n".join(f"  • {err}" for err in errors)
+            error_msg += "\n\nPlease select different hosts or contact an admin."
+            messagebox.showerror("Invalid Hostnames", error_msg)
+            return
+
         # Switch to "Specific hostnames" mode and populate
         self.mode_var.set("hosts")
         self._on_mode_changed()
@@ -404,7 +432,7 @@ class ScheduleView(ttk.Frame):
         """Browse for host list file"""
         filename = filedialog.askopenfilename(
             title="Select Host List File",
-            filetypes=[("Text files", "*.txt"), ("All files", "*.*")],
+            filetypes=[("All files", "*.*"), ("Text files", "*.txt")],
         )
         if filename:
             self.file_entry.delete(0, tk.END)
@@ -458,6 +486,49 @@ class ScheduleView(ttk.Frame):
         self.preview_text.insert("1.0", preview)
         self.preview_text.config(state=tk.DISABLED)
 
+    def _validate_hostnames(self, hostnames):
+        """Validate hostnames exist and are eligible for SSM scheduling
+
+        Args:
+            hostnames: List of hostname strings
+
+        Returns:
+            tuple: (is_valid, error_list) where error_list contains hostname:reason pairs
+        """
+        errors = []
+
+        for hostname in hostnames:
+            hostname = hostname.strip()
+            if not hostname:
+                continue
+
+            try:
+                # Check if host exists
+                host = self.shell.connection.api.get_host(hostname)
+
+                if not host:
+                    errors.append(f"{hostname}: Host not found (typo?)")
+                    continue
+
+                # Check if host is broken or retired
+                if host.get("broken"):
+                    errors.append(f"{hostname}: Host is marked as broken")
+                    continue
+
+                if host.get("retired"):
+                    errors.append(f"{hostname}: Host is retired")
+                    continue
+
+                # Check if host can self-schedule
+                if not host.get("can_self_schedule"):
+                    errors.append(f"{hostname}: Not enabled for self-scheduling")
+                    continue
+
+            except Exception as e:
+                errors.append(f"{hostname}: Error checking host ({str(e)})")
+
+        return (len(errors) == 0, errors)
+
     def _schedule(self):
         """Perform the scheduling"""
         if not self.shell.is_authenticated():
@@ -472,23 +543,65 @@ class ScheduleView(ttk.Frame):
         mode = self.mode_var.get()
         args = ""
 
-        if mode == "count":
-            count = self.count_spinbox.get()
-            args = f"{count}"
-        elif mode == "hosts":
+        # Validate hostnames for "hosts" and "file" modes (pre-flight validation)
+        if mode == "hosts":
             hosts = self.hosts_entry.get().strip()
             if not hosts:
                 messagebox.showerror("Error", "Hostnames are required")
                 return
+
+            # Parse and validate hostnames
+            hostname_list = [h.strip() for h in hosts.split(",") if h.strip()]
+            is_valid, errors = self._validate_hostnames(hostname_list)
+
+            if not is_valid:
+                error_msg = "The following hostnames are invalid:\n\n"
+                error_msg += "\n".join(f"  • {err}" for err in errors)
+                error_msg += "\n\nPlease fix these issues before scheduling."
+                messagebox.showerror("Invalid Hostnames", error_msg)
+                return
+
             args = hosts
+
         elif mode == "file":
             file_path = self.file_entry.get().strip()
             if not file_path:
                 messagebox.showerror("Error", "Please select a host list file")
                 return
+
+            # Read and validate hostnames from file
+            try:
+                with open(file_path, "r") as f:
+                    hostname_list = [line.strip() for line in f if line.strip()]
+
+                if not hostname_list:
+                    messagebox.showerror("Error", f"No hostnames found in file: {file_path}")
+                    return
+
+                is_valid, errors = self._validate_hostnames(hostname_list)
+
+                if not is_valid:
+                    error_msg = f"The following hostnames in {file_path} are invalid:\n\n"
+                    error_msg += "\n".join(f"  • {err}" for err in errors)
+                    error_msg += "\n\nPlease fix these issues before scheduling."
+                    messagebox.showerror("Invalid Hostnames", error_msg)
+                    return
+
+            except FileNotFoundError:
+                messagebox.showerror("Error", f"File not found: {file_path}")
+                return
+            except Exception as e:
+                messagebox.showerror("Error", f"Failed to read file: {e}")
+                return
+
             args = f"host-list {file_path}"
 
-        args += f' description "{description}"'
+        elif mode == "count":
+            count = self.count_spinbox.get()
+            args = f"{count}"
+
+        safe_description = description.replace('"', '\\"')
+        args += f' description "{safe_description}"'
 
         # Add VLAN if enabled
         if self.use_vlan_var.get():
@@ -520,9 +633,6 @@ class ScheduleView(ttk.Frame):
 
             self.shell.user_commands.cmd_schedule(args)
 
-            # Stop capturing
-            self.shell._capture_output = False
-
             # Display captured messages in result box
             if self.shell._captured_messages:
                 result_text = "\n".join([msg[1] for msg in self.shell._captured_messages])
@@ -534,18 +644,25 @@ class ScheduleView(ttk.Frame):
                 # Show result frame
                 self.result_frame.pack(fill=tk.X, pady=(10, 20))
 
-            # Also show success message
-            messagebox.showinfo(
-                "Success",
-                "Hosts scheduled successfully!\n\n" "View your assignments in the 'My Hosts' or 'Assignments' tab.",
-            )
+            # Check for errors in captured output before declaring success
+            errors = [msg for level, msg in self.shell._captured_messages if level == "error"]
+            if errors:
+                error_msg = "\n".join(errors)
+                messagebox.showerror("Scheduling Failed", error_msg)
+            else:
+                messagebox.showinfo(
+                    "Success",
+                    "Hosts scheduled successfully!\n\n"
+                    "View your assignments in the 'My Hosts' or 'Assignments' tab.",
+                )
 
         except Exception as e:
-            self.shell._capture_output = False
             import traceback
 
             details = traceback.format_exc()
             show_error_dialog(self, "Scheduling Failed", str(e), details)
+        finally:
+            self.shell._capture_output = False
 
     def _reset_form(self):
         """Reset the form to defaults"""
@@ -570,19 +687,68 @@ class ScheduleView(ttk.Frame):
         """Cancel scheduling"""
         self._reset_form()
 
+    def _show_login_prompt(self):
+        """Show login prompt when not authenticated"""
+        # Clear any existing widgets
+        for widget in self.winfo_children():
+            widget.destroy()
+
+        # Center frame
+        center_frame = ttk.Frame(self)
+        center_frame.place(relx=0.5, rely=0.5, anchor=tk.CENTER)
+
+        ttk.Label(center_frame, text="Please login to schedule hosts", font=("TkDefaultFont", 12)).pack(pady=(0, 20))
+
+        ttk.Button(center_frame, text="Login", command=self._auto_login).pack()
+
+    def _auto_login(self):
+        """Auto-login using centralized server selection logic"""
+        from quads_client.gui.widgets.dialogs import show_error_dialog
+
+        target_server = self.shell.get_auto_login_server()
+
+        if target_server:
+            success, error = self.shell.connect_to_server(target_server)
+            if success:
+                self.refresh()
+            else:
+                show_error_dialog(self, "Login Failed", f"Failed to connect to {target_server}", error or "")
+        else:
+            self.shell.gui_app._show_servers_view()
+
+    def _get_preferences(self):
+        """Get GUI preferences from config"""
+        if self.shell.config and hasattr(self.shell.config, "config_data"):
+            return self.shell.config.config_data.get("gui_preferences", {})
+        return {}
+
     def refresh(self):
         """Public method to refresh the view"""
-        self._update_preview()
+        # Check if auth status changed - rebuild UI if needed
+        if not self.shell.is_authenticated():
+            # Clear and show login prompt
+            for widget in self.winfo_children():
+                widget.destroy()
+            self._show_login_prompt()
+        elif hasattr(self, "mode_var"):
+            # Full UI is built (mode_var only exists after _create_ui completes)
+            self._update_preview()
+        else:
+            # Need to rebuild full UI
+            for widget in self.winfo_children():
+                widget.destroy()
+            self._create_ui()
 
     def refresh_theme(self):
         """Update colors when theme changes"""
-        # Update preview text colors
+        if not hasattr(self, "preview_text"):
+            return
         self.preview_text.config(
             bg=self.shell.gui_app.theme_manager.get_color("text_bg"),
             fg=self.shell.gui_app.theme_manager.get_color("text_fg"),
         )
-        # Update result text colors
-        self.result_text.config(
-            bg=self.shell.gui_app.theme_manager.get_color("text_bg"),
-            fg=self.shell.gui_app.theme_manager.get_color("success"),
-        )
+        if hasattr(self, "result_text"):
+            self.result_text.config(
+                bg=self.shell.gui_app.theme_manager.get_color("text_bg"),
+                fg=self.shell.gui_app.theme_manager.get_color("success"),
+            )

@@ -173,8 +173,11 @@ class GuiShell:
         Fetch available hosts from API and return structured data.
         Uses existing quads-client logic but returns data instead of printing.
 
+        IMPORTANT: This method checks ACTUAL availability using is_available() API
+        to filter out hosts with active schedules, matching quads-client ls-available behavior.
+
         Args:
-            days: Number of days to check (optional)
+            days: Number of days to check (optional, default=3)
             model: Model filter (optional)
             ram: RAM filter in GB (optional)
 
@@ -211,7 +214,33 @@ class GuiShell:
             if not hosts:
                 return []
 
-            # Build structured data
+            # Get current schedules to filter out hosts that are scheduled to move
+            # A host may be IN cloud01 now but SCHEDULED to move to another cloud
+            current_schedules = []
+            try:
+                current_schedules = self.connection.api.get_current_schedules({})
+            except Exception:
+                # If we can't get schedules, proceed without filtering
+                pass
+
+            # Build set of hosts that have current schedules (excluding cloud01)
+            scheduled_hosts = set()
+            if current_schedules:
+                for schedule in current_schedules:
+                    if isinstance(schedule, dict):
+                        # Get the assignment/cloud this schedule is for
+                        assignment = schedule.get("assignment", {})
+                        if isinstance(assignment, dict):
+                            cloud = assignment.get("cloud", {})
+                            cloud_name = cloud.get("name") if isinstance(cloud, dict) else str(cloud)
+                            # If scheduled to a cloud other than cloud01, mark as unavailable
+                            if cloud_name and cloud_name != "cloud01":
+                                host = schedule.get("host", {})
+                                host_name = host.get("name") if isinstance(host, dict) else str(host)
+                                if host_name:
+                                    scheduled_hosts.add(host_name)
+
+            # Build structured data - filter out scheduled hosts
             results = []
             for host in hosts:
                 name = extract_host_field(host, "name", field_aliases=["hostname"], default="")
@@ -220,6 +249,10 @@ class GuiShell:
                 can_self_schedule = extract_host_field(host, "can_self_schedule", default=False)
 
                 if not name:
+                    continue
+
+                # Skip hosts that have active schedules to other clouds
+                if name in scheduled_hosts:
                     continue
 
                 results.append(
@@ -286,6 +319,90 @@ class GuiShell:
     def is_admin(self):
         """Check if user has admin role"""
         return self.connection and self.connection.is_admin
+
+    def get_auto_login_server(self):
+        """
+        Determine which server to auto-connect to.
+        Priority: gui_preferences default > config default > last-connected session > first server with credentials.
+        Returns server name or None if no servers configured.
+        """
+        servers = {}
+        if self.config:
+            servers = self.config.get_all_servers()
+
+        if not servers:
+            return None
+
+        if len(servers) == 1:
+            return list(servers.keys())[0]
+
+        # Check gui_preferences default_server
+        if self.config and hasattr(self.config, "config_data"):
+            prefs = self.config.config_data.get("gui_preferences", {})
+            pref_default = prefs.get("default_server")
+            if pref_default and pref_default in servers:
+                return pref_default
+
+        # Check main config default_server
+        if self.config:
+            config_default = self.config.get_default_server()
+            if config_default and config_default in servers:
+                return config_default
+
+        # Check last-connected server from session history
+        if self.session_manager:
+            for session in self.session_manager.sessions.values():
+                if session.connection and session.connection.current_server in servers:
+                    return session.connection.current_server
+
+        # Fall back to first server that has credentials
+        for name, cfg in servers.items():
+            if cfg.get("username") and cfg.get("password"):
+                return name
+
+        # Last resort: first server
+        return list(servers.keys())[0]
+
+    def connect_to_server(self, server_name):
+        """
+        Connect to a server with session dedup and zombie cleanup.
+        Reuses existing session if one exists for this server.
+        Cleans up the session if the connection fails.
+
+        Returns:
+            (success: bool, error_message: str or None)
+        """
+        from quads_client.connection import ConnectionError as ConnError
+
+        if not self.session_manager:
+            return False, "Configuration not loaded"
+
+        # Check if a session already exists for this server
+        existing_session = None
+        for session in self.session_manager.sessions.values():
+            if session.server_name == server_name:
+                existing_session = session
+                break
+
+        try:
+            if existing_session:
+                if existing_session.id != self.session_manager.active_session_id:
+                    self.session_manager.switch_session(existing_session.id)
+
+                if not existing_session.connection.is_connected:
+                    existing_session.connection.connect(server_name)
+
+                return True, None
+            else:
+                session = self.session_manager.create_session(server_name)
+                try:
+                    session.connection.connect(server_name)
+                    return True, None
+                except (ConnError, Exception) as e:
+                    self.session_manager.close_session(session.id)
+                    return False, str(e)
+        except (ConnError, Exception) as e:
+            return False, str(e)
 
     def _update_prompt(self):
         """Update prompt (no-op for GUI, used by CLI)"""

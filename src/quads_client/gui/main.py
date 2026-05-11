@@ -135,35 +135,60 @@ class QuadsClientApp(tk.Tk):
 
         ttk.Separator(self.sidebar_frame, orient=tk.HORIZONTAL).pack(fill=tk.X, padx=5, pady=5)
 
-        # Store navigation items with admin flag
+        # Store navigation items with admin flag and view name for tracking
         nav_items = [
-            ("📡 Servers", self._show_servers_view, False),
-            ("📅 Schedule", self._show_schedule_view, False),
-            ("📊 Available", self._show_available_view, False),
-            ("💻 My Hosts", self._show_my_hosts_view, False),
-            ("📋 Assignments", self._show_assignments_view, False),
-            ("", None, False),  # Separator
-            ("👑 Admin Schedule", self._show_admin_schedule_view, True),
-            ("☁️  Clouds", self._show_clouds_view, True),
-            ("🖥️  Hosts", self._show_hosts_view, True),
-            ("", None, False),  # Separator
-            ("⚙️  Settings", self._show_settings_view, False),
+            ("📡 Servers", self._show_servers_view, False, "servers"),
+            ("📅 Schedule", self._show_schedule_view, False, "schedule"),
+            ("📊 Available", self._show_available_view, False, "available"),
+            ("💻 My Hosts", self._show_my_hosts_view, False, "my_hosts"),
+            ("📋 Assignments", self._show_assignments_view, False, "assignments"),
+            ("", None, True, ""),  # Separator (admin section)
+            ("👑 Admin Schedule", self._show_admin_schedule_view, True, "admin_schedule"),
+            ("☁️  Clouds", self._show_clouds_view, True, "clouds"),
+            ("🖥️  Hosts", self._show_hosts_view, True, "hosts"),
+            ("", None, False, ""),  # Separator
+            ("⚙️  Settings", self._show_settings_view, False, "settings"),
         ]
 
+        # Get theme colors for buttons
+        bg_color = self.theme_manager.get_color("bg")
+        fg_color = self.theme_manager.get_color("fg")
+        accent_color = self.theme_manager.get_color("accent")
+        panel_bg = self.theme_manager.get_color("panel_bg")
+
         self.nav_buttons = []
-        for label, command, is_admin in nav_items:
+        self.nav_button_map = {}  # Map view_name to button
+        # Track all sidebar items (buttons + separators) in order for re-packing
+        self._sidebar_items = []
+        for label, command, is_admin, view_name in nav_items:
             if label == "":  # Separator
-                ttk.Separator(self.sidebar_frame, orient=tk.HORIZONTAL).pack(fill=tk.X, padx=5, pady=5)
+                sep = ttk.Separator(self.sidebar_frame, orient=tk.HORIZONTAL)
+                sep.pack(fill=tk.X, padx=5, pady=5)
+                self._sidebar_items.append(("separator", sep, is_admin))
                 continue
 
-            btn = ttk.Button(
+            btn = tk.Button(
                 self.sidebar_frame,
                 text=label,
                 command=command,
                 width=18,
+                bd=0,
+                relief=tk.FLAT,
+                highlightthickness=0,
+                highlightbackground=accent_color,
+                bg=bg_color,
+                fg=fg_color,
+                activebackground=panel_bg,
+                activeforeground=fg_color,
+                font=("TkDefaultFont", 11),
+                anchor="w",
+                padx=10,
             )
             btn.pack(pady=2, padx=10, fill=tk.X)
             self.nav_buttons.append((btn, is_admin))
+            self._sidebar_items.append(("button", btn, is_admin))
+            if view_name:
+                self.nav_button_map[view_name] = btn
 
     def _create_content_area(self):
         """Create main content area"""
@@ -243,38 +268,18 @@ class QuadsClientApp(tk.Tk):
         """Auto-login from welcome view"""
         from quads_client.gui.widgets.dialogs import show_error_dialog
 
-        prefs = self.preferences
-        default_server = prefs.get("default_server")
-
-        # Get all configured servers
-        servers = {}
-        if self.shell.config:
-            servers = self.shell.config.get_all_servers()
-
-        # Determine which server to connect to
-        target_server = None
-        if default_server and default_server in servers:
-            target_server = default_server
-        elif len(servers) == 1:
-            # Only one server configured
-            target_server = list(servers.keys())[0]
-        elif len(servers) > 1:
-            # Multiple servers, no default - switch to connection view
-            self._show_servers_view()
-            return
+        target_server = self.shell.get_auto_login_server()
 
         if target_server:
-            try:
-                # Connect to the server
-                self.shell.connection_commands.cmd_connect(target_server)
-                # Update welcome view to remove login button
+            success, error = self.shell.connect_to_server(target_server)
+            if success:
                 self.views["welcome"].destroy()
                 self.views["welcome"] = self._create_welcome_view()
                 self._show_view("welcome")
-            except Exception as e:
-                show_error_dialog(self, "Login Failed", f"Failed to connect to {target_server}", str(e))
+                self.update_role_visibility()
+            else:
+                show_error_dialog(self, "Login Failed", f"Failed to connect to {target_server}", error or "")
         else:
-            # No servers configured - show servers view
             self._show_servers_view()
 
     def _create_status_bar(self):
@@ -287,14 +292,18 @@ class QuadsClientApp(tk.Tk):
         status_content = ttk.Frame(self.status_bar)
         status_content.pack(fill=tk.BOTH, expand=True, padx=5, pady=2)
 
-        # Connection indicator (colored circle)
+        # Connection indicator (colored circle) + persistent connection status
         self.connection_indicator = ttk.Label(
-            status_content, text="●", foreground="#888888", font=("TkDefaultFont", 12)  # Grey when not connected
+            status_content, text="●", foreground="#888888", font=("TkDefaultFont", 12)
         )
         self.connection_indicator.pack(side=tk.LEFT, padx=(0, 5))
 
-        self.status_label = ttk.Label(status_content, text="Not connected", wraplength=1100, justify=tk.LEFT)
-        self.status_label.pack(side=tk.LEFT, fill=tk.X, expand=True)
+        self.connection_status_label = ttk.Label(status_content, text="Not connected", justify=tk.LEFT)
+        self.connection_status_label.pack(side=tk.LEFT)
+
+        # Transient message label (right side, for errors/success/info)
+        self.status_label = ttk.Label(status_content, text="", justify=tk.RIGHT)
+        self.status_label.pack(side=tk.RIGHT, padx=(10, 0))
 
     def _toggle_sidebar(self):
         """Toggle sidebar visibility"""
@@ -309,12 +318,31 @@ class QuadsClientApp(tk.Tk):
         """Toggle between dark and light themes"""
         new_mode = self.theme_manager.toggle_theme()
 
+        # Update navigation button colors for new theme
+        self._refresh_nav_colors()
+
         # Refresh theme-aware widgets in all views
         for view in self.views.values():
             if hasattr(view, "refresh_theme"):
                 view.refresh_theme()
 
         self.update_status(f"Theme switched to {new_mode} mode")
+
+    def _refresh_nav_colors(self):
+        """Refresh navigation button colors after theme change"""
+        bg_color = self.theme_manager.get_color("bg")
+        fg_color = self.theme_manager.get_color("fg")
+        accent_color = self.theme_manager.get_color("accent")
+        panel_bg = self.theme_manager.get_color("panel_bg")
+
+        for btn, _ in self.nav_buttons:
+            btn.config(
+                bg=bg_color,
+                fg=fg_color,
+                activebackground=panel_bg,
+                activeforeground=fg_color,
+                highlightbackground=accent_color,
+            )
 
     def _new_session(self):
         """Create new session (placeholder)"""
@@ -328,7 +356,7 @@ class QuadsClientApp(tk.Tk):
         """Show preferences dialog"""
         old_font_size = self.preferences.get("font_size", "medium")
 
-        dialog = PreferencesDialog(self, self.shell.config, self.theme_manager)
+        dialog = PreferencesDialog(self, self.shell.config, self.theme_manager, self.shell)
         self.wait_window(dialog)
 
         result = dialog.get_result()
@@ -372,25 +400,35 @@ class QuadsClientApp(tk.Tk):
         else:
             self.update_status(f"{view_name.title()} view - Not yet implemented")
 
+        # Update navigation button highlighting
+        self._update_nav_highlighting(view_name)
+
+    def _update_nav_highlighting(self, active_view_name):
+        """Update navigation button highlighting with thin border around active button"""
+        # Reset all buttons to no border
+        for btn, _ in self.nav_buttons:
+            btn.config(highlightthickness=0)
+
+        # Add 2px border to active button
+        if active_view_name in self.nav_button_map:
+            active_btn = self.nav_button_map[active_view_name]
+            active_btn.config(highlightthickness=2)
+
     def _show_servers_view(self):
         """Show servers view"""
         self._show_view("servers")
-        self.update_status("Servers & Connections")
 
     def _show_schedule_view(self):
         """Show schedule view"""
         self._show_view("schedule")
-        self.update_status("Schedule Hosts")
 
     def _show_my_hosts_view(self):
         """Show my hosts view"""
         self._show_view("my_hosts")
-        self.update_status("My Hosts")
 
     def _show_assignments_view(self):
         """Show assignments view"""
         self._show_view("assignments")
-        self.update_status("My Assignments")
 
     def _show_admin_schedule_view(self):
         """Show admin schedule view"""
@@ -398,7 +436,6 @@ class QuadsClientApp(tk.Tk):
             self.update_status("Admin role required")
             return
         self._show_view("admin_schedule")
-        self.update_status("Admin Schedule Management")
 
     def _show_clouds_view(self):
         """Show clouds view"""
@@ -406,7 +443,6 @@ class QuadsClientApp(tk.Tk):
             self.update_status("Admin role required")
             return
         self._show_view("clouds")
-        self.update_status("Cloud Management")
 
     def _show_hosts_view(self):
         """Show hosts view"""
@@ -414,17 +450,14 @@ class QuadsClientApp(tk.Tk):
             self.update_status("Admin role required")
             return
         self._show_view("hosts")
-        self.update_status("Host Management")
 
     def _show_available_view(self):
         """Show available hosts view"""
         self._show_view("available")
-        self.update_status("Available Hosts")
 
     def _show_settings_view(self):
         """Show settings view"""
         self._show_view("settings")
-        self.update_status("Settings")
 
     def _show_about(self):
         """Show About dialog"""
@@ -549,38 +582,52 @@ class QuadsClientApp(tk.Tk):
         shortcuts_window.transient(self)
         shortcuts_window.grab_set()
 
-    def update_status(self, message):
-        """Update status bar message"""
+    def update_status(self, message=""):
+        """Update transient status message (right side of status bar)"""
         if hasattr(self, "status_label") and self.status_label:
             self.status_label.config(text=message)
         self.update_connection_indicator()
 
     def update_connection_indicator(self):
-        """Update connection indicator color based on connection status"""
+        """Update connection indicator color and text based on connection status"""
         if not hasattr(self, "connection_indicator"):
             return
 
         is_connected = self.shell.is_authenticated() if self.shell else False
 
         if is_connected:
-            # Green circle when connected
             self.connection_indicator.config(foreground="#4ec9b0")
+            server = ""
+            username = ""
+            if self.shell.connection:
+                server = getattr(self.shell.connection, "current_server", "")
+                username = getattr(self.shell.connection, "username", "")
+            if server and username:
+                self.connection_status_label.config(text=f"Connected to {server} as {username}")
+            elif server:
+                self.connection_status_label.config(text=f"Connected to {server}")
+            else:
+                self.connection_status_label.config(text="Connected")
         else:
-            # Grey circle when disconnected
             self.connection_indicator.config(foreground="#888888")
+            self.connection_status_label.config(text="Not connected")
 
     def update_role_visibility(self):
         """Update visibility of admin-only navigation items and visual indicators"""
         is_admin = self.shell.is_admin()
         is_authenticated = self.shell.is_authenticated()
 
-        # Hide/show admin navigation buttons
-        for btn, is_admin_only in self.nav_buttons:
-            if is_admin_only:
-                if is_admin:
-                    btn.pack(pady=2, padx=10, fill=tk.X)
-                else:
-                    btn.pack_forget()
+        # Unpack and re-pack all sidebar items in correct order
+        for item_type, widget, _ in self._sidebar_items:
+            widget.pack_forget()
+
+        for item_type, widget, is_admin_only in self._sidebar_items:
+            if is_admin_only and not is_admin:
+                continue
+            if item_type == "separator":
+                widget.pack(fill=tk.X, padx=5, pady=5)
+            else:
+                widget.pack(pady=2, padx=10, fill=tk.X)
 
         # Update title bar with admin indicator
         base_title = f"QUADS Client v{__version__}"
@@ -676,16 +723,62 @@ class QuadsClientApp(tk.Tk):
         self.minsize(1000, 600)
 
     def _set_window_icon(self):
-        """Set window icon from desktop/icons/quads-client.png"""
+        """Set window icon from package assets (platform-specific)"""
         try:
             from pathlib import Path
             from tkinter import PhotoImage
+            import platform
+            import sys
 
-            # Try to find icon in desktop/icons/ directory
+            # Try to load from package resources first (pip install)
+            try:
+                if sys.version_info >= (3, 9):
+                    from importlib.resources import files
+                else:
+                    from importlib_resources import files
+
+                # macOS uses .icns format for better integration
+                if platform.system() == "Darwin":
+                    try:
+                        icon_data = files("quads_client.gui.assets").joinpath("quads-client-gui.icns")
+                        if hasattr(icon_data, "as_posix"):
+                            self.iconbitmap(icon_data.as_posix())
+                        else:
+                            # Python 3.9+ returns a Traversable, need to get path
+                            with icon_data.open("rb"):
+                                self.iconbitmap(str(icon_data))
+                        return
+                    except Exception:
+                        pass
+
+                # Linux/Windows: use PNG
+                icon_data = files("quads_client.gui.assets").joinpath("quads-client.png")
+                if hasattr(icon_data, "as_posix"):
+                    icon_path = icon_data.as_posix()
+                else:
+                    icon_path = str(icon_data)
+                icon = PhotoImage(file=icon_path)
+                self.iconphoto(True, icon)
+                return
+
+            except Exception:
+                pass
+
+            # Fallback: try filesystem paths (development mode or RPM install)
+            if platform.system() == "Darwin":
+                icns_paths = [
+                    Path(__file__).parent / "assets" / "quads-client-gui.icns",
+                    Path(__file__).parent.parent.parent.parent / "desktop" / "icons" / "quads-client-gui.icns",
+                ]
+                for icon_path in icns_paths:
+                    if icon_path.exists():
+                        self.iconbitmap(str(icon_path))
+                        return
+
+            # Linux/Windows fallback
             icon_paths = [
-                # Repository structure
+                Path(__file__).parent / "assets" / "quads-client.png",
                 Path(__file__).parent.parent.parent.parent / "desktop" / "icons" / "quads-client.png",
-                # Installed structure (if running from installed package)
                 Path("/usr/share/icons/hicolor/128x128/apps/quads-client.png"),
             ]
 
@@ -733,20 +826,14 @@ class QuadsClientApp(tk.Tk):
         if not default_server:
             return
 
-        # Check if server exists
-        try:
-            if self.shell.config:
-                servers = self.shell.config.get_all_servers()
-                if default_server in servers:
-                    # Auto-connect
-                    self.update_status(f"Auto-connecting to {default_server}...")
-                    try:
-                        self.shell.connection_commands.cmd_connect(default_server)
-                        self.update_status(f"Connected to {default_server}")
-                    except Exception as e:
-                        self.update_status(f"Auto-connect failed: {e}")
-        except Exception:
-            pass
+        if self.shell.config:
+            servers = self.shell.config.get_all_servers()
+            if default_server in servers:
+                success, error = self.shell.connect_to_server(default_server)
+                if success:
+                    self.update_role_visibility()
+                else:
+                    self.update_status(f"Auto-connect failed: {error}")
 
     def _save_window_preferences(self):
         """Save window size and position to preferences"""
@@ -756,17 +843,14 @@ class QuadsClientApp(tk.Tk):
         # Get current geometry
         geometry = self.geometry()
 
-        # Split into size and position
-        if "+" in geometry or "-" in geometry:
-            # Has position (e.g., "1200x800+100+50")
-            parts = geometry.replace("-", "+-").split("+")
-            size = parts[0]
-            if len(parts) >= 3:
-                position = f"{parts[1]}+{parts[2]}"
-            else:
-                position = None
+        # Parse geometry string: "WxH+X+Y" or "WxH-X-Y" or "WxH+X-Y" etc.
+        import re
+
+        match = re.match(r"(\d+x\d+)([+-]\d+[+-]\d+)?", geometry)
+        if match:
+            size = match.group(1)
+            position = match.group(2).lstrip("+") if match.group(2) else None
         else:
-            # Just size
             size = geometry
             position = None
 

@@ -45,8 +45,14 @@ quads-client = "quads_client.cli:main"
 quads-client-gui = "quads_client.gui:main"
 
 
+[tool.setuptools]
+include-package-data = true
+
 [tool.setuptools.packages.find]
 where = ["src"]
+
+[tool.setuptools.package-data]
+"quads_client.gui.assets" = ["*.png", "*.icns"]
 
 # --- Semantic Release Configuration ---
 [tool.semantic_release]
