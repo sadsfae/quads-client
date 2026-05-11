@@ -233,7 +233,7 @@ quads-client-gui
 
 **Installation:**
 
-**Option 1: Fedora/RHEL (Recommended for Linux)**
+**Option 1: Fedora (Recommended for Linux)**
 ```bash
 # Includes desktop file, icon, and all dependencies
 dnf install quads-client-gui
@@ -242,11 +242,8 @@ dnf install quads-client-gui
 **Option 2: pip (Linux/macOS)**
 ```bash
 # Linux: Install tkinter first (system package)
-# Fedora/RHEL/CentOS:
+# Fedora:
 sudo dnf install python3-tkinter
-
-# Debian/Ubuntu:
-sudo apt install python3-tk
 
 # macOS: tkinter included with Python from python.org
 # No extra steps needed
