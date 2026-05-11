@@ -88,7 +88,13 @@ pip install quads-client
 quads-client
 ```
 
+* Run QUADS Client GUI
+```bash
+quads-client-gui
+```
+
 * To upgrade to the latest version:
+
 
 ```bash
 source venv/bin/activate
