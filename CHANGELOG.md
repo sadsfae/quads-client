@@ -1,6 +1,63 @@
 # CHANGELOG
 
 
+## v0.4.1 (2026-05-11)
+
+### Bug Fixes
+
+- Admin fixes, datepicker, more rails.
+  ([`6b53206`](https://github.com/quadsproject/quads-client/commit/6b532068f5f216fb8c3d5fbee33d83caa1875b1c))
+
+- Available filter being too aggressive
+  ([`d4dbf60`](https://github.com/quadsproject/quads-client/commit/d4dbf60b7b47c03f84167b9572dd396af4d8e425))
+
+- Bind_all not releasing on widget view
+  ([`d6ae39a`](https://github.com/quadsproject/quads-client/commit/d6ae39ad48c3ebca146ae2f221c5f8fdcade5bc2))
+
+- Last issues hopefully
+  ([`8a25a4b`](https://github.com/quadsproject/quads-client/commit/8a25a4bad359cb7c3df26ae0e7cd4dbd580c4fdb))
+
+- More adm fixes
+  ([`cb88fe5`](https://github.com/quadsproject/quads-client/commit/cb88fe5294c8e3b51324146b50bc3a5bdbed4128))
+
+- More admin fixes
+  ([`bdda8c0`](https://github.com/quadsproject/quads-client/commit/bdda8c0663cae87bce1b27906ec971093e5935fc))
+
+- More admin fixes, add proper native mac support
+  ([`a7e3c4c`](https://github.com/quadsproject/quads-client/commit/a7e3c4c1ae38ccc1045e72357832a7b7e54aa91f))
+
+fix: more admin fixes, add proper native mac support
+
+- More admin fixes, add proper native mac support.
+  ([`44c144a`](https://github.com/quadsproject/quads-client/commit/44c144a061b5bcd3a3e19afeae4070df24773e3c))
+
+- Overhaul and fix sessions
+  ([`bb32cb2`](https://github.com/quadsproject/quads-client/commit/bb32cb2509a01a8717358542191124c77f60f914))
+
+- Refactor, fix found bugs
+  ([`459f161`](https://github.com/quadsproject/quads-client/commit/459f161fb371583bf3ddb398e0b58e2026ef3fe2))
+
+### Chores
+
+- Doc update
+  ([`8ab81b8`](https://github.com/quadsproject/quads-client/commit/8ab81b85bc245d7bfaa6c5f81e45a185cc950440))
+
+- Fix last bits of CI hopefully
+  ([`43e6bda`](https://github.com/quadsproject/quads-client/commit/43e6bda6561023202db6193f412722a98c2b30fb))
+
+- Fix tests
+  ([`cb4044b`](https://github.com/quadsproject/quads-client/commit/cb4044b61165f414d3dcd8167713235f020f1536))
+
+- Fix tests
+  ([`4ac041d`](https://github.com/quadsproject/quads-client/commit/4ac041def5aeb7b124582153d508dab8918db014))
+
+- More admin/ui fixes
+  ([`eaafbeb`](https://github.com/quadsproject/quads-client/commit/eaafbebe54ee679e150d507132a31b782544c760))
+
+- Update RPM spec version to 0.4.0
+  ([`ee5853b`](https://github.com/quadsproject/quads-client/commit/ee5853b6a922d8fd8fbb857ae6a4ac7d04dae8cb))
+
+
 ## v0.4.0 (2026-05-11)
 
 ### Chores
