@@ -1,2 +1,4 @@
 include README.md LICENSE
 recursive-include conf *.yml *.example rpm *.spec
+recursive-include desktop/icons *.png *.icns
+recursive-include src/quads_client/gui/assets *.png *.icns

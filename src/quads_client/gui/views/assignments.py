@@ -10,7 +10,7 @@ class AssignmentsView(BaseAdminView):
     """View for displaying user's assignments in a simple list"""
 
     def __init__(self, parent, shell):
-        super().__init__(parent, shell, "My Assignments", requires_admin=False)
+        super().__init__(parent, shell, "Assignments", requires_admin=False)
         self._create_ui()
 
     def _create_ui(self):
@@ -34,8 +34,17 @@ class AssignmentsView(BaseAdminView):
         self.tree = ScrolledTreeview(content_frame, columns, column_configs)
         self.tree.pack(fill=tk.BOTH, expand=True)
 
-        # Action button
-        self.create_action_bar([("Terminate Selected", self._terminate_selected)])
+        # Action buttons - admin users get extend/shrink, all users get terminate
+        if self.shell.is_admin():
+            self.create_action_bar(
+                [
+                    ("Extend", self._extend_assignment),
+                    ("Shrink", self._shrink_assignment),
+                    ("Terminate Selected", self._terminate_selected),
+                ]
+            )
+        else:
+            self.create_action_bar([("Terminate Selected", self._terminate_selected)])
 
         # Status label
         self.create_status_label()
@@ -74,13 +83,21 @@ class AssignmentsView(BaseAdminView):
             if isinstance(widget, ttk.Frame) and hasattr(widget, "_login_frame"):
                 widget.destroy()
 
+        is_admin = self.shell.is_admin()
+
         def load_data():
-            # Use short username (without @domain.com) and filter for active assignments
-            username = get_username_short(self.shell.connection.username)
-            return self.shell.connection.api.filter_assignments({"owner": username, "active": True})
+            # Admin users see ALL assignments, normal users only see their own
+            if is_admin:
+                # Admin: show all active assignments
+                return self.shell.connection.api.filter_assignments({"active": True})
+            else:
+                # Normal user: filter by owner
+                username = get_username_short(self.shell.connection.username)
+                return self.shell.connection.api.filter_assignments({"owner": username, "active": True})
 
         self.tree.clear()
-        assignments = self.safe_load_data(load_data, success_message="Showing {count} assignment(s)")
+        label = "all assignment(s)" if is_admin else "your assignment(s)"
+        assignments = self.safe_load_data(load_data, success_message="Showing {count} " + label)
 
         if not assignments:
             return
@@ -100,39 +117,18 @@ class AssignmentsView(BaseAdminView):
                 )
 
     def _auto_login(self):
-        """Auto-login to default or only server"""
+        """Auto-login using centralized server selection logic"""
         from quads_client.gui.widgets.dialogs import show_error_dialog
 
-        prefs = self._get_preferences()
-        default_server = prefs.get("default_server")
-
-        # Get all configured servers
-        servers = {}
-        if self.shell.config:
-            servers = self.shell.config.get_all_servers()
-
-        # Determine which server to connect to
-        target_server = None
-        if default_server and default_server in servers:
-            target_server = default_server
-        elif len(servers) == 1:
-            # Only one server configured
-            target_server = list(servers.keys())[0]
-        elif len(servers) > 1:
-            # Multiple servers, no default - switch to connection view
-            self.shell.gui_app._show_connection_view()
-            return
+        target_server = self.shell.get_auto_login_server()
 
         if target_server:
-            try:
-                # Connect to the server
-                self.shell.connection_commands.cmd_connect(target_server)
-                # Refresh this view
+            success, error = self.shell.connect_to_server(target_server)
+            if success:
                 self._load_assignments()
-            except Exception as e:
-                show_error_dialog(self, "Login Failed", f"Failed to connect to {target_server}", str(e))
+            else:
+                show_error_dialog(self, "Login Failed", f"Failed to connect to {target_server}", error or "")
         else:
-            # No servers configured - show onboarding
             self.shell.gui_app._show_servers_view()
 
     def _get_preferences(self):
@@ -163,6 +159,202 @@ class AssignmentsView(BaseAdminView):
             "Termination Failed",
             self._load_assignments,
         )
+
+    def _extend_assignment(self):
+        """Extend selected assignment (admin only)"""
+        from tkinter import messagebox
+
+        _, values = self.get_selected_item("Please select an assignment to extend")
+        if not values:
+            return
+
+        assignment_id = values[0]
+        cloud_name = values[1]
+
+        # Create dialog for extend options
+        dialog = self.create_simple_dialog(f"Extend Assignment #{assignment_id}", "350x200")
+
+        ttk.Label(
+            dialog, text=f"Extend assignment #{assignment_id} ({cloud_name})", font=("TkDefaultFont", 10, "bold")
+        ).pack(pady=10)
+
+        # Weeks input
+        input_frame = ttk.Frame(dialog)
+        input_frame.pack(pady=10)
+
+        ttk.Label(input_frame, text="Number of weeks:").pack(side=tk.LEFT, padx=5)
+        weeks_var = tk.StringVar(value="2")
+        weeks_entry = ttk.Entry(input_frame, textvariable=weeks_var, width=10)
+        weeks_entry.pack(side=tk.LEFT, padx=5)
+        weeks_entry.focus()
+
+        def on_extend():
+            weeks_str = weeks_var.get().strip()
+
+            # Validate integer
+            try:
+                weeks = int(weeks_str)
+                if weeks <= 0:
+                    messagebox.showerror("Invalid Input", "Weeks must be a positive integer", parent=dialog)
+                    return
+            except ValueError:
+                messagebox.showerror("Invalid Input", "Please enter a valid integer for weeks", parent=dialog)
+                return
+
+            dialog.destroy()
+
+            # Confirm action
+            if not self.confirm_action(
+                "Confirm Extend",
+                f"Extend assignment #{assignment_id} ({cloud_name}) by {weeks} week(s)?\n\n"
+                "This will extend ALL schedules in this assignment.",
+            ):
+                return
+
+            # Call extend command with cloud name
+            self.safe_execute(
+                lambda: self.shell.schedule_commands.cmd_extend(f"{cloud_name} weeks {weeks}"),
+                f"Extended assignment #{assignment_id} by {weeks} week(s)",
+                "Extend Failed",
+                self._load_assignments,
+            )
+
+        # Buttons
+        button_frame = ttk.Frame(dialog)
+        button_frame.pack(pady=10)
+        ttk.Button(button_frame, text="Cancel", command=dialog.destroy).pack(side=tk.LEFT, padx=5)
+        ttk.Button(button_frame, text="Extend", command=on_extend).pack(side=tk.LEFT, padx=5)
+
+    def _shrink_assignment(self):
+        """Shrink selected assignment (admin only)"""
+        from tkinter import messagebox
+
+        _, values = self.get_selected_item("Please select an assignment to shrink")
+        if not values:
+            return
+
+        assignment_id = values[0]
+        cloud_name = values[1]
+
+        # Create dialog for shrink options
+        dialog = self.create_simple_dialog(f"Shrink Assignment #{assignment_id}", "400x250")
+
+        ttk.Label(
+            dialog, text=f"Shrink assignment #{assignment_id} ({cloud_name})", font=("TkDefaultFont", 10, "bold")
+        ).pack(pady=10)
+
+        # Mode selection
+        mode_frame = ttk.Frame(dialog)
+        mode_frame.pack(pady=10)
+
+        mode_var = tk.StringVar(value="weeks")
+
+        ttk.Radiobutton(mode_frame, text="By weeks:", variable=mode_var, value="weeks").grid(
+            row=0, column=0, sticky=tk.W, padx=5, pady=2
+        )
+        weeks_var = tk.StringVar(value="1")
+        weeks_entry = ttk.Entry(mode_frame, textvariable=weeks_var, width=10)
+        weeks_entry.grid(row=0, column=1, sticky=tk.W, padx=5, pady=2)
+
+        ttk.Radiobutton(mode_frame, text="By days:", variable=mode_var, value="days").grid(
+            row=1, column=0, sticky=tk.W, padx=5, pady=2
+        )
+        days_var = tk.StringVar(value="7")
+        days_entry = ttk.Entry(mode_frame, textvariable=days_var, width=10)
+        days_entry.grid(row=1, column=1, sticky=tk.W, padx=5, pady=2)
+
+        ttk.Radiobutton(mode_frame, text="End now (terminate)", variable=mode_var, value="now").grid(
+            row=2, column=0, columnspan=2, sticky=tk.W, padx=5, pady=2
+        )
+
+        def on_shrink():
+            mode = mode_var.get()
+
+            if mode == "weeks":
+                value_str = weeks_var.get().strip()
+                unit = "week(s)"
+                try:
+                    value = int(value_str)
+                    if value <= 0:
+                        messagebox.showerror("Invalid Input", "Weeks must be a positive integer", parent=dialog)
+                        return
+                except ValueError:
+                    messagebox.showerror("Invalid Input", "Please enter a valid integer for weeks", parent=dialog)
+                    return
+            elif mode == "days":
+                value_str = days_var.get().strip()
+                unit = "day(s)"
+                try:
+                    value = int(value_str)
+                    if value <= 0:
+                        messagebox.showerror("Invalid Input", "Days must be a positive integer", parent=dialog)
+                        return
+                    # Convert days to weeks fraction for the command (assuming shrink accepts weeks)
+                    # Actually, we'll need to calculate new end date
+                except ValueError:
+                    messagebox.showerror("Invalid Input", "Please enter a valid integer for days", parent=dialog)
+                    return
+            else:  # now
+                value = 0
+                value_str = "0"
+                unit = "(end now)"
+
+            dialog.destroy()
+
+            # Confirm action
+            if mode == "now":
+                confirm_msg = (
+                    f"End assignment #{assignment_id} ({cloud_name}) NOW?\n\n"
+                    "This will terminate the assignment immediately."
+                )
+            else:
+                confirm_msg = (
+                    f"Shrink assignment #{assignment_id} ({cloud_name}) by {value_str} {unit}?\n\n"
+                    "This will shrink ALL schedules in this assignment."
+                )
+
+            if not self.confirm_action("Confirm Shrink", confirm_msg):
+                return
+
+            # Build command based on mode
+            if mode == "weeks":
+                cmd_args = f"{cloud_name} weeks {value}"
+            elif mode == "days":
+                if value % 7 != 0:
+                    messagebox.showwarning(
+                        "Days Not Evenly Divisible",
+                        f"{value} days is not evenly divisible by 7.\n\n"
+                        f"The shrink command works in whole weeks.\n"
+                        f"{value} days = {value // 7} full week(s) + {value % 7} day(s).\n\n"
+                        f"Shrinking by {value // 7} week(s) instead.",
+                    )
+                weeks_value = max(1, value // 7)
+                cmd_args = f"{cloud_name} weeks {weeks_value}"
+            else:  # now
+                # Shrink to now means terminate - use 0 weeks or we could just terminate
+                # Actually looking at shrink command, it reduces by weeks, so ending now would need different logic
+                # Let's just call terminate for "now" mode
+                self.safe_execute(
+                    lambda: self.shell.user_commands.cmd_terminate(str(assignment_id)),
+                    f"Assignment #{assignment_id} terminated",
+                    "Terminate Failed",
+                    self._load_assignments,
+                )
+                return
+
+            # Call shrink command
+            self.safe_execute(
+                lambda: self.shell.schedule_commands.cmd_shrink(cmd_args),
+                f"Shrunk assignment #{assignment_id} by {value_str} {unit}",
+                "Shrink Failed",
+                self._load_assignments,
+            )
+
+        # Buttons
+        button_frame = ttk.Frame(dialog)
+        button_frame.pack(pady=10)
+        ttk.Button(button_frame, text="Cancel", command=dialog.destroy).pack(side=tk.LEFT, padx=5)
+        ttk.Button(button_frame, text="Shrink", command=on_shrink).pack(side=tk.LEFT, padx=5)
 
     def refresh(self):
         """Public method to refresh the view"""

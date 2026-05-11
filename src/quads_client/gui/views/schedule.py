@@ -18,6 +18,11 @@ class ScheduleView(ttk.Frame):
 
     def _create_ui(self):
         """Create the UI"""
+        # Check if authenticated - if not, show login prompt
+        if not self.shell.is_authenticated():
+            self._show_login_prompt()
+            return
+
         title_label = ttk.Label(self, text="Schedule Hosts", font=("TkDefaultFont", 14, "bold"))
         title_label.pack(pady=20, padx=20, anchor=tk.W)
 
@@ -26,7 +31,10 @@ class ScheduleView(ttk.Frame):
         container.pack(fill=tk.BOTH, expand=True, padx=20, pady=(0, 10))
 
         # Create a canvas with scrollbar for main content
-        canvas = tk.Canvas(container, highlightthickness=0, bg=self.shell.gui_app.theme_manager.get_color("bg"))
+        # Use ttk style lookup to get proper background color for current theme
+        style = ttk.Style()
+        bg_color = style.lookup("TFrame", "background")
+        canvas = tk.Canvas(container, highlightthickness=0, bg=bg_color)
         scrollbar = ttk.Scrollbar(container, orient="vertical", command=canvas.yview)
         scrollable_frame = ttk.Frame(canvas)
 
@@ -48,13 +56,22 @@ class ScheduleView(ttk.Frame):
         canvas.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
         scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
 
-        # Enable mouse wheel scrolling
+        # Enable mouse wheel scrolling (guarded to avoid errors if canvas is destroyed)
         def _on_mousewheel(event):
-            canvas.yview_scroll(int(-1 * (event.delta / 120)), "units")
+            if canvas.winfo_exists():
+                canvas.yview_scroll(int(-1 * (event.delta / 120)), "units")
 
-        canvas.bind_all("<MouseWheel>", _on_mousewheel)  # Windows/MacOS
-        canvas.bind_all("<Button-4>", lambda e: canvas.yview_scroll(-1, "units"))  # Linux
-        canvas.bind_all("<Button-5>", lambda e: canvas.yview_scroll(1, "units"))  # Linux
+        def _on_scroll_up(event):
+            if canvas.winfo_exists():
+                canvas.yview_scroll(-1, "units")
+
+        def _on_scroll_down(event):
+            if canvas.winfo_exists():
+                canvas.yview_scroll(1, "units")
+
+        canvas.bind_all("<MouseWheel>", _on_mousewheel)
+        canvas.bind_all("<Button-4>", _on_scroll_up)
+        canvas.bind_all("<Button-5>", _on_scroll_down)
 
         main_frame = scrollable_frame
 
@@ -583,7 +600,8 @@ class ScheduleView(ttk.Frame):
             count = self.count_spinbox.get()
             args = f"{count}"
 
-        args += f' description "{description}"'
+        safe_description = description.replace('"', '\\"')
+        args += f' description "{safe_description}"'
 
         # Add VLAN if enabled
         if self.use_vlan_var.get():
@@ -615,9 +633,6 @@ class ScheduleView(ttk.Frame):
 
             self.shell.user_commands.cmd_schedule(args)
 
-            # Stop capturing
-            self.shell._capture_output = False
-
             # Display captured messages in result box
             if self.shell._captured_messages:
                 result_text = "\n".join([msg[1] for msg in self.shell._captured_messages])
@@ -629,18 +644,25 @@ class ScheduleView(ttk.Frame):
                 # Show result frame
                 self.result_frame.pack(fill=tk.X, pady=(10, 20))
 
-            # Also show success message
-            messagebox.showinfo(
-                "Success",
-                "Hosts scheduled successfully!\n\n" "View your assignments in the 'My Hosts' or 'Assignments' tab.",
-            )
+            # Check for errors in captured output before declaring success
+            errors = [msg for level, msg in self.shell._captured_messages if level == "error"]
+            if errors:
+                error_msg = "\n".join(errors)
+                messagebox.showerror("Scheduling Failed", error_msg)
+            else:
+                messagebox.showinfo(
+                    "Success",
+                    "Hosts scheduled successfully!\n\n"
+                    "View your assignments in the 'My Hosts' or 'Assignments' tab.",
+                )
 
         except Exception as e:
-            self.shell._capture_output = False
             import traceback
 
             details = traceback.format_exc()
             show_error_dialog(self, "Scheduling Failed", str(e), details)
+        finally:
+            self.shell._capture_output = False
 
     def _reset_form(self):
         """Reset the form to defaults"""
@@ -665,19 +687,68 @@ class ScheduleView(ttk.Frame):
         """Cancel scheduling"""
         self._reset_form()
 
+    def _show_login_prompt(self):
+        """Show login prompt when not authenticated"""
+        # Clear any existing widgets
+        for widget in self.winfo_children():
+            widget.destroy()
+
+        # Center frame
+        center_frame = ttk.Frame(self)
+        center_frame.place(relx=0.5, rely=0.5, anchor=tk.CENTER)
+
+        ttk.Label(center_frame, text="Please login to schedule hosts", font=("TkDefaultFont", 12)).pack(pady=(0, 20))
+
+        ttk.Button(center_frame, text="Login", command=self._auto_login).pack()
+
+    def _auto_login(self):
+        """Auto-login using centralized server selection logic"""
+        from quads_client.gui.widgets.dialogs import show_error_dialog
+
+        target_server = self.shell.get_auto_login_server()
+
+        if target_server:
+            success, error = self.shell.connect_to_server(target_server)
+            if success:
+                self.refresh()
+            else:
+                show_error_dialog(self, "Login Failed", f"Failed to connect to {target_server}", error or "")
+        else:
+            self.shell.gui_app._show_servers_view()
+
+    def _get_preferences(self):
+        """Get GUI preferences from config"""
+        if self.shell.config and hasattr(self.shell.config, "config_data"):
+            return self.shell.config.config_data.get("gui_preferences", {})
+        return {}
+
     def refresh(self):
         """Public method to refresh the view"""
-        self._update_preview()
+        # Check if auth status changed - rebuild UI if needed
+        if not self.shell.is_authenticated():
+            # Clear and show login prompt
+            for widget in self.winfo_children():
+                widget.destroy()
+            self._show_login_prompt()
+        elif hasattr(self, "mode_var"):
+            # Full UI is built (mode_var only exists after _create_ui completes)
+            self._update_preview()
+        else:
+            # Need to rebuild full UI
+            for widget in self.winfo_children():
+                widget.destroy()
+            self._create_ui()
 
     def refresh_theme(self):
         """Update colors when theme changes"""
-        # Update preview text colors
+        if not hasattr(self, "preview_text"):
+            return
         self.preview_text.config(
             bg=self.shell.gui_app.theme_manager.get_color("text_bg"),
             fg=self.shell.gui_app.theme_manager.get_color("text_fg"),
         )
-        # Update result text colors
-        self.result_text.config(
-            bg=self.shell.gui_app.theme_manager.get_color("text_bg"),
-            fg=self.shell.gui_app.theme_manager.get_color("success"),
-        )
+        if hasattr(self, "result_text"):
+            self.result_text.config(
+                bg=self.shell.gui_app.theme_manager.get_color("text_bg"),
+                fg=self.shell.gui_app.theme_manager.get_color("success"),
+            )

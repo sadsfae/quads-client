@@ -56,33 +56,86 @@ def get_two_weeks_sunday_22utc(start_date, cadence="2 weeks", end_hour=22):
 class DatePickerDialog(tk.Toplevel):
     """Simple calendar date picker dialog"""
 
-    def __init__(self, parent, title="Select Date", initial_date=None):
+    def __init__(self, parent, title="Select Date", initial_date=None, range_start=None, range_end=None):
+        """Initialize date picker
+
+        Args:
+            parent: Parent window
+            title: Dialog title
+            initial_date: Initial date to select (string or datetime)
+            range_start: Start of date range to highlight (string or datetime)
+            range_end: End of date range to highlight (string or datetime)
+        """
         super().__init__(parent)
         self.title(title)
-        self.geometry("350x400")
+        self.geometry("500x450")
         self.resizable(False, False)
         self.result = None
+        self.today = datetime.utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
 
         # Parse initial date or use today
         if initial_date:
             try:
                 if isinstance(initial_date, str):
-                    self.selected_date = datetime.strptime(initial_date.split()[0], "%Y-%m-%d")
+                    # Try to parse full datetime first, then just date
+                    try:
+                        self.selected_date = datetime.strptime(initial_date, "%Y-%m-%d %H:%M")
+                    except ValueError:
+                        # Parse just the date and set default time to 22:00
+                        self.selected_date = datetime.strptime(initial_date.split()[0], "%Y-%m-%d")
+                        self.selected_date = self.selected_date.replace(hour=22, minute=0)
                 else:
                     self.selected_date = initial_date
             except (ValueError, IndexError):
-                self.selected_date = datetime.utcnow()
+                self.selected_date = datetime.utcnow().replace(hour=22, minute=0)
         else:
-            self.selected_date = datetime.utcnow()
+            self.selected_date = datetime.utcnow().replace(hour=22, minute=0)
+
+        # Parse range dates if provided
+        self.range_start = None
+        self.range_end = None
+        if range_start:
+            try:
+                if isinstance(range_start, str):
+                    self.range_start = datetime.strptime(range_start.split()[0], "%Y-%m-%d")
+                else:
+                    self.range_start = range_start
+            except (ValueError, IndexError):
+                pass
+
+        if range_end:
+            try:
+                if isinstance(range_end, str):
+                    self.range_end = datetime.strptime(range_end.split()[0], "%Y-%m-%d")
+                else:
+                    self.range_end = range_end
+            except (ValueError, IndexError):
+                pass
 
         self.current_month = self.selected_date.month
         self.current_year = self.selected_date.year
+
+        # Setup styles
+        self._setup_styles()
 
         self._create_ui()
 
         # Center on parent
         self.transient(parent)
         self.grab_set()
+
+    def _setup_styles(self):
+        """Setup custom button styles for calendar"""
+        style = ttk.Style()
+
+        # Selected date style (blue background)
+        style.configure("Selected.TButton", background="#007acc", foreground="white")
+
+        # Today's date style (bold border)
+        style.configure("Today.TButton", relief=tk.SOLID, borderwidth=2)
+
+        # Range date style (light blue background)
+        style.configure("Range.TButton", background="#4a9eff", foreground="white")
 
     def _create_ui(self):
         """Create the calendar UI"""
@@ -157,24 +210,48 @@ class DatePickerDialog(tk.Toplevel):
             for col_idx, day in enumerate(week):
                 btn = self.day_buttons[row_idx][col_idx]
                 if day == 0:
-                    btn.config(text="", state=tk.DISABLED)
+                    btn.config(text="", state=tk.DISABLED, style="TButton")
                 else:
                     btn.config(text=str(day), state=tk.NORMAL)
 
-                    # Highlight selected date
-                    if (
+                    # Create date object for this day
+                    current_date = datetime(self.current_year, self.current_month, day)
+
+                    # Determine style based on date properties
+                    is_selected = (
                         day == self.selected_date.day
                         and self.current_month == self.selected_date.month
                         and self.current_year == self.selected_date.year
-                    ):
+                    )
+
+                    is_today = (
+                        day == self.today.day
+                        and self.current_month == self.today.month
+                        and self.current_year == self.today.year
+                    )
+
+                    # Check if in range
+                    in_range = False
+                    if self.range_start and self.range_end:
+                        # Normalize dates for comparison (remove time component)
+                        range_start_date = self.range_start.replace(hour=0, minute=0, second=0, microsecond=0)
+                        range_end_date = self.range_end.replace(hour=0, minute=0, second=0, microsecond=0)
+                        in_range = range_start_date <= current_date <= range_end_date
+
+                    # Apply style priority: selected > range > today > normal
+                    if is_selected:
                         btn.config(style="Selected.TButton")
+                    elif in_range:
+                        btn.config(style="Range.TButton")
+                    elif is_today:
+                        btn.config(style="Today.TButton")
                     else:
                         btn.config(style="TButton")
 
         # Hide unused rows
         for row_idx in range(len(cal), 6):
             for col_idx in range(7):
-                self.day_buttons[row_idx][col_idx].config(text="", state=tk.DISABLED)
+                self.day_buttons[row_idx][col_idx].config(text="", state=tk.DISABLED, style="TButton")
 
     def _select_day(self, row, col):
         """Select a day"""

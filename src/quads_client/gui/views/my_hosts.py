@@ -27,37 +27,16 @@ class MyHostsView(ttk.Frame):
         return {}
 
     def _auto_login(self):
-        """Auto-login to default or only server"""
-        prefs = self._get_preferences()
-        default_server = prefs.get("default_server")
-
-        # Get all configured servers
-        servers = {}
-        if self.shell.config:
-            servers = self.shell.config.get_all_servers()
-
-        # Determine which server to connect to
-        target_server = None
-        if default_server and default_server in servers:
-            target_server = default_server
-        elif len(servers) == 1:
-            # Only one server configured
-            target_server = list(servers.keys())[0]
-        elif len(servers) > 1:
-            # Multiple servers, no default - switch to connection view
-            self.shell.gui_app._show_connection_view()
-            return
+        """Auto-login using centralized server selection logic"""
+        target_server = self.shell.get_auto_login_server()
 
         if target_server:
-            try:
-                # Connect to the server
-                self.shell.connection_commands.cmd_connect(target_server)
-                # Refresh this view
+            success, error = self.shell.connect_to_server(target_server)
+            if success:
                 self._load_assignments()
-            except Exception as e:
-                show_error_dialog(self, "Login Failed", f"Failed to connect to {target_server}", str(e))
+            else:
+                show_error_dialog(self, "Login Failed", f"Failed to connect to {target_server}", error or "")
         else:
-            # No servers configured - show onboarding
             self.shell.gui_app._show_servers_view()
 
     def _create_ui(self):
@@ -80,9 +59,9 @@ class MyHostsView(ttk.Frame):
         )
         self.auto_refresh_check.pack(side=tk.RIGHT, padx=10)
 
-        # Start auto-refresh if enabled
+        # Start auto-refresh if enabled (delay by refresh_interval to avoid double-load)
         if self.auto_refresh_enabled:
-            self.after(100, self._schedule_auto_refresh)
+            self.after(self.refresh_interval, self._schedule_auto_refresh)
 
         self.content_frame = ttk.Frame(self)
         self.content_frame.pack(fill=tk.BOTH, expand=True, padx=20, pady=(0, 20))
@@ -145,10 +124,14 @@ class MyHostsView(ttk.Frame):
 
     def _fetch_assignments(self):
         """Fetch assignments from the server via CLI command"""
+        from quads_client.utils import get_username_short
+
         assignments_data = []
 
         try:
-            user_assignments = self.shell.connection.api.filter_assignments({"owner": self.shell.connection.username})
+            # Use short username (without @domain.com) to match how assignments are created
+            username = get_username_short(self.shell.connection.username)
+            user_assignments = self.shell.connection.api.filter_assignments({"owner": username, "active": True})
 
             if not user_assignments:
                 return []
@@ -161,7 +144,12 @@ class MyHostsView(ttk.Frame):
                     description = assignment.get("description", "No description")
 
                     # Fetch schedules by assignment_id (not cloud - API doesn't support that filter)
-                    schedules = self.shell.connection.api.get_schedules({"assignment_id": int(assignment_id)})
+                    try:
+                        schedules = self.shell.connection.api.get_schedules({"assignment_id": int(assignment_id)})
+                    except (TypeError, ValueError):
+                        schedules = []
+
+                    is_validated = assignment.get("validated", False)
 
                     hosts = []
                     for schedule in schedules if schedules else []:
@@ -170,11 +158,8 @@ class MyHostsView(ttk.Frame):
                             if isinstance(hostname, dict):
                                 hostname = hostname.get("name", "")
 
-                            # TODO: When QUADS server adds validation/provisioning status API,
-                            # pull actual status instead of defaulting to "provisioning"
-                            # For now, mark as provisioning with N/A progress until we have
-                            # proper validation polling support
-                            hosts.append({"name": str(hostname), "status": "provisioning", "progress": "N/A"})
+                            status = "active" if is_validated else "provisioning"
+                            hosts.append({"name": str(hostname), "status": status, "progress": "N/A"})
 
                     assignments_data.append(
                         {

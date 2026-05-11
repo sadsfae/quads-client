@@ -129,19 +129,22 @@ class ThemeManager:
 
         self.style.configure("TLabel", background=colors["bg"], foreground=colors["fg"])
 
-        self.style.configure(
-            "TButton",
-            background=colors["button_bg"],
-            foreground=colors["button_fg"],
-            bordercolor=colors["border"],
-            focuscolor=colors["accent"],
-        )
+        # Only override TButton styling for built-in themes
+        # sv-ttk handles its own button appearance natively
+        if not self.has_sv_ttk:
+            self.style.configure(
+                "TButton",
+                background=colors["button_bg"],
+                foreground=colors["button_fg"],
+                bordercolor=colors["border"],
+                focuscolor=colors["accent"],
+            )
 
-        self.style.map(
-            "TButton",
-            background=[("active", colors["accent"]), ("pressed", colors["accent"])],
-            foreground=[("active", colors["button_fg"]), ("pressed", colors["button_fg"]), ("disabled", "gray")],
-        )
+            self.style.map(
+                "TButton",
+                background=[("active", colors["accent"]), ("pressed", colors["accent"])],
+                foreground=[("active", colors["button_fg"]), ("pressed", colors["button_fg"]), ("disabled", "gray")],
+            )
 
         self.style.configure(
             "TEntry",
@@ -179,6 +182,13 @@ class ThemeManager:
             background=colors["panel_bg"],
             foreground=colors["fg"],
             bordercolor=colors["border"],
+            relief="flat",
+        )
+
+        self.style.map(
+            "Treeview.Heading",
+            background=[("active", colors["border"]), ("!active", colors["panel_bg"])],
+            foreground=[("active", colors["fg"]), ("!active", colors["fg"])],
         )
 
         self.style.configure("TNotebook", background=colors["bg"], bordercolor=colors["border"])

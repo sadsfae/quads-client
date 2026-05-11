@@ -45,8 +45,7 @@ class CloudsView(BaseAdminView):
             [
                 ("View Details", self._view_details),
                 ("Modify Cloud", self._modify_cloud),
-                ("Delete Cloud", self._delete_cloud),
-                ("Find Free Clouds", self._find_free),
+                ("Terminate", self._terminate_assignment),
             ]
         )
 
@@ -68,6 +67,20 @@ class CloudsView(BaseAdminView):
         if not clouds:
             return
 
+        # Batch-fetch all active assignments in one call instead of N+1 per-cloud queries
+        active_assignments = {}
+        try:
+            all_assignments = self.shell.connection.api.filter_assignments({"active": True})
+            if all_assignments:
+                for assignment in all_assignments:
+                    if isinstance(assignment, dict):
+                        cloud_obj = assignment.get("cloud", {})
+                        cname = cloud_obj.get("name") if isinstance(cloud_obj, dict) else str(cloud_obj)
+                        if cname:
+                            active_assignments[cname] = assignment
+        except Exception:
+            pass
+
         for cloud in clouds:
             cloud_name = cloud.get("name", "")
             assignment_id = "-"
@@ -76,22 +89,19 @@ class CloudsView(BaseAdminView):
             vlan = "-"
             wipe = "No"
 
-            try:
-                assignment = self.shell.connection.api.get_active_cloud_assignment(cloud_name)
-                if assignment and isinstance(assignment, dict):
-                    assignment_id = str(assignment.get("id", "-"))
-                    owner = assignment.get("owner", "-") or "-"
-                    desc_full = assignment.get("description", "-") or "-"
-                    description = desc_full[:40] if len(desc_full) > 40 else desc_full
-                    wipe = "Yes" if assignment.get("wipe", False) else "No"
+            assignment = active_assignments.get(cloud_name)
+            if assignment and isinstance(assignment, dict):
+                assignment_id = str(assignment.get("id", "-"))
+                owner = assignment.get("owner", "-") or "-"
+                desc_full = assignment.get("description", "-") or "-"
+                description = desc_full[:40] if len(desc_full) > 40 else desc_full
+                wipe = "Yes" if assignment.get("wipe", False) else "No"
 
-                    vlan_obj = assignment.get("vlan")
-                    if isinstance(vlan_obj, dict):
-                        vlan = str(vlan_obj.get("vlan_id", "-"))
-                    elif vlan_obj:
-                        vlan = str(vlan_obj)
-            except Exception:
-                pass
+                vlan_obj = assignment.get("vlan")
+                if isinstance(vlan_obj, dict):
+                    vlan = str(vlan_obj.get("vlan_id", "-"))
+                elif vlan_obj:
+                    vlan = str(vlan_obj)
 
             self.tree.insert(
                 "",
@@ -130,23 +140,31 @@ class CloudsView(BaseAdminView):
             ],
         )
 
-    def _delete_cloud(self):
-        """Delete selected cloud"""
-        _, values = self.get_selected_item("Please select a cloud to delete")
+    def _terminate_assignment(self):
+        """Terminate assignment for selected cloud"""
+        _, values = self.get_selected_item("Please select a cloud to terminate")
         if not values:
             return
 
         cloud_name = values[0]
+        assignment_id = values[1]
+
+        # Check if cloud has an active assignment
+        if assignment_id == "-":
+            messagebox.showwarning("No Assignment", f"Cloud '{cloud_name}' has no active assignment to terminate")
+            return
+
         if not self.confirm_action(
-            "Confirm Deletion",
-            f"Are you sure you want to delete cloud '{cloud_name}'?\n\n" "This action cannot be undone.",
+            "Confirm Termination",
+            f"Are you sure you want to terminate assignment #{assignment_id} for cloud '{cloud_name}'?\n\n"
+            "This will release all hosts in this assignment.",
         ):
             return
 
         self.safe_execute(
-            lambda: self.shell.cloud_commands.cmd_cloud_delete(cloud_name),
-            f"Cloud '{cloud_name}' deleted",
-            "Delete Cloud Failed",
+            lambda: self.shell.user_commands.cmd_terminate(str(assignment_id)),
+            f"Assignment #{assignment_id} terminated\n\n" "Note: It may take a few moments to complete.",
+            "Termination Failed",
             self._load_clouds,
         )
 
@@ -187,13 +205,15 @@ class CloudsView(BaseAdminView):
             args = cloud_name
 
             if desc_entry.get().strip():
-                args += f' description "{desc_entry.get().strip()}"'
+                safe_desc = desc_entry.get().strip().replace('"', '\\"')
+                args += f' description "{safe_desc}"'
             if owner_entry.get().strip():
                 args += f" cloud-owner {owner_entry.get().strip()}"
             if ticket_entry.get().strip():
                 args += f" cloud-ticket {ticket_entry.get().strip()}"
             if cc_entry.get().strip():
-                args += f' cc-users "{cc_entry.get().strip()}"'
+                safe_cc = cc_entry.get().strip().replace('"', '\\"')
+                args += f' cc-users "{safe_cc}"'
             if vlan_entry.get().strip():
                 args += f" vlan {vlan_entry.get().strip()}"
             if qinq_combo.get():
@@ -229,17 +249,9 @@ class CloudsView(BaseAdminView):
 
         cloud_name = values[0]
         self.safe_execute(
-            lambda: self.shell.cloud_commands.cmd_cloud_list(f"cloud {cloud_name} detail"),
+            lambda: self.shell.cloud_commands.cmd_cloud_list(f"cloud {cloud_name}"),
             "",  # No success message needed
             "View Details Failed",
-        )
-
-    def _find_free(self):
-        """Find free clouds"""
-        self.safe_execute(
-            lambda: self.shell.cloud_commands.cmd_find_free_cloud(""),
-            "",  # No success message needed
-            "Find Free Clouds Failed",
         )
 
     def refresh(self):
