@@ -1134,6 +1134,12 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines on how to contribute to th
   <img src="images/gui-ssm3.png" alt="Self-scheduling in action" width="600">
 </p>
 
+**GUI Admin View**
+
+<p align="left">
+  <img src="images/gui-admin-schedule1.png" alt="GUI Admin View" width="600">
+</p>
+
 ## Links
 
 - QUADS Server: https://github.com/quadsproject/quads

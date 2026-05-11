@@ -76,7 +76,12 @@ class TestScheduleValidation(unittest.TestCase):
     def test_validate_hostnames_broken(self):
         """Test validation fails for broken host"""
         self.api.get_host = Mock(
-            return_value={"name": "broken-host.example.com", "broken": True, "retired": False, "can_self_schedule": True}
+            return_value={
+                "name": "broken-host.example.com",
+                "broken": True,
+                "retired": False,
+                "can_self_schedule": True,
+            }
         )
 
         hostnames = ["broken-host.example.com"]
@@ -90,7 +95,12 @@ class TestScheduleValidation(unittest.TestCase):
     def test_validate_hostnames_retired(self):
         """Test validation fails for retired host"""
         self.api.get_host = Mock(
-            return_value={"name": "retired-host.example.com", "broken": False, "retired": True, "can_self_schedule": True}
+            return_value={
+                "name": "retired-host.example.com",
+                "broken": False,
+                "retired": True,
+                "can_self_schedule": True,
+            }
         )
 
         hostnames = ["retired-host.example.com"]
@@ -145,7 +155,12 @@ class TestScheduleValidation(unittest.TestCase):
     def test_validate_hostnames_whitespace_only(self):
         """Test validation skips whitespace-only entries"""
         self.api.get_host = Mock(
-            return_value={"name": "valid-host.example.com", "broken": False, "retired": False, "can_self_schedule": True}
+            return_value={
+                "name": "valid-host.example.com",
+                "broken": False,
+                "retired": False,
+                "can_self_schedule": True,
+            }
         )
 
         hostnames = ["valid-host.example.com", "  ", "", "\t"]
