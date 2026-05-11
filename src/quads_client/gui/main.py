@@ -840,17 +840,14 @@ class QuadsClientApp(tk.Tk):
         # Get current geometry
         geometry = self.geometry()
 
-        # Split into size and position
-        if "+" in geometry or "-" in geometry:
-            # Has position (e.g., "1200x800+100+50")
-            parts = geometry.replace("-", "+-").split("+")
-            size = parts[0]
-            if len(parts) >= 3:
-                position = f"{parts[1]}+{parts[2]}"
-            else:
-                position = None
+        # Parse geometry string: "WxH+X+Y" or "WxH-X-Y" or "WxH+X-Y" etc.
+        import re
+
+        match = re.match(r"(\d+x\d+)([+-]\d+[+-]\d+)?", geometry)
+        if match:
+            size = match.group(1)
+            position = match.group(2).lstrip("+") if match.group(2) else None
         else:
-            # Just size
             size = geometry
             position = None
 

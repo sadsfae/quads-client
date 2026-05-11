@@ -59,9 +59,9 @@ class MyHostsView(ttk.Frame):
         )
         self.auto_refresh_check.pack(side=tk.RIGHT, padx=10)
 
-        # Start auto-refresh if enabled
+        # Start auto-refresh if enabled (delay by refresh_interval to avoid double-load)
         if self.auto_refresh_enabled:
-            self.after(100, self._schedule_auto_refresh)
+            self.after(self.refresh_interval, self._schedule_auto_refresh)
 
         self.content_frame = ttk.Frame(self)
         self.content_frame.pack(fill=tk.BOTH, expand=True, padx=20, pady=(0, 20))
@@ -144,7 +144,12 @@ class MyHostsView(ttk.Frame):
                     description = assignment.get("description", "No description")
 
                     # Fetch schedules by assignment_id (not cloud - API doesn't support that filter)
-                    schedules = self.shell.connection.api.get_schedules({"assignment_id": int(assignment_id)})
+                    try:
+                        schedules = self.shell.connection.api.get_schedules({"assignment_id": int(assignment_id)})
+                    except (TypeError, ValueError):
+                        schedules = []
+
+                    is_validated = assignment.get("validated", False)
 
                     hosts = []
                     for schedule in schedules if schedules else []:
@@ -153,11 +158,8 @@ class MyHostsView(ttk.Frame):
                             if isinstance(hostname, dict):
                                 hostname = hostname.get("name", "")
 
-                            # TODO: When QUADS server adds validation/provisioning status API,
-                            # pull actual status instead of defaulting to "provisioning"
-                            # For now, mark as provisioning with N/A progress until we have
-                            # proper validation polling support
-                            hosts.append({"name": str(hostname), "status": "provisioning", "progress": "N/A"})
+                            status = "active" if is_validated else "provisioning"
+                            hosts.append({"name": str(hostname), "status": status, "progress": "N/A"})
 
                     assignments_data.append(
                         {

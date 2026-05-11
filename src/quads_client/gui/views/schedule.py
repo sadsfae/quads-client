@@ -600,7 +600,8 @@ class ScheduleView(ttk.Frame):
             count = self.count_spinbox.get()
             args = f"{count}"
 
-        args += f' description "{description}"'
+        safe_description = description.replace('"', '\\"')
+        args += f' description "{safe_description}"'
 
         # Add VLAN if enabled
         if self.use_vlan_var.get():

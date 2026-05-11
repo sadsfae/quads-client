@@ -2,7 +2,7 @@
 
 import tkinter as tk
 from tkinter import ttk, messagebox, filedialog
-from datetime import datetime
+from datetime import datetime, timezone
 
 from quads_client.gui.widgets.base import BaseAdminView, ScrolledTreeview, FormDialog
 from quads_client.gui.widgets.date_picker import DatePickerDialog, get_next_sunday_22utc, get_two_weeks_sunday_22utc
@@ -73,25 +73,30 @@ class AdminScheduleView(BaseAdminView):
     def _get_free_clouds(self):
         """Get list of free clouds (no active assignments)"""
         try:
-            # Get all clouds
             clouds = self.shell.connection.api.get_clouds()
             if not clouds:
                 return []
 
-            free_clouds = []
+            # Batch-fetch all active assignments in one call instead of per-cloud queries
+            assigned_clouds = set()
+            try:
+                all_assignments = self.shell.connection.api.filter_assignments({"active": True})
+                if all_assignments:
+                    for assignment in all_assignments:
+                        if isinstance(assignment, dict):
+                            cloud_obj = assignment.get("cloud", {})
+                            cname = cloud_obj.get("name") if isinstance(cloud_obj, dict) else str(cloud_obj)
+                            if cname:
+                                assigned_clouds.add(cname)
+            except Exception:
+                pass
 
+            free_clouds = []
             for cloud in clouds:
                 cloud_name = cloud.get("name")
-
-                # Skip cloud01 (spare pool)
                 if cloud_name == "cloud01":
                     continue
-
-                # Check if cloud has current schedules
-                current_schedules = self.shell.connection.api.get_current_schedules({"cloud": cloud_name})
-
-                # If no current schedules, cloud is free
-                if not current_schedules:
+                if cloud_name not in assigned_clouds:
                     free_clouds.append(cloud_name)
 
             return sorted(free_clouds)
@@ -211,17 +216,9 @@ class AdminScheduleView(BaseAdminView):
             if canvas.winfo_exists():
                 canvas.yview_scroll(1, "units")
 
-        bid1 = canvas.bind_all("<MouseWheel>", _on_mousewheel)
-        bid2 = canvas.bind_all("<Button-4>", _on_scroll_up)
-        bid3 = canvas.bind_all("<Button-5>", _on_scroll_down)
-
-        def _on_dialog_destroy(event):
-            if event.widget is dialog:
-                dialog.unbind_all("<MouseWheel>")
-                dialog.unbind_all("<Button-4>")
-                dialog.unbind_all("<Button-5>")
-
-        dialog.bind("<Destroy>", _on_dialog_destroy)
+        canvas.bind_all("<MouseWheel>", _on_mousewheel)
+        canvas.bind_all("<Button-4>", _on_scroll_up)
+        canvas.bind_all("<Button-5>", _on_scroll_down)
 
         form_frame = ttk.Frame(scrollable_frame)
         form_frame.pack(fill=tk.BOTH, expand=True, padx=10, pady=5)
@@ -312,7 +309,7 @@ class AdminScheduleView(BaseAdminView):
                 end_entry.insert(0, new_end.strftime("%Y-%m-%d %H:%M"))
 
         def set_start_now():
-            now = datetime.utcnow()
+            now = datetime.now(timezone.utc)
             start_entry.delete(0, tk.END)
             start_entry.insert(0, now.strftime("%Y-%m-%d %H:%M"))
             # Also update end date using admin preferences
@@ -435,13 +432,15 @@ class AdminScheduleView(BaseAdminView):
             args = f"{cloud} {hosts} {start} {end}"
 
             if desc_entry.get().strip():
-                args += f' description "{desc_entry.get().strip()}"'
+                safe_desc = desc_entry.get().strip().replace('"', '\\"')
+                args += f' description "{safe_desc}"'
             if owner_entry.get().strip():
                 args += f" cloud-owner {owner_entry.get().strip()}"
             if ticket_entry.get().strip():
                 args += f" cloud-ticket {ticket_entry.get().strip()}"
             if cc_entry.get().strip():
-                args += f' cc-users "{cc_entry.get().strip()}"'
+                safe_cc = cc_entry.get().strip().replace('"', '\\"')
+                args += f' cc-users "{safe_cc}"'
             # Only add VLAN if a valid one is selected
             vlan = vlan_combo.get()
             if vlan and vlan != "Select VLAN..." and vlan != "No free VLANs available":
@@ -613,9 +612,16 @@ class AdminScheduleView(BaseAdminView):
             if mode == "weeks":
                 cmd_args = f"{cloud_name} weeks {value}"
             elif mode == "days":
-                # Convert days to weeks for the command
-                weeks_value = value / 7.0
-                cmd_args = f"{cloud_name} weeks {weeks_value:.2f}"
+                if value % 7 != 0:
+                    messagebox.showwarning(
+                        "Days Not Evenly Divisible",
+                        f"{value} days is not evenly divisible by 7.\n\n"
+                        f"The shrink command works in whole weeks.\n"
+                        f"{value} days = {value // 7} full week(s) + {value % 7} day(s).\n\n"
+                        f"Shrinking by {value // 7} week(s) instead.",
+                    )
+                weeks_value = max(1, value // 7)
+                cmd_args = f"{cloud_name} weeks {weeks_value}"
             else:  # now
                 # Terminate the assignment
                 self.safe_execute(

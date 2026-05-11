@@ -67,6 +67,20 @@ class CloudsView(BaseAdminView):
         if not clouds:
             return
 
+        # Batch-fetch all active assignments in one call instead of N+1 per-cloud queries
+        active_assignments = {}
+        try:
+            all_assignments = self.shell.connection.api.filter_assignments({"active": True})
+            if all_assignments:
+                for assignment in all_assignments:
+                    if isinstance(assignment, dict):
+                        cloud_obj = assignment.get("cloud", {})
+                        cname = cloud_obj.get("name") if isinstance(cloud_obj, dict) else str(cloud_obj)
+                        if cname:
+                            active_assignments[cname] = assignment
+        except Exception:
+            pass
+
         for cloud in clouds:
             cloud_name = cloud.get("name", "")
             assignment_id = "-"
@@ -75,22 +89,19 @@ class CloudsView(BaseAdminView):
             vlan = "-"
             wipe = "No"
 
-            try:
-                assignment = self.shell.connection.api.get_active_cloud_assignment(cloud_name)
-                if assignment and isinstance(assignment, dict):
-                    assignment_id = str(assignment.get("id", "-"))
-                    owner = assignment.get("owner", "-") or "-"
-                    desc_full = assignment.get("description", "-") or "-"
-                    description = desc_full[:40] if len(desc_full) > 40 else desc_full
-                    wipe = "Yes" if assignment.get("wipe", False) else "No"
+            assignment = active_assignments.get(cloud_name)
+            if assignment and isinstance(assignment, dict):
+                assignment_id = str(assignment.get("id", "-"))
+                owner = assignment.get("owner", "-") or "-"
+                desc_full = assignment.get("description", "-") or "-"
+                description = desc_full[:40] if len(desc_full) > 40 else desc_full
+                wipe = "Yes" if assignment.get("wipe", False) else "No"
 
-                    vlan_obj = assignment.get("vlan")
-                    if isinstance(vlan_obj, dict):
-                        vlan = str(vlan_obj.get("vlan_id", "-"))
-                    elif vlan_obj:
-                        vlan = str(vlan_obj)
-            except Exception:
-                pass
+                vlan_obj = assignment.get("vlan")
+                if isinstance(vlan_obj, dict):
+                    vlan = str(vlan_obj.get("vlan_id", "-"))
+                elif vlan_obj:
+                    vlan = str(vlan_obj)
 
             self.tree.insert(
                 "",
@@ -194,13 +205,15 @@ class CloudsView(BaseAdminView):
             args = cloud_name
 
             if desc_entry.get().strip():
-                args += f' description "{desc_entry.get().strip()}"'
+                safe_desc = desc_entry.get().strip().replace('"', '\\"')
+                args += f' description "{safe_desc}"'
             if owner_entry.get().strip():
                 args += f" cloud-owner {owner_entry.get().strip()}"
             if ticket_entry.get().strip():
                 args += f" cloud-ticket {ticket_entry.get().strip()}"
             if cc_entry.get().strip():
-                args += f' cc-users "{cc_entry.get().strip()}"'
+                safe_cc = cc_entry.get().strip().replace('"', '\\"')
+                args += f' cc-users "{safe_cc}"'
             if vlan_entry.get().strip():
                 args += f" vlan {vlan_entry.get().strip()}"
             if qinq_combo.get():
@@ -236,7 +249,7 @@ class CloudsView(BaseAdminView):
 
         cloud_name = values[0]
         self.safe_execute(
-            lambda: self.shell.cloud_commands.cmd_cloud_list(f"cloud {cloud_name} detail"),
+            lambda: self.shell.cloud_commands.cmd_cloud_list(f"cloud {cloud_name}"),
             "",  # No success message needed
             "View Details Failed",
         )

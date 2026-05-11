@@ -122,7 +122,7 @@ class AvailableView(BaseAdminView):
 
     def _update_button_states(self):
         """Enable/disable buttons based on selection"""
-        if not hasattr(self, "tree"):
+        if self.tree is None:
             return
 
         selection = self.tree.selection()
@@ -140,7 +140,7 @@ class AvailableView(BaseAdminView):
 
     def _unselect_all(self):
         """Clear all selections"""
-        if not hasattr(self, "tree"):
+        if self.tree is None:
             return
 
         # Clear selection
@@ -157,7 +157,7 @@ class AvailableView(BaseAdminView):
             return
 
         # Check if tree exists (it won't if we showed the not-connected message)
-        if not hasattr(self, "tree"):
+        if self.tree is None:
             return
 
         self.tree.clear()
@@ -199,7 +199,7 @@ class AvailableView(BaseAdminView):
 
     def _copy_selected(self):
         """Copy selected hostnames (first column only) to clipboard"""
-        if not hasattr(self, "tree"):
+        if self.tree is None:
             return
 
         selection = self.tree.selection()
@@ -221,7 +221,7 @@ class AvailableView(BaseAdminView):
 
     def _copy_all(self):
         """Copy all rows to clipboard"""
-        if not hasattr(self, "tree"):
+        if self.tree is None:
             return
 
         items = self.tree.tree.get_children()
@@ -245,7 +245,7 @@ class AvailableView(BaseAdminView):
 
     def _schedule_selected(self):
         """Schedule selected hosts - open admin schedule dialog or navigate to SSM schedule view"""
-        if not hasattr(self, "tree"):
+        if self.tree is None:
             return
 
         selection = self.tree.selection()
@@ -296,7 +296,11 @@ class AvailableView(BaseAdminView):
 
     def refresh(self):
         """Public method to refresh the view"""
-        # Recreate UI to handle connection state changes
-        for widget in self.winfo_children():
-            widget.destroy()
-        self._create_ui()
+        if self.tree is not None and self.shell.is_authenticated():
+            self._load_available()
+        else:
+            # Connection state changed, need to rebuild UI
+            for widget in self.winfo_children():
+                widget.destroy()
+            self.tree = None
+            self._create_ui()

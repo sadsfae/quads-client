@@ -10,7 +10,7 @@ class AssignmentsView(BaseAdminView):
     """View for displaying user's assignments in a simple list"""
 
     def __init__(self, parent, shell):
-        super().__init__(parent, shell, "My Assignments", requires_admin=False)
+        super().__init__(parent, shell, "Assignments", requires_admin=False)
         self._create_ui()
 
     def _create_ui(self):
@@ -83,9 +83,11 @@ class AssignmentsView(BaseAdminView):
             if isinstance(widget, ttk.Frame) and hasattr(widget, "_login_frame"):
                 widget.destroy()
 
+        is_admin = self.shell.is_admin()
+
         def load_data():
             # Admin users see ALL assignments, normal users only see their own
-            if self.shell.is_admin():
+            if is_admin:
                 # Admin: show all active assignments
                 return self.shell.connection.api.filter_assignments({"active": True})
             else:
@@ -94,7 +96,8 @@ class AssignmentsView(BaseAdminView):
                 return self.shell.connection.api.filter_assignments({"owner": username, "active": True})
 
         self.tree.clear()
-        assignments = self.safe_load_data(load_data, success_message="Showing {count} assignment(s)")
+        label = "all assignment(s)" if is_admin else "your assignment(s)"
+        assignments = self.safe_load_data(load_data, success_message="Showing {count} " + label)
 
         if not assignments:
             return
@@ -311,11 +314,16 @@ class AssignmentsView(BaseAdminView):
             if mode == "weeks":
                 cmd_args = f"{cloud_name} weeks {value}"
             elif mode == "days":
-                # Convert days to weeks for the command (API expects weeks)
-                # But user said shrink should support days - we may need to enhance the CLI command
-                # For now, convert days to fractional weeks
-                weeks_value = value / 7.0
-                cmd_args = f"{cloud_name} weeks {weeks_value:.2f}"
+                if value % 7 != 0:
+                    messagebox.showwarning(
+                        "Days Not Evenly Divisible",
+                        f"{value} days is not evenly divisible by 7.\n\n"
+                        f"The shrink command works in whole weeks.\n"
+                        f"{value} days = {value // 7} full week(s) + {value % 7} day(s).\n\n"
+                        f"Shrinking by {value // 7} week(s) instead.",
+                    )
+                weeks_value = max(1, value // 7)
+                cmd_args = f"{cloud_name} weeks {weeks_value}"
             else:  # now
                 # Shrink to now means terminate - use 0 weeks or we could just terminate
                 # Actually looking at shrink command, it reduces by weeks, so ending now would need different logic
