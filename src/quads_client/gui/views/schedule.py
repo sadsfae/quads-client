@@ -56,13 +56,22 @@ class ScheduleView(ttk.Frame):
         canvas.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
         scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
 
-        # Enable mouse wheel scrolling
+        # Enable mouse wheel scrolling (guarded to avoid errors if canvas is destroyed)
         def _on_mousewheel(event):
-            canvas.yview_scroll(int(-1 * (event.delta / 120)), "units")
+            if canvas.winfo_exists():
+                canvas.yview_scroll(int(-1 * (event.delta / 120)), "units")
 
-        canvas.bind_all("<MouseWheel>", _on_mousewheel)  # Windows/MacOS
-        canvas.bind_all("<Button-4>", lambda e: canvas.yview_scroll(-1, "units"))  # Linux
-        canvas.bind_all("<Button-5>", lambda e: canvas.yview_scroll(1, "units"))  # Linux
+        def _on_scroll_up(event):
+            if canvas.winfo_exists():
+                canvas.yview_scroll(-1, "units")
+
+        def _on_scroll_down(event):
+            if canvas.winfo_exists():
+                canvas.yview_scroll(1, "units")
+
+        canvas.bind_all("<MouseWheel>", _on_mousewheel)
+        canvas.bind_all("<Button-4>", _on_scroll_up)
+        canvas.bind_all("<Button-5>", _on_scroll_down)
 
         main_frame = scrollable_frame
 

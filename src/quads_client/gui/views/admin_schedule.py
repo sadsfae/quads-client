@@ -198,13 +198,30 @@ class AdminScheduleView(BaseAdminView):
         canvas.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=10, pady=10)
         scrollbar.pack(side=tk.RIGHT, fill=tk.Y, padx=(0, 10), pady=10)
 
-        # Enable mouse wheel scrolling
+        # Enable mouse wheel scrolling (use bind_all but unbind on dialog close)
         def _on_mousewheel(event):
-            canvas.yview_scroll(int(-1 * (event.delta / 120)), "units")
+            if canvas.winfo_exists():
+                canvas.yview_scroll(int(-1 * (event.delta / 120)), "units")
 
-        canvas.bind_all("<MouseWheel>", _on_mousewheel)  # Windows/MacOS
-        canvas.bind_all("<Button-4>", lambda e: canvas.yview_scroll(-1, "units"))  # Linux
-        canvas.bind_all("<Button-5>", lambda e: canvas.yview_scroll(1, "units"))  # Linux
+        def _on_scroll_up(event):
+            if canvas.winfo_exists():
+                canvas.yview_scroll(-1, "units")
+
+        def _on_scroll_down(event):
+            if canvas.winfo_exists():
+                canvas.yview_scroll(1, "units")
+
+        bid1 = canvas.bind_all("<MouseWheel>", _on_mousewheel)
+        bid2 = canvas.bind_all("<Button-4>", _on_scroll_up)
+        bid3 = canvas.bind_all("<Button-5>", _on_scroll_down)
+
+        def _on_dialog_destroy(event):
+            if event.widget is dialog:
+                dialog.unbind_all("<MouseWheel>")
+                dialog.unbind_all("<Button-4>")
+                dialog.unbind_all("<Button-5>")
+
+        dialog.bind("<Destroy>", _on_dialog_destroy)
 
         form_frame = ttk.Frame(scrollable_frame)
         form_frame.pack(fill=tk.BOTH, expand=True, padx=10, pady=5)

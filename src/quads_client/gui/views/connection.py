@@ -50,9 +50,17 @@ class ConnectionView(ttk.Frame):
         self._canvas.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
         scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
 
-        # Mouse wheel scrolling
-        self._canvas.bind_all("<Button-4>", lambda e: self._canvas.yview_scroll(-1, "units"))
-        self._canvas.bind_all("<Button-5>", lambda e: self._canvas.yview_scroll(1, "units"))
+        # Mouse wheel scrolling (guarded to avoid errors if canvas is destroyed)
+        def _on_scroll_up(event):
+            if self._canvas.winfo_exists():
+                self._canvas.yview_scroll(-1, "units")
+
+        def _on_scroll_down(event):
+            if self._canvas.winfo_exists():
+                self._canvas.yview_scroll(1, "units")
+
+        self._canvas.bind_all("<Button-4>", _on_scroll_up)
+        self._canvas.bind_all("<Button-5>", _on_scroll_down)
 
         content_frame = scrollable_frame
 
