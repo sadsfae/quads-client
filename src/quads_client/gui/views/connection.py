@@ -175,7 +175,9 @@ class ConnectionView(ttk.Frame):
             return
 
         active_session = self.shell.session_manager.active_session if self.shell.session_manager else None
-        active_server = active_session.connection.current_server if active_session and active_session.connection else None
+        active_server = (
+            active_session.connection.current_server if active_session and active_session.connection else None
+        )
 
         servers = self.shell.config.get_all_servers()
         for name, server_config in servers.items():
@@ -348,13 +350,15 @@ class ConnectionView(ttk.Frame):
         user = "N/A"
         role = "N/A"
         active_session = self.shell.session_manager.active_session if self.shell.session_manager else None
-        active_server = active_session.connection.current_server if active_session and active_session.connection else None
+        active_server = (
+            active_session.connection.current_server if active_session and active_session.connection else None
+        )
 
         if self.shell.session_manager:
             for session in self.shell.session_manager.sessions.values():
                 if session.connection and session.connection.current_server == self.selected_server:
                     is_connected = True
-                    is_active_server = (self.selected_server == active_server)
+                    is_active_server = self.selected_server == active_server
                     if session.connection.username:
                         user = session.connection.username
                     if session.connection.user_role:
@@ -485,9 +489,7 @@ class ConnectionView(ttk.Frame):
             dialog.destroy()
 
             if version_info and version_info != "unknown":
-                messagebox.showinfo(
-                    "Success", f"Server '{name}' added successfully\n\nQUADS version: {version_info}"
-                )
+                messagebox.showinfo("Success", f"Server '{name}' added successfully\n\nQUADS version: {version_info}")
             else:
                 messagebox.showinfo(
                     "Server Added",

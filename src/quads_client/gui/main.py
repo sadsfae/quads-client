@@ -292,14 +292,18 @@ class QuadsClientApp(tk.Tk):
         status_content = ttk.Frame(self.status_bar)
         status_content.pack(fill=tk.BOTH, expand=True, padx=5, pady=2)
 
-        # Connection indicator (colored circle)
+        # Connection indicator (colored circle) + persistent connection status
         self.connection_indicator = ttk.Label(
-            status_content, text="●", foreground="#888888", font=("TkDefaultFont", 12)  # Grey when not connected
+            status_content, text="●", foreground="#888888", font=("TkDefaultFont", 12)
         )
         self.connection_indicator.pack(side=tk.LEFT, padx=(0, 5))
 
-        self.status_label = ttk.Label(status_content, text="Not connected", wraplength=1100, justify=tk.LEFT)
-        self.status_label.pack(side=tk.LEFT, fill=tk.X, expand=True)
+        self.connection_status_label = ttk.Label(status_content, text="Not connected", justify=tk.LEFT)
+        self.connection_status_label.pack(side=tk.LEFT)
+
+        # Transient message label (right side, for errors/success/info)
+        self.status_label = ttk.Label(status_content, text="", justify=tk.RIGHT)
+        self.status_label.pack(side=tk.RIGHT, padx=(10, 0))
 
     def _toggle_sidebar(self):
         """Toggle sidebar visibility"""
@@ -413,22 +417,18 @@ class QuadsClientApp(tk.Tk):
     def _show_servers_view(self):
         """Show servers view"""
         self._show_view("servers")
-        self.update_status("Servers & Connections")
 
     def _show_schedule_view(self):
         """Show schedule view"""
         self._show_view("schedule")
-        self.update_status("Schedule Hosts")
 
     def _show_my_hosts_view(self):
         """Show my hosts view"""
         self._show_view("my_hosts")
-        self.update_status("My Hosts")
 
     def _show_assignments_view(self):
         """Show assignments view"""
         self._show_view("assignments")
-        self.update_status("My Assignments")
 
     def _show_admin_schedule_view(self):
         """Show admin schedule view"""
@@ -436,7 +436,6 @@ class QuadsClientApp(tk.Tk):
             self.update_status("Admin role required")
             return
         self._show_view("admin_schedule")
-        self.update_status("Admin Schedule Management")
 
     def _show_clouds_view(self):
         """Show clouds view"""
@@ -444,7 +443,6 @@ class QuadsClientApp(tk.Tk):
             self.update_status("Admin role required")
             return
         self._show_view("clouds")
-        self.update_status("Cloud Management")
 
     def _show_hosts_view(self):
         """Show hosts view"""
@@ -452,17 +450,14 @@ class QuadsClientApp(tk.Tk):
             self.update_status("Admin role required")
             return
         self._show_view("hosts")
-        self.update_status("Host Management")
 
     def _show_available_view(self):
         """Show available hosts view"""
         self._show_view("available")
-        self.update_status("Available Hosts")
 
     def _show_settings_view(self):
         """Show settings view"""
         self._show_view("settings")
-        self.update_status("Settings")
 
     def _show_about(self):
         """Show About dialog"""
@@ -587,25 +582,35 @@ class QuadsClientApp(tk.Tk):
         shortcuts_window.transient(self)
         shortcuts_window.grab_set()
 
-    def update_status(self, message):
-        """Update status bar message"""
+    def update_status(self, message=""):
+        """Update transient status message (right side of status bar)"""
         if hasattr(self, "status_label") and self.status_label:
             self.status_label.config(text=message)
         self.update_connection_indicator()
 
     def update_connection_indicator(self):
-        """Update connection indicator color based on connection status"""
+        """Update connection indicator color and text based on connection status"""
         if not hasattr(self, "connection_indicator"):
             return
 
         is_connected = self.shell.is_authenticated() if self.shell else False
 
         if is_connected:
-            # Green circle when connected
             self.connection_indicator.config(foreground="#4ec9b0")
+            server = ""
+            username = ""
+            if self.shell.connection:
+                server = getattr(self.shell.connection, "current_server", "")
+                username = getattr(self.shell.connection, "username", "")
+            if server and username:
+                self.connection_status_label.config(text=f"Connected to {server} as {username}")
+            elif server:
+                self.connection_status_label.config(text=f"Connected to {server}")
+            else:
+                self.connection_status_label.config(text="Connected")
         else:
-            # Grey circle when disconnected
             self.connection_indicator.config(foreground="#888888")
+            self.connection_status_label.config(text="Not connected")
 
     def update_role_visibility(self):
         """Update visibility of admin-only navigation items and visual indicators"""
@@ -824,10 +829,8 @@ class QuadsClientApp(tk.Tk):
         if self.shell.config:
             servers = self.shell.config.get_all_servers()
             if default_server in servers:
-                self.update_status(f"Auto-connecting to {default_server}...")
                 success, error = self.shell.connect_to_server(default_server)
                 if success:
-                    self.update_status(f"Connected to {default_server}")
                     self.update_role_visibility()
                 else:
                     self.update_status(f"Auto-connect failed: {error}")
