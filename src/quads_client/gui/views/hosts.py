@@ -11,7 +11,7 @@ class HostsView(BaseAdminView):
 
     def __init__(self, parent, shell):
         super().__init__(parent, shell, "Host Management", requires_admin=True)
-        self.filter_mode = "all"
+        self.filter_mode = "active"  # Default to active (not broken, not retired)
         self._create_ui()
 
     def _create_ui(self):
@@ -25,7 +25,12 @@ class HostsView(BaseAdminView):
 
         ttk.Label(filter_frame, text="Filter:").pack(side=tk.LEFT, padx=(0, 10))
 
-        for label, mode in [("All Hosts", "all"), ("Broken", "broken"), ("Retired", "retired")]:
+        for label, mode in [
+            ("Active", "active"),
+            ("All Hosts", "all"),
+            ("Broken", "broken"),
+            ("Retired", "retired"),
+        ]:
             ttk.Button(filter_frame, text=label, command=lambda m=mode: self._set_filter(m)).pack(side=tk.LEFT, padx=2)
 
         # Content frame with scrolled treeview
@@ -70,7 +75,10 @@ class HostsView(BaseAdminView):
         """Load hosts from server"""
 
         def load_data():
-            if self.filter_mode == "all":
+            if self.filter_mode == "active":
+                # Default: show only active hosts (not broken, not retired)
+                return self.shell.connection.api.filter_hosts({"broken": False, "retired": False})
+            elif self.filter_mode == "all":
                 return self.shell.connection.api.get_hosts()
             elif self.filter_mode == "broken":
                 return self.shell.connection.api.filter_hosts({"broken": True})
@@ -109,7 +117,7 @@ class HostsView(BaseAdminView):
                 self.tree.tree.tag_configure("retired", foreground="#999999")
 
         # Update status with filter info
-        filter_text = f" ({self.filter_mode})" if self.filter_mode != "all" else ""
+        filter_text = f" ({self.filter_mode})" if self.filter_mode != "active" else ""
         self.update_status(f"Showing {len(hosts)} host(s){filter_text} | Last updated: Just now")
 
     def _mark_broken(self):

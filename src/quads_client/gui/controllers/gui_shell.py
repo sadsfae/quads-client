@@ -321,6 +321,49 @@ class GuiShell:
         """Check if user has admin role"""
         return self.connection and self.connection.is_admin
 
+    def get_auto_login_server(self):
+        """
+        Determine which server to auto-connect to.
+        Priority: gui_preferences default > config default > last-connected session > first server with credentials.
+        Returns server name or None if no servers configured.
+        """
+        servers = {}
+        if self.config:
+            servers = self.config.get_all_servers()
+
+        if not servers:
+            return None
+
+        if len(servers) == 1:
+            return list(servers.keys())[0]
+
+        # Check gui_preferences default_server
+        if self.config and hasattr(self.config, "config_data"):
+            prefs = self.config.config_data.get("gui_preferences", {})
+            pref_default = prefs.get("default_server")
+            if pref_default and pref_default in servers:
+                return pref_default
+
+        # Check main config default_server
+        if self.config:
+            config_default = self.config.get_default_server()
+            if config_default and config_default in servers:
+                return config_default
+
+        # Check last-connected server from session history
+        if self.session_manager:
+            for session in self.session_manager.sessions.values():
+                if session.connection and session.connection.current_server in servers:
+                    return session.connection.current_server
+
+        # Fall back to first server that has credentials
+        for name, cfg in servers.items():
+            if cfg.get("username") and cfg.get("password"):
+                return name
+
+        # Last resort: first server
+        return list(servers.keys())[0]
+
     def _update_prompt(self):
         """Update prompt (no-op for GUI, used by CLI)"""
         pass

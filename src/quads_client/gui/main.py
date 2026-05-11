@@ -142,7 +142,7 @@ class QuadsClientApp(tk.Tk):
             ("📊 Available", self._show_available_view, False, "available"),
             ("💻 My Hosts", self._show_my_hosts_view, False, "my_hosts"),
             ("📋 Assignments", self._show_assignments_view, False, "assignments"),
-            ("", None, False, ""),  # Separator
+            ("", None, True, ""),  # Separator (admin section)
             ("👑 Admin Schedule", self._show_admin_schedule_view, True, "admin_schedule"),
             ("☁️  Clouds", self._show_clouds_view, True, "clouds"),
             ("🖥️  Hosts", self._show_hosts_view, True, "hosts"),
@@ -158,12 +158,15 @@ class QuadsClientApp(tk.Tk):
 
         self.nav_buttons = []
         self.nav_button_map = {}  # Map view_name to button
+        # Track all sidebar items (buttons + separators) in order for re-packing
+        self._sidebar_items = []
         for label, command, is_admin, view_name in nav_items:
             if label == "":  # Separator
-                ttk.Separator(self.sidebar_frame, orient=tk.HORIZONTAL).pack(fill=tk.X, padx=5, pady=5)
+                sep = ttk.Separator(self.sidebar_frame, orient=tk.HORIZONTAL)
+                sep.pack(fill=tk.X, padx=5, pady=5)
+                self._sidebar_items.append(("separator", sep, is_admin))
                 continue
 
-            # Use tk.Button instead of ttk.Button for border control
             btn = tk.Button(
                 self.sidebar_frame,
                 text=label,
@@ -171,8 +174,8 @@ class QuadsClientApp(tk.Tk):
                 width=18,
                 bd=0,
                 relief=tk.FLAT,
-                highlightthickness=0,  # No border by default
-                highlightbackground=accent_color,  # Border color when active (2px)
+                highlightthickness=0,
+                highlightbackground=accent_color,
                 bg=bg_color,
                 fg=fg_color,
                 activebackground=panel_bg,
@@ -183,6 +186,7 @@ class QuadsClientApp(tk.Tk):
             )
             btn.pack(pady=2, padx=10, fill=tk.X)
             self.nav_buttons.append((btn, is_admin))
+            self._sidebar_items.append(("button", btn, is_admin))
             if view_name:
                 self.nav_button_map[view_name] = btn
 
@@ -264,25 +268,7 @@ class QuadsClientApp(tk.Tk):
         """Auto-login from welcome view"""
         from quads_client.gui.widgets.dialogs import show_error_dialog
 
-        prefs = self.preferences
-        default_server = prefs.get("default_server")
-
-        # Get all configured servers
-        servers = {}
-        if self.shell.config:
-            servers = self.shell.config.get_all_servers()
-
-        # Determine which server to connect to
-        target_server = None
-        if default_server and default_server in servers:
-            target_server = default_server
-        elif len(servers) == 1:
-            # Only one server configured
-            target_server = list(servers.keys())[0]
-        elif len(servers) > 1:
-            # Multiple servers, no default - switch to connection view
-            self._show_servers_view()
-            return
+        target_server = self.shell.get_auto_login_server()
 
         if target_server:
             try:
@@ -628,13 +614,17 @@ class QuadsClientApp(tk.Tk):
         is_admin = self.shell.is_admin()
         is_authenticated = self.shell.is_authenticated()
 
-        # Hide/show admin navigation buttons
-        for btn, is_admin_only in self.nav_buttons:
-            if is_admin_only:
-                if is_admin:
-                    btn.pack(pady=2, padx=10, fill=tk.X)
-                else:
-                    btn.pack_forget()
+        # Unpack and re-pack all sidebar items in correct order
+        for item_type, widget, _ in self._sidebar_items:
+            widget.pack_forget()
+
+        for item_type, widget, is_admin_only in self._sidebar_items:
+            if is_admin_only and not is_admin:
+                continue
+            if item_type == "separator":
+                widget.pack(fill=tk.X, padx=5, pady=5)
+            else:
+                widget.pack(pady=2, padx=10, fill=tk.X)
 
         # Update title bar with admin indicator
         base_title = f"QUADS Client v{__version__}"

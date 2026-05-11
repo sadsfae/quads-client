@@ -1,5 +1,6 @@
 """Connection and server management view"""
 
+import threading
 import tkinter as tk
 from tkinter import ttk, messagebox
 
@@ -22,64 +23,85 @@ class ConnectionView(ttk.Frame):
         title_frame = ttk.Frame(self)
         title_frame.pack(fill=tk.X, padx=20, pady=10)
 
-        title_label = ttk.Label(
+        ttk.Label(
             title_frame,
             text="Servers & Connections",
             font=("TkDefaultFont", 14, "bold"),
-        )
-        title_label.pack(side=tk.LEFT)
+        ).pack(side=tk.LEFT)
 
         ttk.Button(title_frame, text="+ Add Server", command=self._add_server).pack(side=tk.RIGHT)
-
         ttk.Button(title_frame, text="🔄 Refresh", command=self._refresh_server_list).pack(side=tk.RIGHT, padx=5)
 
-        content_frame = ttk.Frame(self)
-        content_frame.pack(fill=tk.BOTH, expand=True, padx=20)
+        # Scrollable container for all content below the title
+        container = ttk.Frame(self)
+        container.pack(fill=tk.BOTH, expand=True, padx=20, pady=(0, 10))
 
+        style = ttk.Style()
+        bg_color = style.lookup("TFrame", "background")
+        self._canvas = tk.Canvas(container, highlightthickness=0, bg=bg_color)
+        scrollbar = ttk.Scrollbar(container, orient="vertical", command=self._canvas.yview)
+        scrollable_frame = ttk.Frame(self._canvas)
+
+        scrollable_frame.bind("<Configure>", lambda e: self._canvas.configure(scrollregion=self._canvas.bbox("all")))
+        canvas_window = self._canvas.create_window((0, 0), window=scrollable_frame, anchor="nw")
+        self._canvas.bind("<Configure>", lambda e: self._canvas.itemconfig(canvas_window, width=e.width))
+        self._canvas.configure(yscrollcommand=scrollbar.set)
+
+        self._canvas.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+        scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
+
+        # Mouse wheel scrolling
+        self._canvas.bind_all("<Button-4>", lambda e: self._canvas.yview_scroll(-1, "units"))
+        self._canvas.bind_all("<Button-5>", lambda e: self._canvas.yview_scroll(1, "units"))
+
+        content_frame = scrollable_frame
+
+        # --- Configured Servers ---
         ttk.Label(content_frame, text="Configured Servers:", font=("TkDefaultFont", 10)).pack(anchor=tk.W, pady=(0, 5))
 
         tree_frame = ttk.Frame(content_frame)
-        tree_frame.pack(fill=tk.BOTH, expand=True)
+        tree_frame.pack(fill=tk.X)
 
-        scrollbar = ttk.Scrollbar(tree_frame)
-        scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
+        tree_scrollbar = ttk.Scrollbar(tree_frame)
+        tree_scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
 
         self.server_tree = ttk.Treeview(
             tree_frame,
-            columns=("name", "url", "status"),
+            columns=("name", "url", "version", "status"),
             show="headings",
-            yscrollcommand=scrollbar.set,
-            height=8,
+            yscrollcommand=tree_scrollbar.set,
+            height=5,
         )
-        scrollbar.config(command=self.server_tree.yview)
+        tree_scrollbar.config(command=self.server_tree.yview)
 
         self.server_tree.heading("name", text="Name")
         self.server_tree.heading("url", text="URL")
+        self.server_tree.heading("version", text="QUADS Version")
         self.server_tree.heading("status", text="Status")
 
         self.server_tree.column("name", width=150)
-        self.server_tree.column("url", width=300)
+        self.server_tree.column("url", width=250)
+        self.server_tree.column("version", width=120)
         self.server_tree.column("status", width=100)
 
-        self.server_tree.pack(fill=tk.BOTH, expand=True)
+        self.server_tree.pack(fill=tk.X)
         self.server_tree.bind("<<TreeviewSelect>>", self._on_server_selected)
 
+        # --- Server Details ---
         details_frame = ttk.LabelFrame(content_frame, text="Server Details", padding=10)
-        details_frame.pack(fill=tk.X, pady=(20, 10))
+        details_frame.pack(fill=tk.X, pady=(15, 10))
 
-        # Details text with theme-aware colors
         self.details_text = tk.Text(
             details_frame,
-            height=8,
+            height=5,
             width=60,
             wrap=tk.WORD,
             state=tk.DISABLED,
             bg=self.shell.gui_app.theme_manager.get_color("text_bg"),
             fg=self.shell.gui_app.theme_manager.get_color("text_fg"),
         )
-        self.details_text.pack(fill=tk.BOTH, expand=True)
+        self.details_text.pack(fill=tk.X)
 
-        # Tag configs with theme-aware colors
         self.details_text.tag_config("connected", foreground=self.shell.gui_app.theme_manager.get_color("success"))
         self.details_text.tag_config("disconnected", foreground=self.shell.gui_app.theme_manager.get_color("fg"))
 
@@ -90,21 +112,19 @@ class ConnectionView(ttk.Frame):
         self.connect_button.pack(side=tk.LEFT, padx=5)
 
         self.disconnect_button = ttk.Button(
-            button_frame,
-            text="Disconnect",
-            command=self._disconnect_server,
-            state=tk.DISABLED,
+            button_frame, text="Disconnect", command=self._disconnect_server, state=tk.DISABLED
         )
         self.disconnect_button.pack(side=tk.LEFT, padx=5)
 
-        ttk.Button(button_frame, text="Edit", command=self._edit_server, state=tk.DISABLED).pack(side=tk.LEFT, padx=5)
+        self.edit_button = ttk.Button(button_frame, text="Edit", command=self._edit_server, state=tk.DISABLED)
+        self.edit_button.pack(side=tk.LEFT, padx=5)
 
-        ttk.Button(button_frame, text="Remove", command=self._remove_server, state=tk.DISABLED).pack(
-            side=tk.LEFT, padx=5
-        )
+        self.remove_button = ttk.Button(button_frame, text="Remove", command=self._remove_server, state=tk.DISABLED)
+        self.remove_button.pack(side=tk.LEFT, padx=5)
 
+        # --- Active Sessions ---
         sessions_frame = ttk.LabelFrame(content_frame, text="Active Sessions", padding=10)
-        sessions_frame.pack(fill=tk.BOTH, expand=True, pady=(10, 0))
+        sessions_frame.pack(fill=tk.X, pady=(10, 10))
 
         self.sessions_tree = ttk.Treeview(
             sessions_frame,
@@ -125,14 +145,18 @@ class ConnectionView(ttk.Frame):
         self.sessions_tree.column("status", width=100)
         self.sessions_tree.column("last_active", width=100)
 
-        self.sessions_tree.pack(fill=tk.BOTH, expand=True)
+        self.sessions_tree.pack(fill=tk.X)
 
         session_button_frame = ttk.Frame(sessions_frame)
         session_button_frame.pack(fill=tk.X, pady=(10, 0))
 
         ttk.Button(session_button_frame, text="Switch", command=self._switch_session).pack(side=tk.LEFT, padx=5)
-
         ttk.Button(session_button_frame, text="Close Session", command=self._close_session).pack(side=tk.LEFT, padx=5)
+
+    def _clear_status(self):
+        """Clear the status bar error message"""
+        if hasattr(self.shell, "gui_app"):
+            self.shell.gui_app.update_status("Servers & Connections")
 
     def _refresh_server_list(self):
         """Refresh the server list"""
@@ -155,14 +179,71 @@ class ConnectionView(ttk.Frame):
 
             status = "● Connected" if is_connected else "○ Disconnected"
 
-            item_id = self.server_tree.insert("", tk.END, values=(name, url, status))
+            item_id = self.server_tree.insert("", tk.END, values=(name, url, "-", status))
 
             if is_connected and self.shell.session_manager.active_session:
                 if self.shell.session_manager.active_session.connection.current_server == name:
                     self.server_tree.item(item_id, tags=("active",))
-                    self.server_tree.tag_configure("active", foreground="#4ec9b0", font=("TkDefaultFont", 9, "bold"))
+                    self.server_tree.tag_configure("active", foreground="#4ec9b0")
 
         self._refresh_session_list()
+
+        # Fetch versions in background thread to avoid blocking UI
+        self._fetch_versions_async()
+
+    def _get_server_version(self, name, server_config):
+        """Fetch QUADS version from server using public endpoint only (no login)"""
+        try:
+            import requests
+
+            url = server_config.get("url", "")
+            verify = server_config.get("verify", True)
+            if not url:
+                return "-"
+
+            response = requests.get(f"{url}/api/v3/version", verify=verify, timeout=5)
+            if response.status_code == 200:
+                import re
+
+                version_data = response.json()
+                if isinstance(version_data, dict):
+                    version = version_data.get("version", "")
+                    if version and version != "unknown":
+                        return version
+                elif isinstance(version_data, str):
+                    match = re.search(r"(\d+\.\d+\.\d+)", version_data)
+                    if match:
+                        return match.group(1)
+            return "-"
+        except Exception:
+            return "-"
+
+    def _fetch_versions_async(self):
+        """Fetch server versions in background thread"""
+        if not self.shell.config:
+            return
+
+        servers = dict(self.shell.config.get_all_servers())
+
+        def fetch():
+            versions = {}
+            for name, config in servers.items():
+                versions[name] = self._get_server_version(name, config)
+            self.after(0, lambda: self._update_versions(versions))
+
+        threading.Thread(target=fetch, daemon=True).start()
+
+    def _update_versions(self, versions):
+        """Update version column from background fetch results"""
+        try:
+            for item in self.server_tree.get_children():
+                values = list(self.server_tree.item(item, "values"))
+                name = values[0]
+                if name in versions:
+                    values[2] = versions[name]
+                    self.server_tree.item(item, values=values)
+        except Exception:
+            pass
 
     def _refresh_session_list(self):
         """Refresh the session list"""
@@ -175,7 +256,7 @@ class ConnectionView(ttk.Frame):
         active_id = self.shell.session_manager.active_session_id if self.shell.session_manager.active_session else None
 
         for session_id, session in self.shell.session_manager.sessions.items():
-            server_name = session.connection.current_server if session.connection else "N/A"
+            server_name = session.server_name or (session.connection.current_server if session.connection else "N/A")
             label = session.label or "-"
             status = "Active" if session_id == active_id else "Inactive"
             last_active = "Just now" if session_id == active_id else "N/A"
@@ -188,7 +269,7 @@ class ConnectionView(ttk.Frame):
 
             if session_id == active_id:
                 self.sessions_tree.item(item_id, tags=("active",))
-                self.sessions_tree.tag_configure("active", foreground="#4ec9b0", font=("TkDefaultFont", 9, "bold"))
+                self.sessions_tree.tag_configure("active", foreground="#4ec9b0")
 
     def _on_server_selected(self, event):
         """Handle server selection"""
@@ -250,6 +331,8 @@ class ConnectionView(ttk.Frame):
 
         self.connect_button.config(state=tk.NORMAL if not is_connected else tk.DISABLED)
         self.disconnect_button.config(state=tk.NORMAL if is_connected else tk.DISABLED)
+        self.edit_button.config(state=tk.NORMAL)
+        self.remove_button.config(state=tk.NORMAL if not is_connected else tk.DISABLED)
 
     def _add_server(self):
         """Add a new server"""
@@ -260,7 +343,6 @@ class ConnectionView(ttk.Frame):
         dialog.transient(self)
         dialog.grab_set()
 
-        # Apply theme colors to dialog
         if hasattr(self.shell, "gui_app") and hasattr(self.shell.gui_app, "theme_manager"):
             self.shell.gui_app.theme_manager.configure_toplevel(dialog)
 
@@ -286,7 +368,6 @@ class ConnectionView(ttk.Frame):
             row=4, column=1, sticky=tk.W, padx=20, pady=8
         )
 
-        # Tip label
         tip_label = ttk.Label(
             dialog,
             text="💡 Username and password can be left blank.\nYou'll be prompted to login after connecting.",
@@ -306,22 +387,19 @@ class ConnectionView(ttk.Frame):
                 messagebox.showerror("Error", "Name and URL are required")
                 return
 
-            # Use empty credentials if not provided (triggers registration mode)
             user = username if username else ""
             pwd = password if password else ""
 
-            # Use programmatic server add method (DRY - reuses CLI logic)
             success, message, version_info = self.shell.server_commands.add_server_programmatic(
                 name=name,
                 url=url,
                 username=user,
                 password=pwd,
                 verify=verify_var.get(),
-                test_connection=True,  # Test before adding
+                test_connection=True,
             )
 
             if not success:
-                # Connection test failed - ask if they want to add anyway
                 if "Could not connect" in message or "returned status code" in message:
                     result = messagebox.askyesno(
                         "Connection Failed",
@@ -331,14 +409,13 @@ class ConnectionView(ttk.Frame):
                         icon="warning",
                     )
                     if result:
-                        # Try again without connection test
                         success, message, version_info = self.shell.server_commands.add_server_programmatic(
                             name=name,
                             url=url,
                             username=user,
                             password=pwd,
                             verify=verify_var.get(),
-                            test_connection=False,  # Skip test this time
+                            test_connection=False,
                         )
                         if not success:
                             messagebox.showerror("Error", message)
@@ -346,21 +423,21 @@ class ConnectionView(ttk.Frame):
                     else:
                         return
                 else:
-                    # Other error (e.g., server already exists)
                     messagebox.showerror("Error", message)
                     return
 
             self._refresh_server_list()
+            self._clear_status()
             dialog.destroy()
 
-            if version_info:
+            if version_info and version_info != "unknown":
                 messagebox.showinfo(
-                    "Success", f"Server '{name}' added successfully\n\n" f"QUADS version: {version_info}"
+                    "Success", f"Server '{name}' added successfully\n\nQUADS version: {version_info}"
                 )
             else:
                 messagebox.showinfo(
                     "Server Added",
-                    f"Server '{name}' added to configuration\n\n" f"You can now connect to this server.",
+                    f"Server '{name}' added to configuration\n\nYou can now connect to this server.",
                 )
 
         button_frame = ttk.Frame(dialog)
@@ -378,6 +455,7 @@ class ConnectionView(ttk.Frame):
             self.shell.connection_commands.cmd_connect(self.selected_server)
             self._refresh_server_list()
             self._update_server_details()
+            self._clear_status()
         except Exception as e:
             import traceback
 
@@ -391,6 +469,7 @@ class ConnectionView(ttk.Frame):
             self._refresh_server_list()
             self._update_server_details()
             self._on_server_selected(None)
+            self._clear_status()
         except Exception as e:
             import traceback
 
@@ -399,7 +478,102 @@ class ConnectionView(ttk.Frame):
 
     def _edit_server(self):
         """Edit selected server"""
-        messagebox.showinfo("Not Implemented", "Edit server functionality coming soon")
+        if not self.selected_server or not self.shell.config:
+            return
+
+        try:
+            server_config = self.shell.config.get_server(self.selected_server)
+        except Exception:
+            messagebox.showerror("Error", f"Server '{self.selected_server}' not found in configuration")
+            return
+
+        dialog = tk.Toplevel(self)
+        dialog.title(f"Edit Server: {self.selected_server}")
+        dialog.geometry("450x300")
+        dialog.resizable(False, False)
+        dialog.transient(self)
+        dialog.grab_set()
+
+        if hasattr(self.shell, "gui_app") and hasattr(self.shell.gui_app, "theme_manager"):
+            self.shell.gui_app.theme_manager.configure_toplevel(dialog)
+
+        ttk.Label(dialog, text="Server Name:").grid(row=0, column=0, sticky=tk.W, padx=20, pady=8)
+        ttk.Label(dialog, text=self.selected_server, font=("TkDefaultFont", 10, "bold")).grid(
+            row=0, column=1, padx=20, pady=8, sticky=tk.W
+        )
+
+        ttk.Label(dialog, text="Server URL:").grid(row=1, column=0, sticky=tk.W, padx=20, pady=8)
+        url_entry = ttk.Entry(dialog, width=30)
+        url_entry.grid(row=1, column=1, padx=20, pady=8)
+        url_entry.insert(0, server_config.get("url", ""))
+
+        ttk.Label(dialog, text="Username:").grid(row=2, column=0, sticky=tk.W, padx=20, pady=8)
+        username_entry = ttk.Entry(dialog, width=30)
+        username_entry.grid(row=2, column=1, padx=20, pady=8)
+        username_entry.insert(0, server_config.get("username", ""))
+
+        ttk.Label(dialog, text="Password:").grid(row=3, column=0, sticky=tk.W, padx=20, pady=8)
+        password_entry = ttk.Entry(dialog, width=30, show="*")
+        password_entry.grid(row=3, column=1, padx=20, pady=8)
+        password_entry.insert(0, server_config.get("password", ""))
+
+        verify_var = tk.BooleanVar(value=server_config.get("verify", True))
+        ttk.Checkbutton(dialog, text="Verify SSL certificate", variable=verify_var).grid(
+            row=4, column=1, sticky=tk.W, padx=20, pady=8
+        )
+
+        server_name = self.selected_server
+
+        def on_save():
+            new_url = url_entry.get().strip()
+            if not new_url:
+                messagebox.showerror("Error", "URL is required", parent=dialog)
+                return
+
+            old_url = server_config.get("url", "")
+
+            success, message = self.shell.server_commands.edit_server_programmatic(
+                name=server_name,
+                url=new_url,
+                username=username_entry.get().strip(),
+                password=password_entry.get(),
+                verify=verify_var.get(),
+            )
+
+            if not success:
+                messagebox.showerror("Error", message, parent=dialog)
+                return
+
+            is_connected = False
+            if self.shell.session_manager:
+                for session in self.shell.session_manager.sessions.values():
+                    if session.connection and session.connection.current_server == server_name:
+                        is_connected = True
+                        break
+
+            dialog.destroy()
+
+            if old_url != new_url and is_connected:
+                if messagebox.askyesno(
+                    "Reconnect?",
+                    f"Server URL changed.\n\nReconnect to '{server_name}' with the new settings?",
+                ):
+                    try:
+                        self.shell.connection_commands.cmd_disconnect("")
+                        self.shell.connection_commands.cmd_connect(server_name)
+                    except Exception as e:
+                        messagebox.showwarning("Reconnect Failed", f"Could not reconnect: {e}")
+
+            self._refresh_server_list()
+            self._update_server_details()
+            self._clear_status()
+            messagebox.showinfo("Success", message)
+
+        button_frame = ttk.Frame(dialog)
+        button_frame.grid(row=5, column=0, columnspan=2, pady=(10, 15))
+
+        ttk.Button(button_frame, text="Cancel", command=dialog.destroy).pack(side=tk.LEFT, padx=5)
+        ttk.Button(button_frame, text="Save", command=on_save).pack(side=tk.LEFT, padx=5)
 
     def _remove_server(self):
         """Remove selected server"""
@@ -414,6 +588,7 @@ class ConnectionView(ttk.Frame):
                 self.shell.server_commands.cmd_rm_server(self.selected_server)
                 self._refresh_server_list()
                 self.selected_server = None
+                self._clear_status()
                 messagebox.showinfo("Success", "Server removed")
             except Exception as e:
                 messagebox.showerror("Error", f"Failed to remove server: {e}")
@@ -432,8 +607,20 @@ class ConnectionView(ttk.Frame):
         try:
             session_id = int(session_id_str)
             self.shell.session_commands.cmd_session_switch(str(session_id))
+
+            # If switched session isn't connected, try to connect using its server_name
+            active = self.shell.session_manager.active_session
+            if active and not active.connection.is_connected and active.server_name:
+                try:
+                    active.connection.connect(active.server_name)
+                except Exception:
+                    pass
+
             self._refresh_session_list()
             self._refresh_server_list()
+            self._clear_status()
+            if hasattr(self.shell, "gui_app"):
+                self.shell.gui_app.update_role_visibility()
         except Exception as e:
             messagebox.showerror("Error", f"Failed to switch session: {e}")
 
@@ -453,6 +640,7 @@ class ConnectionView(ttk.Frame):
                 self.shell.session_commands.cmd_session_close(session_id_str)
                 self._refresh_session_list()
                 self._refresh_server_list()
+                self._clear_status()
             except Exception as e:
                 import traceback
 
@@ -465,11 +653,15 @@ class ConnectionView(ttk.Frame):
 
     def refresh_theme(self):
         """Update colors when theme changes"""
-        # Update details text colors
         self.details_text.config(
             bg=self.shell.gui_app.theme_manager.get_color("text_bg"),
             fg=self.shell.gui_app.theme_manager.get_color("text_fg"),
         )
-        # Update tag colors
         self.details_text.tag_config("connected", foreground=self.shell.gui_app.theme_manager.get_color("success"))
         self.details_text.tag_config("disconnected", foreground=self.shell.gui_app.theme_manager.get_color("fg"))
+
+        # Update canvas background for theme
+        style = ttk.Style()
+        bg_color = style.lookup("TFrame", "background")
+        if hasattr(self, "_canvas"):
+            self._canvas.config(bg=bg_color)

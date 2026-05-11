@@ -18,6 +18,11 @@ class ScheduleView(ttk.Frame):
 
     def _create_ui(self):
         """Create the UI"""
+        # Check if authenticated - if not, show login prompt
+        if not self.shell.is_authenticated():
+            self._show_login_prompt()
+            return
+
         title_label = ttk.Label(self, text="Schedule Hosts", font=("TkDefaultFont", 14, "bold"))
         title_label.pack(pady=20, padx=20, anchor=tk.W)
 
@@ -26,7 +31,10 @@ class ScheduleView(ttk.Frame):
         container.pack(fill=tk.BOTH, expand=True, padx=20, pady=(0, 10))
 
         # Create a canvas with scrollbar for main content
-        canvas = tk.Canvas(container, highlightthickness=0, bg=self.shell.gui_app.theme_manager.get_color("bg"))
+        # Use ttk style lookup to get proper background color for current theme
+        style = ttk.Style()
+        bg_color = style.lookup("TFrame", "background")
+        canvas = tk.Canvas(container, highlightthickness=0, bg=bg_color)
         scrollbar = ttk.Scrollbar(container, orient="vertical", command=canvas.yview)
         scrollable_frame = ttk.Frame(canvas)
 
@@ -665,19 +673,68 @@ class ScheduleView(ttk.Frame):
         """Cancel scheduling"""
         self._reset_form()
 
+    def _show_login_prompt(self):
+        """Show login prompt when not authenticated"""
+        # Clear any existing widgets
+        for widget in self.winfo_children():
+            widget.destroy()
+
+        # Center frame
+        center_frame = ttk.Frame(self)
+        center_frame.place(relx=0.5, rely=0.5, anchor=tk.CENTER)
+
+        ttk.Label(center_frame, text="Please login to schedule hosts", font=("TkDefaultFont", 12)).pack(pady=(0, 20))
+
+        ttk.Button(center_frame, text="Login", command=self._auto_login).pack()
+
+    def _auto_login(self):
+        """Auto-login using centralized server selection logic"""
+        from quads_client.gui.widgets.dialogs import show_error_dialog
+
+        target_server = self.shell.get_auto_login_server()
+
+        if target_server:
+            try:
+                self.shell.connection_commands.cmd_connect(target_server)
+                self.refresh()
+            except Exception as e:
+                show_error_dialog(self, "Login Failed", f"Failed to connect to {target_server}", str(e))
+        else:
+            self.shell.gui_app._show_servers_view()
+
+    def _get_preferences(self):
+        """Get GUI preferences from config"""
+        if self.shell.config and hasattr(self.shell.config, "config_data"):
+            return self.shell.config.config_data.get("gui_preferences", {})
+        return {}
+
     def refresh(self):
         """Public method to refresh the view"""
-        self._update_preview()
+        # Check if auth status changed - rebuild UI if needed
+        if not self.shell.is_authenticated():
+            # Clear and show login prompt
+            for widget in self.winfo_children():
+                widget.destroy()
+            self._show_login_prompt()
+        elif hasattr(self, "mode_var"):
+            # Full UI is built (mode_var only exists after _create_ui completes)
+            self._update_preview()
+        else:
+            # Need to rebuild full UI
+            for widget in self.winfo_children():
+                widget.destroy()
+            self._create_ui()
 
     def refresh_theme(self):
         """Update colors when theme changes"""
-        # Update preview text colors
+        if not hasattr(self, "preview_text"):
+            return
         self.preview_text.config(
             bg=self.shell.gui_app.theme_manager.get_color("text_bg"),
             fg=self.shell.gui_app.theme_manager.get_color("text_fg"),
         )
-        # Update result text colors
-        self.result_text.config(
-            bg=self.shell.gui_app.theme_manager.get_color("text_bg"),
-            fg=self.shell.gui_app.theme_manager.get_color("success"),
-        )
+        if hasattr(self, "result_text"):
+            self.result_text.config(
+                bg=self.shell.gui_app.theme_manager.get_color("text_bg"),
+                fg=self.shell.gui_app.theme_manager.get_color("success"),
+            )

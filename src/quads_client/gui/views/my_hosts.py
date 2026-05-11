@@ -27,37 +27,16 @@ class MyHostsView(ttk.Frame):
         return {}
 
     def _auto_login(self):
-        """Auto-login to default or only server"""
-        prefs = self._get_preferences()
-        default_server = prefs.get("default_server")
-
-        # Get all configured servers
-        servers = {}
-        if self.shell.config:
-            servers = self.shell.config.get_all_servers()
-
-        # Determine which server to connect to
-        target_server = None
-        if default_server and default_server in servers:
-            target_server = default_server
-        elif len(servers) == 1:
-            # Only one server configured
-            target_server = list(servers.keys())[0]
-        elif len(servers) > 1:
-            # Multiple servers, no default - switch to connection view
-            self.shell.gui_app._show_connection_view()
-            return
+        """Auto-login using centralized server selection logic"""
+        target_server = self.shell.get_auto_login_server()
 
         if target_server:
             try:
-                # Connect to the server
                 self.shell.connection_commands.cmd_connect(target_server)
-                # Refresh this view
                 self._load_assignments()
             except Exception as e:
                 show_error_dialog(self, "Login Failed", f"Failed to connect to {target_server}", str(e))
         else:
-            # No servers configured - show onboarding
             self.shell.gui_app._show_servers_view()
 
     def _create_ui(self):
