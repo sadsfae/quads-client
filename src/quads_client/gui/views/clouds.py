@@ -45,8 +45,7 @@ class CloudsView(BaseAdminView):
             [
                 ("View Details", self._view_details),
                 ("Modify Cloud", self._modify_cloud),
-                ("Delete Cloud", self._delete_cloud),
-                ("Find Free Clouds", self._find_free),
+                ("Terminate", self._terminate_assignment),
             ]
         )
 
@@ -130,23 +129,31 @@ class CloudsView(BaseAdminView):
             ],
         )
 
-    def _delete_cloud(self):
-        """Delete selected cloud"""
-        _, values = self.get_selected_item("Please select a cloud to delete")
+    def _terminate_assignment(self):
+        """Terminate assignment for selected cloud"""
+        _, values = self.get_selected_item("Please select a cloud to terminate")
         if not values:
             return
 
         cloud_name = values[0]
+        assignment_id = values[1]
+
+        # Check if cloud has an active assignment
+        if assignment_id == "-":
+            messagebox.showwarning("No Assignment", f"Cloud '{cloud_name}' has no active assignment to terminate")
+            return
+
         if not self.confirm_action(
-            "Confirm Deletion",
-            f"Are you sure you want to delete cloud '{cloud_name}'?\n\n" "This action cannot be undone.",
+            "Confirm Termination",
+            f"Are you sure you want to terminate assignment #{assignment_id} for cloud '{cloud_name}'?\n\n"
+            "This will release all hosts in this assignment.",
         ):
             return
 
         self.safe_execute(
-            lambda: self.shell.cloud_commands.cmd_cloud_delete(cloud_name),
-            f"Cloud '{cloud_name}' deleted",
-            "Delete Cloud Failed",
+            lambda: self.shell.user_commands.cmd_terminate(str(assignment_id)),
+            f"Assignment #{assignment_id} terminated\n\n" "Note: It may take a few moments to complete.",
+            "Termination Failed",
             self._load_clouds,
         )
 
@@ -232,14 +239,6 @@ class CloudsView(BaseAdminView):
             lambda: self.shell.cloud_commands.cmd_cloud_list(f"cloud {cloud_name} detail"),
             "",  # No success message needed
             "View Details Failed",
-        )
-
-    def _find_free(self):
-        """Find free clouds"""
-        self.safe_execute(
-            lambda: self.shell.cloud_commands.cmd_find_free_cloud(""),
-            "",  # No success message needed
-            "Find Free Clouds Failed",
         )
 
     def refresh(self):
