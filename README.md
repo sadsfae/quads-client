@@ -31,6 +31,7 @@ QUADS Client provides both a powerful CLI and an intuitive GUI for managing mult
 
 - [Installation](#installation)
   - [From PyPI (pip)](#from-pypi-pip)
+  - [Mac Native Application (pip)](#mac-native-application-pip)
   - [From RPM](#from-rpm)
   - [From Source](#from-source)
 - [Configuration](#configuration)
@@ -99,6 +100,31 @@ pip install --upgrade quads-client
 ```bash
 deactivate
 ```
+
+### Mac Native Application (pip)
+
+For macOS users who want a double-clickable .app bundle:
+
+```bash
+# Install quads-client and pyinstaller
+python3 -m venv venv
+source venv/bin/activate
+pip install quads-client pyinstaller
+
+# Find site-packages path
+SITE_PACKAGES=$(python3 -c "import site; print(site.getsitepackages()[0])")
+
+# Create standalone app
+pyinstaller --windowed --noconsole \
+  --icon "$SITE_PACKAGES/quads_client/gui/assets/quads-client-gui.icns" \
+  --name "QUADS Client GUI" \
+  venv/bin/quads-client-gui
+
+# Move to Applications
+mv "dist/QUADS Client GUI.app" /Applications/
+```
+
+The app can now be launched from Applications or Spotlight.
 
 ### From RPM
 
@@ -1138,6 +1164,12 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines on how to contribute to th
 
 <p align="left">
   <img src="images/gui-admin-schedule1.png" alt="GUI Admin View" width="600">
+</p>
+
+**GUI Admin Adding Future Schedules**
+
+<p align="left">
+  <img src="images/gui-admin-schedule2.png" alt="GUI Admin Adding Future Schedules" width="600">
 </p>
 
 ## Links

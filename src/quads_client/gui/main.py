@@ -676,16 +676,62 @@ class QuadsClientApp(tk.Tk):
         self.minsize(1000, 600)
 
     def _set_window_icon(self):
-        """Set window icon from desktop/icons/quads-client.png"""
+        """Set window icon from package assets (platform-specific)"""
         try:
             from pathlib import Path
             from tkinter import PhotoImage
+            import platform
+            import sys
 
-            # Try to find icon in desktop/icons/ directory
+            # Try to load from package resources first (pip install)
+            try:
+                if sys.version_info >= (3, 9):
+                    from importlib.resources import files
+                else:
+                    from importlib_resources import files
+
+                # macOS uses .icns format for better integration
+                if platform.system() == "Darwin":
+                    try:
+                        icon_data = files("quads_client.gui.assets").joinpath("quads-client-gui.icns")
+                        if hasattr(icon_data, "as_posix"):
+                            self.iconbitmap(icon_data.as_posix())
+                        else:
+                            # Python 3.9+ returns a Traversable, need to get path
+                            with icon_data.open("rb"):
+                                self.iconbitmap(str(icon_data))
+                        return
+                    except Exception:
+                        pass
+
+                # Linux/Windows: use PNG
+                icon_data = files("quads_client.gui.assets").joinpath("quads-client.png")
+                if hasattr(icon_data, "as_posix"):
+                    icon_path = icon_data.as_posix()
+                else:
+                    icon_path = str(icon_data)
+                icon = PhotoImage(file=icon_path)
+                self.iconphoto(True, icon)
+                return
+
+            except Exception:
+                pass
+
+            # Fallback: try filesystem paths (development mode or RPM install)
+            if platform.system() == "Darwin":
+                icns_paths = [
+                    Path(__file__).parent / "assets" / "quads-client-gui.icns",
+                    Path(__file__).parent.parent.parent.parent / "desktop" / "icons" / "quads-client-gui.icns",
+                ]
+                for icon_path in icns_paths:
+                    if icon_path.exists():
+                        self.iconbitmap(str(icon_path))
+                        return
+
+            # Linux/Windows fallback
             icon_paths = [
-                # Repository structure
+                Path(__file__).parent / "assets" / "quads-client.png",
                 Path(__file__).parent.parent.parent.parent / "desktop" / "icons" / "quads-client.png",
-                # Installed structure (if running from installed package)
                 Path("/usr/share/icons/hicolor/128x128/apps/quads-client.png"),
             ]
 

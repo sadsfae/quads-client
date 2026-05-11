@@ -105,12 +105,13 @@ class AdminScheduleView(BaseAdminView):
         """Load schedules from server"""
 
         def load_data():
-            filters = {"active": True}  # Only show active schedules
+            filters = {}
             if self.cloud_filter.get().strip():
                 filters["cloud"] = self.cloud_filter.get().strip()
             if self.host_filter.get().strip():
                 filters["host"] = self.host_filter.get().strip()
-            return self.shell.connection.api.get_schedules(filters)
+            # Use get_current_schedules to get only active schedules
+            return self.shell.connection.api.get_current_schedules(filters)
 
         self.tree.clear()
         schedules = self.safe_load_data(load_data, success_message="Showing {count} schedule(s)")
@@ -140,6 +141,11 @@ class AdminScheduleView(BaseAdminView):
     def _validate_hosts_availability(self, hostnames, start_date, end_date):
         """Validate hosts are available for the specified date range
 
+        Uses is_available() API which checks:
+        - Host exists
+        - Host is not broken or retired
+        - No schedule conflicts in the date range
+
         Args:
             hostnames: List of hostname strings
             start_date: Start date string (YYYY-MM-DD HH:MM)
@@ -156,38 +162,25 @@ class AdminScheduleView(BaseAdminView):
                 continue
 
             try:
-                # Check if host exists
-                host = self.shell.connection.api.get_host(hostname)
-
-                if not host:
-                    errors.append(f"{hostname}: Host not found (typo?)")
-                    continue
-
-                # Check if host is broken or retired
-                if host.get("broken"):
-                    errors.append(f"{hostname}: Host is marked as broken")
-                    continue
-
-                if host.get("retired"):
-                    errors.append(f"{hostname}: Host is retired")
-                    continue
-
-                # Check if host is available for the date range
-                # Use is_available() API to check schedule conflicts
-                is_available = self.shell.connection.api.is_available(hostname, start_date, end_date)
+                # is_available() handles all validation (exists, not broken/retired, schedule conflicts)
+                is_available = self.shell.connection.api.is_available(hostname, {"start": start_date, "end": end_date})
 
                 if not is_available:
                     errors.append(f"{hostname}: Not available for {start_date} to {end_date}")
-                    continue
 
             except Exception as e:
                 errors.append(f"{hostname}: Error checking availability ({str(e)})")
 
         return (len(errors) == 0, errors)
 
-    def _create_schedule(self):
-        """Create new schedule with admin parameters"""
-        dialog = self.create_simple_dialog("Create Schedule (Admin)", "600x550")
+    def _create_schedule(self, prefill_hosts=None):
+        """Create new schedule with admin parameters
+
+        Args:
+            prefill_hosts: Optional comma-separated string of hostnames to pre-fill
+        """
+        dialog = self.create_simple_dialog("Create Schedule (Admin)", "650x700")
+        dialog.resizable(True, True)  # Make it resizable so users can adjust if needed
 
         ttk.Label(
             dialog,
@@ -195,8 +188,33 @@ class AdminScheduleView(BaseAdminView):
             font=("TkDefaultFont", 12, "bold"),
         ).pack(pady=10, padx=20)
 
-        form_frame = ttk.Frame(dialog)
-        form_frame.pack(fill=tk.X, padx=20, pady=10)
+        # Create scrollable container for form
+        # Get background color from ttk style to match theme
+        style = ttk.Style()
+        bg_color = style.lookup("TFrame", "background")
+
+        canvas = tk.Canvas(dialog, highlightthickness=0, background=bg_color, borderwidth=0)
+        scrollbar = ttk.Scrollbar(dialog, orient="vertical", command=canvas.yview)
+        scrollable_frame = ttk.Frame(canvas)
+
+        scrollable_frame.bind("<Configure>", lambda e: canvas.configure(scrollregion=canvas.bbox("all")))
+
+        canvas.create_window((0, 0), window=scrollable_frame, anchor="nw")
+        canvas.configure(yscrollcommand=scrollbar.set)
+
+        canvas.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=10, pady=10)
+        scrollbar.pack(side=tk.RIGHT, fill=tk.Y, padx=(0, 10), pady=10)
+
+        # Enable mouse wheel scrolling
+        def _on_mousewheel(event):
+            canvas.yview_scroll(int(-1 * (event.delta / 120)), "units")
+
+        canvas.bind_all("<MouseWheel>", _on_mousewheel)  # Windows/MacOS
+        canvas.bind_all("<Button-4>", lambda e: canvas.yview_scroll(-1, "units"))  # Linux
+        canvas.bind_all("<Button-5>", lambda e: canvas.yview_scroll(1, "units"))  # Linux
+
+        form_frame = ttk.Frame(scrollable_frame)
+        form_frame.pack(fill=tk.BOTH, expand=True, padx=10, pady=5)
 
         # Load admin preferences
         prefs = {}
@@ -235,6 +253,10 @@ class AdminScheduleView(BaseAdminView):
         hosts_entry = ttk.Entry(mode_frame, width=40)
         hosts_entry.pack(fill=tk.X, pady=2)
 
+        # Pre-fill hosts if provided
+        if prefill_hosts:
+            hosts_entry.insert(0, prefill_hosts)
+
         ttk.Radiobutton(mode_frame, text="From file", variable=mode_var, value="file").pack(anchor=tk.W, pady=(5, 0))
         file_frame = ttk.Frame(mode_frame)
         file_frame.pack(fill=tk.X, pady=2)
@@ -261,7 +283,14 @@ class AdminScheduleView(BaseAdminView):
         start_entry.insert(0, default_start.strftime("%Y-%m-%d %H:%M"))
 
         def pick_start_date():
-            picker = DatePickerDialog(dialog, "Select Start Date", start_entry.get())
+            # Pass end date as range_end to show the selection range
+            picker = DatePickerDialog(
+                dialog,
+                "Select Start Date",
+                start_entry.get(),
+                range_start=start_entry.get(),
+                range_end=end_entry.get(),
+            )
             dialog.wait_window(picker)
             result = picker.get_result()
             if result:
@@ -276,6 +305,10 @@ class AdminScheduleView(BaseAdminView):
             now = datetime.utcnow()
             start_entry.delete(0, tk.END)
             start_entry.insert(0, now.strftime("%Y-%m-%d %H:%M"))
+            # Also update end date using admin preferences
+            new_end = get_two_weeks_sunday_22utc(now, cadence, end_hour)
+            end_entry.delete(0, tk.END)
+            end_entry.insert(0, new_end.strftime("%Y-%m-%d %H:%M"))
 
         ttk.Button(start_frame, text="📅", command=pick_start_date, width=3).pack(side=tk.LEFT, padx=2)
         ttk.Button(start_frame, text="Now", command=set_start_now, width=5).pack(side=tk.LEFT, padx=2)
@@ -289,7 +322,10 @@ class AdminScheduleView(BaseAdminView):
         end_entry.insert(0, default_end.strftime("%Y-%m-%d %H:%M"))
 
         def pick_end_date():
-            picker = DatePickerDialog(dialog, "Select End Date", end_entry.get())
+            # Pass start date as range_start to show the selection range
+            picker = DatePickerDialog(
+                dialog, "Select End Date", end_entry.get(), range_start=start_entry.get(), range_end=end_entry.get()
+            )
             dialog.wait_window(picker)
             result = picker.get_result()
             if result:
@@ -304,7 +340,18 @@ class AdminScheduleView(BaseAdminView):
         owner_entry = FormDialog.create_labeled_entry(form_frame, "Cloud Owner:", 5, 30)
         ticket_entry = FormDialog.create_labeled_entry(form_frame, "Ticket ID:", 6, 30)
         cc_entry = FormDialog.create_labeled_entry(form_frame, "CC Users:", 7, 40)
-        vlan_entry = FormDialog.create_labeled_entry(form_frame, "VLAN:", 8, 20)
+
+        # VLAN dropdown - populate with free VLANs only
+        ttk.Label(form_frame, text="VLAN:").grid(row=8, column=0, sticky=tk.W, pady=5)
+        free_vlans = self.shell.get_available_vlans()
+        if free_vlans:
+            vlan_values = ["Select VLAN..."] + free_vlans
+            vlan_combo = ttk.Combobox(form_frame, values=vlan_values, width=17, state="readonly")
+            vlan_combo.set("Select VLAN...")
+        else:
+            vlan_combo = ttk.Combobox(form_frame, values=["No free VLANs available"], width=17, state="readonly")
+            vlan_combo.set("No free VLANs available")
+        vlan_combo.grid(row=8, column=1, pady=5, sticky=tk.W)
 
         ttk.Label(form_frame, text="QinQ:").grid(row=9, column=0, sticky=tk.W, pady=5)
         qinq_combo = ttk.Combobox(form_frame, values=["0", "1"], width=17, state="readonly")
@@ -385,8 +432,10 @@ class AdminScheduleView(BaseAdminView):
                 args += f" cloud-ticket {ticket_entry.get().strip()}"
             if cc_entry.get().strip():
                 args += f' cc-users "{cc_entry.get().strip()}"'
-            if vlan_entry.get().strip():
-                args += f" vlan {vlan_entry.get().strip()}"
+            # Only add VLAN if a valid one is selected
+            vlan = vlan_combo.get()
+            if vlan and vlan != "Select VLAN..." and vlan != "No free VLANs available":
+                args += f" vlan {vlan}"
             if qinq_combo.get():
                 args += f" qinq {qinq_combo.get()}"
             if nowipe_var.get():
@@ -400,13 +449,11 @@ class AdminScheduleView(BaseAdminView):
             )
             dialog.destroy()
 
-        FormDialog.create_button_row(
-            dialog,
-            [
-                ("Cancel", dialog.destroy),
-                ("Create", on_create),
-            ],
-        )
+        # Button row inside scrollable frame
+        button_frame = ttk.Frame(scrollable_frame)
+        button_frame.pack(pady=10)
+        ttk.Button(button_frame, text="Cancel", command=dialog.destroy).pack(side=tk.LEFT, padx=5)
+        ttk.Button(button_frame, text="Create", command=on_create).pack(side=tk.LEFT, padx=5)
 
     def _extend_schedule(self):
         """Extend selected schedule"""

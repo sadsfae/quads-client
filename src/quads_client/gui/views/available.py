@@ -93,7 +93,9 @@ class AvailableView(BaseAdminView):
 
         ttk.Button(action_frame, text="Copy All", command=self._copy_all).pack(side=tk.LEFT, padx=5)
 
-        self.schedule_now_btn = ttk.Button(action_frame, text="Schedule Now", command=self._schedule_selected)
+        # Show "Admin Schedule" for admins, "Schedule Now" for normal users
+        button_text = "Admin Schedule" if self.shell.is_admin() else "Schedule Now"
+        self.schedule_now_btn = ttk.Button(action_frame, text=button_text, command=self._schedule_selected)
         self.schedule_now_btn.pack(side=tk.LEFT, padx=5)
 
         self.unselect_btn = ttk.Button(action_frame, text="Unselect All", command=self._unselect_all)
@@ -242,7 +244,7 @@ class AvailableView(BaseAdminView):
         self.update_status(f"Copied {len(items)} row(s) with headers to clipboard")
 
     def _schedule_selected(self):
-        """Schedule selected hosts - navigate to Schedule view with hosts pre-filled"""
+        """Schedule selected hosts - open admin schedule dialog or navigate to SSM schedule view"""
         if not hasattr(self, "tree"):
             return
 
@@ -262,25 +264,35 @@ class AvailableView(BaseAdminView):
             self.update_status("No valid hosts selected")
             return
 
-        # Navigate to Schedule view and pre-fill hosts
-        self.shell.gui_app._show_schedule_view()
+        # If admin, open admin schedule dialog with pre-filled hosts
+        if self.shell.is_admin():
+            # Get admin schedule view and call its create dialog with pre-filled hosts
+            if "admin_schedule" in self.shell.gui_app.views:
+                admin_schedule_view = self.shell.gui_app.views["admin_schedule"]
+                admin_schedule_view._create_schedule(prefill_hosts=",".join(hostnames))
+                self.update_status(f"Opened admin schedule dialog with {len(hostnames)} host(s) pre-filled")
+            else:
+                self.update_status("Admin schedule view not available")
+        else:
+            # Navigate to SSM Schedule view and pre-fill hosts
+            self.shell.gui_app._show_schedule_view()
 
-        # Pre-fill the schedule view with selected hosts
-        if "schedule" in self.shell.gui_app.views:
-            schedule_view = self.shell.gui_app.views["schedule"]
+            # Pre-fill the schedule view with selected hosts
+            if "schedule" in self.shell.gui_app.views:
+                schedule_view = self.shell.gui_app.views["schedule"]
 
-            # Switch to "Specific hostnames" mode
-            schedule_view.mode_var.set("hosts")
-            schedule_view._on_mode_changed()
+                # Switch to "Specific hostnames" mode
+                schedule_view.mode_var.set("hosts")
+                schedule_view._on_mode_changed()
 
-            # Fill in the hostnames
-            schedule_view.hosts_entry.delete(0, tk.END)
-            schedule_view.hosts_entry.insert(0, ",".join(hostnames))
+                # Fill in the hostnames
+                schedule_view.hosts_entry.delete(0, tk.END)
+                schedule_view.hosts_entry.insert(0, ",".join(hostnames))
 
-            # Update preview
-            schedule_view._update_preview()
+                # Update preview
+                schedule_view._update_preview()
 
-        self.update_status(f"Navigated to Schedule with {len(hostnames)} host(s) pre-filled")
+            self.update_status(f"Navigated to Schedule with {len(hostnames)} host(s) pre-filled")
 
     def refresh(self):
         """Public method to refresh the view"""
