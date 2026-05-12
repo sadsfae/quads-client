@@ -274,7 +274,6 @@ def test_connection_truststore_inject_on_darwin(mock_config, mock_api):
     with (
         patch("quads_client.connection.QuadsApi", return_value=mock_api),
         patch("quads_client.connection.sys") as mock_sys,
-        patch("quads_client.connection._has_truststore", True),
         patch("quads_client.connection.truststore", mock_truststore, create=True),
     ):
         mock_sys.platform = "darwin"
@@ -299,7 +298,6 @@ def test_connection_truststore_missing_on_darwin(mock_config, mock_api):
     with (
         patch("quads_client.connection.QuadsApi", return_value=mock_api),
         patch("quads_client.connection.sys") as mock_sys,
-        patch("quads_client.connection._has_truststore", False),
     ):
         mock_sys.platform = "darwin"
         conn = ConnectionManager(mock_config)
