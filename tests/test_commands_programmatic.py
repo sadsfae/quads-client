@@ -282,6 +282,79 @@ class TestUserCommandsProgrammatic:
             mock_shell._update_visible_commands.assert_called_once()
 
 
+class TestUserCommandsRegister:
+    """Test programmatic user registration methods"""
+
+    @pytest.fixture
+    def mock_shell(self):
+        """Create mock shell with connection"""
+        shell = MagicMock()
+        shell.config = MagicMock()
+        shell.config.config_path = "/tmp/test_config.yml"
+        shell.config.get_server_url.return_value = "https://test.example.com"
+        shell.config.get_server_verify.return_value = True
+
+        mock_connection = MagicMock()
+        mock_connection.is_connected = True
+        mock_connection.is_authenticated = False
+        mock_connection.current_server = "test-server"
+        mock_connection.api = MagicMock()
+        mock_connection._decode_role_from_token = MagicMock(return_value="user")
+
+        shell.connection = mock_connection
+        shell.session_manager = MagicMock()
+        shell.session_manager.active_connection = mock_connection
+        shell.poutput = MagicMock()
+        shell.perror = MagicMock()
+        shell.pwarning = MagicMock()
+        shell._update_visible_commands = MagicMock()
+
+        return shell
+
+    @pytest.fixture
+    def user_commands(self, mock_shell):
+        """Create UserCommands instance"""
+        from quads_client.commands.user import UserCommands
+
+        return UserCommands(mock_shell)
+
+    def test_register_programmatic_success(self, user_commands, mock_shell):
+        """Test registration followed by auto-login"""
+        mock_shell.connection.api.register.return_value = {"message": "User created"}
+
+        with patch("quads_lib.QuadsApi") as mock_api_class:
+            mock_api = MagicMock()
+            mock_api.login.return_value = {"auth_token": "new_token", "status": "success"}
+            mock_api.token = "new_token"
+            mock_api_class.return_value = mock_api
+
+            success, message, role = user_commands.register_programmatic("new@example.com", "password123")
+
+            assert success is True
+            assert "successfully" in message.lower()
+            mock_shell.connection.api.register.assert_called_once()
+
+    def test_register_programmatic_already_exists(self, user_commands, mock_shell):
+        """Test registration when user already exists"""
+        mock_shell.connection.api.register.return_value = {"message": "User already exists"}
+
+        success, message, role = user_commands.register_programmatic("existing@example.com", "password123")
+
+        assert success is False
+        assert "already registered" in message.lower()
+        assert role is None
+
+    def test_register_programmatic_not_connected(self, user_commands, mock_shell):
+        """Test registration when not connected"""
+        mock_shell.connection = None
+
+        success, message, role = user_commands.register_programmatic("new@example.com", "password123")
+
+        assert success is False
+        assert "not connected" in message.lower()
+        assert role is None
+
+
 class TestGuiShellMetadataCache:
     """Test metadata caching in GuiShell"""
 

@@ -54,6 +54,11 @@ class ConnectionManager:
         """Check if current user has admin role"""
         return self._user_role == "admin"
 
+    @property
+    def registration_mode(self) -> bool:
+        """Check if connection is in registration mode (connected but not authenticated)"""
+        return self._registration_mode
+
     def _decode_role_from_token(self) -> Optional[str]:
         """Decode role from JWT token"""
         if not self._token:
