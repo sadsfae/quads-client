@@ -1,6 +1,31 @@
 # CHANGELOG
 
 
+## v0.4.6 (2026-05-12)
+
+### Bug Fixes
+
+- Modify cloud
+  ([`adea977`](https://github.com/quadsproject/quads-client/commit/adea97742d0ef6f9b1ee0ea2cc830c8cbe2037ad))
+
+- Server refresh, register on new, fonts
+  ([`b472b1f`](https://github.com/quadsproject/quads-client/commit/b472b1fa43ede03e1aebe3c9c23f9fb5f25eacd7))
+
+### Chores
+
+- Extend dialogue boxes slightly
+  ([`0c7b75e`](https://github.com/quadsproject/quads-client/commit/0c7b75ee787e4cdcc7ee93bf884de861accae7b4))
+
+- Make error windows slightly larger
+  ([`b2cf00d`](https://github.com/quadsproject/quads-client/commit/b2cf00db49072ebcc24bd3b9d7f6d0d1ba99764f))
+
+- Update RPM spec version to 0.4.5
+  ([`86659f1`](https://github.com/quadsproject/quads-client/commit/86659f191bf2b0205e1bbcb2ef549a9102030d05))
+
+- Updates tests
+  ([`aa07564`](https://github.com/quadsproject/quads-client/commit/aa0756495f34bce7bcdfde5e9452effc7a7cd8d3))
+
+
 ## v0.4.5 (2026-05-12)
 
 ### Bug Fixes
