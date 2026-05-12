@@ -1,6 +1,27 @@
 # CHANGELOG
 
 
+## v0.4.3 (2026-05-12)
+
+### Bug Fixes
+
+- Add tab complete to connect
+  ([`0a43dde`](https://github.com/quadsproject/quads-client/commit/0a43dde269aa917a6f263a41047e6c208c409236))
+
+- Filter by SSM capable for normal user views
+  ([`ea4fd20`](https://github.com/quadsproject/quads-client/commit/ea4fd20b2357eba2f8d77a441bf1bc8da8935faf))
+
+- Tab complete for connect, only show SSM for non-admin users
+  ([`60385c6`](https://github.com/quadsproject/quads-client/commit/60385c6d959be25320f02d1527dc959e437cb9a3))
+
+fix: tab complete for connect, only show SSM for non-admin users
+
+### Chores
+
+- Update RPM spec version to 0.4.2
+  ([`9fa44ee`](https://github.com/quadsproject/quads-client/commit/9fa44eec293d18d166db072f5f7c45ab38549b37))
+
+
 ## v0.4.2 (2026-05-12)
 
 ### Bug Fixes
