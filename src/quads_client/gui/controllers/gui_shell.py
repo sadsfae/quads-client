@@ -282,9 +282,7 @@ class GuiShell:
                         start_iso = start_dt.isoformat()[:-3]
                         end_iso = end_dt.isoformat()[:-3]
 
-                        is_available = self.connection.api.is_available(
-                            name, {"start": start_iso, "end": end_iso}
-                        )
+                        is_available = self.connection.api.is_available(name, {"start": start_iso, "end": end_iso})
                         if not is_available:
                             continue
                     except Exception:
