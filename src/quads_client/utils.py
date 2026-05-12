@@ -184,6 +184,60 @@ def get_ssl_status_text(url: str, verify: bool) -> str:
         return "HTTP"
 
 
+def parse_api_datetime(datetime_str: str):
+    """
+    Parse datetime string from API responses, handling multiple formats.
+    All times are assumed UTC. Returns a naive datetime (no tzinfo).
+
+    The API returns different formats depending on the endpoint:
+      - ISO: "2026-05-07T13:00:00.000Z"
+      - RFC 2822: "Sun, 31 May 2026 22:00:00 GMT"
+      - Display: "2026-05-07 22:00"
+
+    Args:
+        datetime_str: Datetime string from API
+
+    Returns:
+        naive datetime object (UTC assumed)
+
+    Raises:
+        ValueError: If format is not recognized
+    """
+    from datetime import datetime
+    from email.utils import parsedate_to_datetime
+
+    if not datetime_str:
+        raise ValueError("Empty datetime string")
+
+    dt = None
+
+    # Try RFC 2822 first (e.g. "Sun, 31 May 2026 22:00:00 GMT")
+    try:
+        dt = parsedate_to_datetime(datetime_str)
+    except (ValueError, TypeError):
+        pass
+
+    # Try ISO format (e.g. "2026-05-07T13:00:00.000Z")
+    if dt is None:
+        try:
+            cleaned = datetime_str.replace("Z", "+00:00")
+            dt = datetime.fromisoformat(cleaned)
+        except ValueError:
+            pass
+
+    # Try display format (e.g. "2026-05-07 22:00")
+    if dt is None:
+        try:
+            dt = datetime.strptime(datetime_str, "%Y-%m-%d %H:%M")
+        except ValueError:
+            pass
+
+    if dt is None:
+        raise ValueError(f"Unrecognized datetime format: '{datetime_str}'")
+
+    return dt.replace(tzinfo=None)
+
+
 def format_schedule_datetime(datetime_str: str) -> str:
     """
     Format schedule datetime from API format to display format.
