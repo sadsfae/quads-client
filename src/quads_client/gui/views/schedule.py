@@ -4,6 +4,7 @@ import tkinter as tk
 from tkinter import ttk, filedialog, messagebox
 
 from quads_client.gui.widgets.dialogs import show_error_dialog
+from quads_client.gui.widgets.host_filters import HostFilterFrame
 
 
 class ScheduleView(ttk.Frame):
@@ -148,13 +149,8 @@ class ScheduleView(ttk.Frame):
         available_controls = ttk.Frame(self.available_frame)
         available_controls.pack(fill=tk.X, pady=(0, 10))
 
-        ttk.Label(available_controls, text="Days:").pack(side=tk.LEFT, padx=(0, 5))
-        self.avail_days_entry = ttk.Entry(available_controls, width=5)
-        self.avail_days_entry.insert(0, "3")
-        self.avail_days_entry.pack(side=tk.LEFT, padx=5)
-
         ttk.Button(available_controls, text="Load Available Hosts", command=self._load_available_hosts).pack(
-            side=tk.LEFT, padx=10
+            side=tk.LEFT, padx=(0, 10)
         )
 
         self.available_status = ttk.Label(available_controls, text="", font=("TkDefaultFont", 8), foreground="gray")
@@ -238,22 +234,8 @@ class ScheduleView(ttk.Frame):
 
         self.advanced_frame = ttk.LabelFrame(main_frame, text="Advanced Options", padding=10)
 
-        filters_frame = ttk.Frame(self.advanced_frame)
-        filters_frame.grid(row=0, column=0, columnspan=2, sticky=tk.W, pady=5)
-
-        ttk.Label(filters_frame, text="Model:").pack(side=tk.LEFT, padx=(0, 5))
-        # Fetch models from API using existing quads-client code
-        models = ["All"] + self.shell.get_available_models()
-        self.model_combo = ttk.Combobox(filters_frame, values=models, width=15, state="readonly")
-        self.model_combo.set("All")
-        self.model_combo.pack(side=tk.LEFT, padx=5)
-
-        ttk.Label(filters_frame, text="RAM (GB):").pack(side=tk.LEFT, padx=(20, 5))
-        self.ram_combo = ttk.Combobox(
-            filters_frame, values=["Any", "64", "128", "256", "512"], width=10, state="readonly"
-        )
-        self.ram_combo.set("Any")
-        self.ram_combo.pack(side=tk.LEFT, padx=5)
+        self.host_filter_frame = HostFilterFrame(self.advanced_frame, self.shell, show_dates=True)
+        self.host_filter_frame.pack(fill=tk.X)
 
         preview_frame = ttk.LabelFrame(main_frame, text="Preview", padding=10)
         preview_frame.pack(fill=tk.X, pady=(20, 20))
@@ -348,7 +330,7 @@ class ScheduleView(ttk.Frame):
         self._update_preview()
 
     def _load_available_hosts(self):
-        """Load available hosts and display in listbox"""
+        """Load available hosts and display in listbox, using filters from advanced options"""
         if not self.shell.is_authenticated():
             self.available_status.config(text="Not connected")
             return
@@ -357,11 +339,13 @@ class ScheduleView(ttk.Frame):
             self.available_status.config(text="Loading...")
             self.update()
 
-            # Build filter args
-            days = self.avail_days_entry.get().strip() or "3"
+            # Read filters from the shared HostFilterFrame in advanced options
+            filters = {}
+            if hasattr(self, "host_filter_frame"):
+                filters = self.host_filter_frame.get_filters()
 
             # Get available hosts data from API
-            hosts = self.shell.get_available_hosts_data(days=days, model=None, ram=None)
+            hosts = self.shell.get_available_hosts_data(**filters)
 
             self.available_listbox.delete(0, tk.END)
 
@@ -475,11 +459,27 @@ class ScheduleView(ttk.Frame):
         if self.nowipe_var.get():
             preview += "• No wipe (data will be preserved)\n"
 
-        if self.advanced_var.get():
-            if self.model_combo.get() != "All":
-                preview += f"• Filter: Model {self.model_combo.get()}\n"
-            if self.ram_combo.get() != "Any":
-                preview += f"• Filter: RAM >= {self.ram_combo.get()} GB\n"
+        if self.advanced_var.get() and hasattr(self, "host_filter_frame"):
+            active_filters = self.host_filter_frame.get_filters()
+            if "model" in active_filters:
+                preview += f"• Filter: Model {active_filters['model']}\n"
+            if "memory__gte" in active_filters:
+                ram_gb = active_filters["memory__gte"] // 1024
+                preview += f"• Filter: RAM >= {ram_gb} GB\n"
+            if "disks.disk_type" in active_filters:
+                preview += f"• Filter: Disk Type {active_filters['disks.disk_type']}\n"
+            if "disks.size_gb__gte" in active_filters:
+                preview += f"• Filter: Disk Size >= {active_filters['disks.size_gb__gte']} GB\n"
+            if "disks.count__gte" in active_filters:
+                preview += f"• Filter: Disk Count >= {active_filters['disks.count__gte']}\n"
+            if "interfaces.vendor" in active_filters:
+                preview += f"• Filter: NIC Vendor {active_filters['interfaces.vendor']}\n"
+            if "interfaces.speed__gte" in active_filters:
+                preview += f"• Filter: NIC Speed >= {active_filters['interfaces.speed__gte']} Gbps\n"
+            if "processors.vendor__like" in active_filters:
+                preview += "• Filter: Has GPU\n"
+            if "start" in active_filters and "end" in active_filters:
+                preview += f"• Filter: Available {active_filters['start']} to {active_filters['end']}\n"
 
         self.preview_text.config(state=tk.NORMAL)
         self.preview_text.delete("1.0", tk.END)
@@ -619,12 +619,14 @@ class ScheduleView(ttk.Frame):
         if self.nowipe_var.get():
             args += " nowipe"
 
-        # Add advanced options if shown
-        if self.advanced_var.get():
-            if self.model_combo.get() != "All":
-                args += f" model {self.model_combo.get()}"
-            if self.ram_combo.get() != "Any":
-                args += f" ram {self.ram_combo.get()}"
+        # Add advanced options if shown (only model/ram supported by schedule command)
+        if self.advanced_var.get() and hasattr(self, "host_filter_frame"):
+            active_filters = self.host_filter_frame.get_filters()
+            if "model" in active_filters:
+                args += f" model {active_filters['model']}"
+            if "memory__gte" in active_filters:
+                ram_gb = active_filters["memory__gte"] // 1024
+                args += f" ram {ram_gb}"
 
         try:
             # Capture output from schedule command
@@ -670,8 +672,8 @@ class ScheduleView(ttk.Frame):
         self.count_spinbox.set(3)
         self.description_entry.delete(0, tk.END)
         self.description_entry.insert(0, "Development testing environment")
-        self.model_combo.set("All")
-        self.ram_combo.set("Any")
+        if hasattr(self, "host_filter_frame"):
+            self.host_filter_frame.clear_filters()
         self.nowipe_var.set(False)
         self.use_vlan_var.set(False)
         self.vlan_combo.set("Select VLAN...")

@@ -241,18 +241,125 @@ class CloudsView(BaseAdminView):
             ],
         )
 
+    def _get_cloud_hosts(self, cloud_name):
+        """Get hostnames for a cloud.
+
+        cloud01 is the spare pool — hosts live there without schedules,
+        so we use filter_hosts. Other clouds use get_current_schedules.
+        """
+        hostnames = []
+
+        if cloud_name == "cloud01":
+            hosts = self.shell.connection.api.filter_hosts({"cloud": "cloud01"})
+            if hosts and isinstance(hosts, list):
+                for host in hosts:
+                    if isinstance(host, dict):
+                        name = host.get("name", "")
+                    elif isinstance(host, str):
+                        name = host
+                    else:
+                        name = getattr(host, "name", "")
+                    if name and name not in hostnames:
+                        hostnames.append(name)
+        else:
+            current_schedules = self.shell.connection.api.get_current_schedules({"cloud": cloud_name})
+            if current_schedules:
+                for schedule in current_schedules:
+                    host = schedule.get("host")
+                    if host:
+                        hostname = host.get("name") if isinstance(host, dict) else host
+                        if hostname and hostname not in hostnames:
+                            hostnames.append(hostname)
+
+        hostnames.sort()
+        return hostnames
+
     def _view_details(self):
-        """View detailed information for selected cloud"""
+        """View hosts assigned to selected cloud in a scrollable popup"""
         _, values = self.get_selected_item("Please select a cloud to view")
         if not values:
             return
 
         cloud_name = values[0]
-        self.safe_execute(
-            lambda: self.shell.cloud_commands.cmd_cloud_list(f"cloud {cloud_name}"),
-            "",  # No success message needed
-            "View Details Failed",
-        )
+
+        try:
+            hostnames = self._get_cloud_hosts(cloud_name)
+
+            theme = self.shell.gui_app.theme_manager
+            bg = theme.get_color("text_bg")
+            fg = theme.get_color("text_fg")
+            select_bg = theme.get_color("accent")
+
+            dialog = tk.Toplevel(self)
+            dialog.title(f"Hosts in {cloud_name}")
+            dialog.geometry("700x500")
+            dialog.transient(self.winfo_toplevel())
+            dialog.grab_set()
+            theme.configure_toplevel(dialog)
+
+            count = len(hostnames)
+            count_text = f"{count} host(s) assigned" if count > 0 else "No hosts currently assigned"
+            ttk.Label(dialog, text=count_text, font=("TkDefaultFont", 10, "bold")).pack(
+                padx=20, pady=(15, 10), anchor=tk.W
+            )
+
+            list_frame = ttk.Frame(dialog)
+            list_frame.pack(fill=tk.BOTH, expand=True, padx=20, pady=(0, 10))
+
+            scrollbar = ttk.Scrollbar(list_frame)
+            scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
+
+            listbox = tk.Listbox(
+                list_frame,
+                selectmode=tk.EXTENDED,
+                yscrollcommand=scrollbar.set,
+                font=("TkFixedFont", 10),
+                bg=bg,
+                fg=fg,
+                selectbackground=select_bg,
+                selectforeground="#ffffff",
+                highlightthickness=0,
+                borderwidth=1,
+                relief=tk.SOLID,
+            )
+            scrollbar.config(command=listbox.yview)
+            listbox.pack(fill=tk.BOTH, expand=True)
+
+            for hostname in hostnames:
+                listbox.insert(tk.END, hostname)
+
+            def select_all(event=None):
+                listbox.select_set(0, tk.END)
+                return "break"
+
+            def copy_selected(event=None):
+                selection = listbox.curselection()
+                if not selection:
+                    return
+                text = "\n".join(listbox.get(i) for i in selection)
+                dialog.clipboard_clear()
+                dialog.clipboard_append(text)
+                return "break"
+
+            listbox.bind("<Control-a>", select_all)
+            listbox.bind("<Control-c>", copy_selected)
+
+            button_frame = ttk.Frame(dialog)
+            button_frame.pack(fill=tk.X, padx=20, pady=(0, 15))
+
+            ttk.Button(button_frame, text="Select All", command=select_all).pack(side=tk.LEFT, padx=(0, 5))
+            ttk.Button(
+                button_frame,
+                text="Deselect All",
+                command=lambda: listbox.selection_clear(0, tk.END),
+            ).pack(side=tk.LEFT, padx=5)
+            ttk.Button(button_frame, text="Copy Selected", command=copy_selected).pack(side=tk.LEFT, padx=5)
+            ttk.Button(button_frame, text="Close", command=dialog.destroy).pack(side=tk.RIGHT)
+
+        except Exception as e:
+            from quads_client.gui.widgets.dialogs import show_error_dialog
+
+            show_error_dialog(self, "Failed to get cloud details", str(e))
 
     def refresh(self):
         """Public method to refresh the view"""

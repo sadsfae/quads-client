@@ -4,6 +4,7 @@ import tkinter as tk
 from tkinter import ttk
 
 from quads_client.gui.widgets.base import BaseAdminView, ScrolledTreeview
+from quads_client.gui.widgets.host_filters import HostFilterFrame
 
 
 class AvailableView(BaseAdminView):
@@ -40,27 +41,16 @@ class AvailableView(BaseAdminView):
             self.create_status_label()
             return
 
-        # Filter frame
-        filter_frame = ttk.Frame(self)
-        filter_frame.pack(fill=tk.X, padx=20, pady=(0, 10))
+        # Filter frame with reusable HostFilterFrame
+        self.filter_frame = HostFilterFrame(self, self.shell, show_dates=True)
+        self.filter_frame.pack(fill=tk.X, padx=20, pady=(0, 10))
 
-        ttk.Label(filter_frame, text="Days:").pack(side=tk.LEFT, padx=(0, 5))
-        self.days_entry = ttk.Entry(filter_frame, width=10)
-        self.days_entry.insert(0, "3")
-        self.days_entry.pack(side=tk.LEFT, padx=5)
+        # Button row: Apply + Clear
+        button_frame = ttk.Frame(self)
+        button_frame.pack(fill=tk.X, padx=20, pady=(0, 10))
 
-        ttk.Label(filter_frame, text="Model:").pack(side=tk.LEFT, padx=(20, 5))
-        # Use combobox with models from API
-        models = ["All"] + self.shell.get_available_models()
-        self.model_combo = ttk.Combobox(filter_frame, values=models, width=15, state="readonly")
-        self.model_combo.set("All")
-        self.model_combo.pack(side=tk.LEFT, padx=5)
-
-        ttk.Label(filter_frame, text="RAM (GB):").pack(side=tk.LEFT, padx=(20, 5))
-        self.ram_entry = ttk.Entry(filter_frame, width=10)
-        self.ram_entry.pack(side=tk.LEFT, padx=5)
-
-        ttk.Button(filter_frame, text="Apply", command=self._load_available).pack(side=tk.LEFT, padx=10)
+        ttk.Button(button_frame, text="Apply", command=self._load_available).pack(side=tk.LEFT, padx=(0, 5))
+        ttk.Button(button_frame, text="Clear Filters", command=self._clear_and_reload).pack(side=tk.LEFT, padx=5)
 
         # Content frame with scrolled treeview
         content_frame = ttk.Frame(self)
@@ -149,6 +139,11 @@ class AvailableView(BaseAdminView):
 
         self.update_status("Selection cleared")
 
+    def _clear_and_reload(self):
+        """Clear all filters and reload"""
+        self.filter_frame.clear_filters()
+        self._load_available()
+
     def _load_available(self):
         """Load available hosts from server"""
         # Check if connected first
@@ -163,14 +158,12 @@ class AvailableView(BaseAdminView):
         self.tree.clear()
 
         try:
-            days = self.days_entry.get().strip() or "3"
-            model = self.model_combo.get()
-            ram = self.ram_entry.get().strip()
+            filters = self.filter_frame.get_filters()
 
             self.update_status("Loading available hosts...")
 
             # Use GUI shell method to get structured data
-            hosts = self.shell.get_available_hosts_data(days=days, model=model, ram=ram)
+            hosts = self.shell.get_available_hosts_data(**filters)
 
             if not hosts:
                 self.update_status("No available hosts found")
