@@ -247,12 +247,14 @@ class QuadsClientShell(cmd2.Cmd):
 
     def complete_connect(self, text, line, begidx, endidx):
         """Autocomplete for connect command"""
+        servers = []
         if self.connection:
             servers = self.connection.get_available_servers()
-            if text:
-                return [s for s in servers if s.startswith(text)]
-            return servers
-        return []
+        elif self.config:
+            servers = list(self.config.get_all_servers().keys())
+        if text:
+            return [s for s in servers if s.startswith(text)]
+        return servers
 
     def do_disconnect(self, args):
         """Disconnect from current QUADS server"""

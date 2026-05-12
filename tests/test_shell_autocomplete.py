@@ -33,17 +33,50 @@ def test_complete_connect_filtered():
             assert completions == ["server1", "server2"]
 
 
-def test_complete_connect_no_connection():
-    """Test autocomplete when not connected returns empty"""
+def test_complete_connect_no_connection_with_config():
+    """Test autocomplete when not connected falls back to config servers"""
     with patch("quads_client.shell.QuadsClientConfig"):
         with patch("quads_client.shell.SessionManager"):
             shell = QuadsClientShell()
             # No active connection
             shell.session_manager.active_connection = None
+            # But config has servers
+            mock_config = MagicMock()
+            mock_config.get_all_servers.return_value = {"server1": {}, "server2": {}}
+            shell.config = mock_config
+
+            completions = shell.complete_connect("", "connect ", 8, 8)
+
+            assert sorted(completions) == ["server1", "server2"]
+
+
+def test_complete_connect_no_connection_no_config():
+    """Test autocomplete when not connected and no config returns empty"""
+    with patch("quads_client.shell.QuadsClientConfig"):
+        with patch("quads_client.shell.SessionManager"):
+            shell = QuadsClientShell()
+            # No active connection
+            shell.session_manager.active_connection = None
+            shell.config = None
 
             completions = shell.complete_connect("", "connect ", 8, 8)
 
             assert completions == []
+
+
+def test_complete_connect_no_connection_filtered():
+    """Test autocomplete when not connected filters by prefix from config"""
+    with patch("quads_client.shell.QuadsClientConfig"):
+        with patch("quads_client.shell.SessionManager"):
+            shell = QuadsClientShell()
+            shell.session_manager.active_connection = None
+            mock_config = MagicMock()
+            mock_config.get_all_servers.return_value = {"server1": {}, "staging": {}, "server2": {}}
+            shell.config = mock_config
+
+            completions = shell.complete_connect("ser", "connect ser", 8, 11)
+
+            assert sorted(completions) == ["server1", "server2"]
 
 
 def test_complete_connect_exact_match():
