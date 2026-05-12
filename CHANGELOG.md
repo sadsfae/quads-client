@@ -1,6 +1,24 @@
 # CHANGELOG
 
 
+## v0.4.5 (2026-05-12)
+
+### Bug Fixes
+
+- Extend cloud for quads-client-gui, helper method
+  ([`d3b8baf`](https://github.com/quadsproject/quads-client/commit/d3b8bafd15793f0e062150467f68988b355ff56a))
+
+- Extend/shrink, refactor with helper method
+  ([`4e74034`](https://github.com/quadsproject/quads-client/commit/4e74034079f18fb0fcd85858ea81522b5a160445))
+
+fix: extend/shrink, refactor with helper method
+
+### Chores
+
+- Update RPM spec version to 0.4.4
+  ([`afc7f72`](https://github.com/quadsproject/quads-client/commit/afc7f726fa66ed94796a4ac7ebb47e16dc571322))
+
+
 ## v0.4.4 (2026-05-12)
 
 ### Bug Fixes
