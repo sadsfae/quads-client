@@ -31,7 +31,7 @@ class MyHostsView(ttk.Frame):
                 self.after(0, lambda: on_success(result))
             except Exception as exc:
                 if on_error:
-                    self.after(0, lambda: on_error(exc))
+                    self.after(0, lambda e=exc: on_error(e))
 
         threading.Thread(target=_worker, daemon=True).start()
 
