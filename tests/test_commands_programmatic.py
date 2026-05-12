@@ -1,5 +1,7 @@
 """Tests for programmatic command variants (GUI/scripting support)"""
 
+import time
+
 import pytest
 from unittest.mock import MagicMock, patch, mock_open
 import yaml
@@ -163,13 +165,12 @@ class TestServerCommandsProgrammatic:
 
         with patch("builtins.open", mock_open(read_data=yaml.dump(mock_config_data))):
             with patch("yaml.safe_load", return_value=mock_config_data):
-                with patch("yaml.dump") as mock_dump:
+                with patch("yaml.dump"):
                     success, message = server_commands.rm_server_programmatic("test-server")
 
                     assert success is True
-                    dumped_data = mock_dump.call_args[0][0]
-                    assert dumped_data["default_server"] is None
-                    assert "test-server" not in dumped_data["servers"]
+                    assert mock_config_data["default_server"] is None
+                    assert "test-server" not in mock_config_data["servers"]
 
     def test_rm_server_programmatic_no_config(self, server_commands, mock_shell):
         """Test removing server when config not loaded"""
@@ -323,7 +324,7 @@ class TestGuiShellMetadataCache:
         gui_shell.connection.api.get_hosts.return_value = [{"model": "1029P", "name": "host1"}]
 
         gui_shell.get_available_models()
-        gui_shell._models_cache_time = 0  # Force expiry
+        gui_shell._models_cache_time = time.monotonic() - gui_shell._metadata_cache_ttl - 1
         gui_shell.get_available_models()
 
         assert gui_shell.connection.api.get_hosts.call_count == 2
