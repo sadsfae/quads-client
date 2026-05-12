@@ -1,6 +1,28 @@
 # CHANGELOG
 
 
+## v0.4.4 (2026-05-12)
+
+### Bug Fixes
+
+- Performance refactor, lazyload, caching, fixes
+  ([`fd35d0c`](https://github.com/quadsproject/quads-client/commit/fd35d0c4cfc7e4766484b490c35ebf1d6c251f87))
+
+- Test fixtures
+  ([`4903a45`](https://github.com/quadsproject/quads-client/commit/4903a45980aa3ec6579bb60b23db07bf3a4d8b76))
+
+### Chores
+
+- Fix tests
+  ([`d7f7101`](https://github.com/quadsproject/quads-client/commit/d7f71015299518ce26bed12a8c65804a92605291))
+
+- Update RPM spec version to 0.4.3
+  ([`48ac1af`](https://github.com/quadsproject/quads-client/commit/48ac1afba660be800236c2c1924e2b4b95fd786c))
+
+- Update RPM spec version to 0.4.3
+  ([`027404d`](https://github.com/quadsproject/quads-client/commit/027404ddef174837b078f1fcfa79d6bfea4a059a))
+
+
 ## v0.4.3 (2026-05-12)
 
 ### Bug Fixes
