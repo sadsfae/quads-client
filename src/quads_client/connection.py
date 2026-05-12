@@ -7,19 +7,23 @@ from quads_client.config import QuadsClientConfig
 
 _has_truststore = False
 
+
 def _init_truststore():
     global _has_truststore
     # Conditionally inject truststore only on macOS
     if sys.platform == "darwin":
         try:
             import truststore
+
             _has_truststore = True
         except ImportError:
             import warnings
+
             warnings.warn(
                 "The 'truststore' package is missing. macOS system certificates "
                 "may not be recognized. Please run `pip install truststore`."
             )
+
 
 __init_truststore()
 
