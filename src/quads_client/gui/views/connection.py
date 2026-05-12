@@ -164,7 +164,7 @@ class ConnectionView(ttk.Frame):
     def _clear_status(self):
         """Clear the status bar error message"""
         if hasattr(self.shell, "gui_app"):
-            self.shell.gui_app.update_status("Servers & Connections")
+            self.shell.gui_app.update_status("")
 
     def _refresh_server_list(self):
         """Refresh the server list"""
@@ -204,10 +204,14 @@ class ConnectionView(ttk.Frame):
 
             if is_active_server:
                 self.server_tree.item(item_id, tags=("active",))
-                self.server_tree.tag_configure("active", foreground="#4ec9b0")
+                self.server_tree.tag_configure(
+                    "active", foreground=self.shell.gui_app.theme_manager.get_color("success")
+                )
             elif is_connected:
                 self.server_tree.item(item_id, tags=("idle",))
-                self.server_tree.tag_configure("idle", foreground="#dcdcaa")
+                self.server_tree.tag_configure(
+                    "idle", foreground=self.shell.gui_app.theme_manager.get_color("provisioning")
+                )
 
         self._refresh_session_list()
 
@@ -314,10 +318,14 @@ class ConnectionView(ttk.Frame):
 
             if session_id == active_id:
                 self.sessions_tree.item(item_id, tags=("active",))
-                self.sessions_tree.tag_configure("active", foreground="#4ec9b0")
+                self.sessions_tree.tag_configure(
+                    "active", foreground=self.shell.gui_app.theme_manager.get_color("success")
+                )
             elif session.connection and session.connection.is_connected:
                 self.sessions_tree.item(item_id, tags=("idle",))
-                self.sessions_tree.tag_configure("idle", foreground="#dcdcaa")
+                self.sessions_tree.tag_configure(
+                    "idle", foreground=self.shell.gui_app.theme_manager.get_color("provisioning")
+                )
 
     def _on_server_selected(self, event):
         """Handle server selection"""

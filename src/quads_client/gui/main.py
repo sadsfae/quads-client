@@ -150,12 +150,6 @@ class QuadsClientApp(tk.Tk):
             ("⚙️  Settings", self._show_settings_view, False, "settings"),
         ]
 
-        # Get theme colors for buttons
-        bg_color = self.theme_manager.get_color("bg")
-        fg_color = self.theme_manager.get_color("fg")
-        accent_color = self.theme_manager.get_color("accent")
-        panel_bg = self.theme_manager.get_color("panel_bg")
-
         self.nav_buttons = []
         self.nav_button_map = {}  # Map view_name to button
         # Track all sidebar items (buttons + separators) in order for re-packing
@@ -167,22 +161,12 @@ class QuadsClientApp(tk.Tk):
                 self._sidebar_items.append(("separator", sep, is_admin))
                 continue
 
-            btn = tk.Button(
+            btn = ttk.Button(
                 self.sidebar_frame,
                 text=label,
                 command=command,
-                width=18,
-                bd=0,
-                relief=tk.FLAT,
-                highlightthickness=0,
-                highlightbackground=accent_color,
-                bg=bg_color,
-                fg=fg_color,
-                activebackground=panel_bg,
-                activeforeground=fg_color,
-                font=("TkDefaultFont", 11),
-                anchor="w",
-                padx=10,
+                style="Sidebar.TButton",
+                takefocus=False,
             )
             btn.pack(pady=2, padx=10, fill=tk.X)
             self.nav_buttons.append((btn, is_admin))
@@ -330,19 +314,11 @@ class QuadsClientApp(tk.Tk):
 
     def _refresh_nav_colors(self):
         """Refresh navigation button colors after theme change"""
-        bg_color = self.theme_manager.get_color("bg")
-        fg_color = self.theme_manager.get_color("fg")
-        accent_color = self.theme_manager.get_color("accent")
-        panel_bg = self.theme_manager.get_color("panel_bg")
-
-        for btn, _ in self.nav_buttons:
-            btn.config(
-                bg=bg_color,
-                fg=fg_color,
-                activebackground=panel_bg,
-                activeforeground=fg_color,
-                highlightbackground=accent_color,
-            )
+        if self.current_view:
+            for view_name, view in self.views.items():
+                if view is self.current_view:
+                    self._update_nav_highlighting(view_name)
+                    break
 
     def _new_session(self):
         """Create new session (placeholder)"""
@@ -404,15 +380,13 @@ class QuadsClientApp(tk.Tk):
         self._update_nav_highlighting(view_name)
 
     def _update_nav_highlighting(self, active_view_name):
-        """Update navigation button highlighting with thin border around active button"""
-        # Reset all buttons to no border
+        """Update navigation button highlighting with accent border on active button"""
         for btn, _ in self.nav_buttons:
-            btn.config(highlightthickness=0)
+            btn.configure(style="Sidebar.TButton")
 
-        # Add 2px border to active button
         if active_view_name in self.nav_button_map:
             active_btn = self.nav_button_map[active_view_name]
-            active_btn.config(highlightthickness=2)
+            active_btn.configure(style="Sidebar.Active.TButton")
 
     def _show_servers_view(self):
         """Show servers view"""
@@ -596,7 +570,7 @@ class QuadsClientApp(tk.Tk):
         is_connected = self.shell.is_authenticated() if self.shell else False
 
         if is_connected:
-            self.connection_indicator.config(foreground="#4ec9b0")
+            self.connection_indicator.config(foreground=self.theme_manager.get_color("success"))
             server = ""
             username = ""
             if self.shell.connection:
