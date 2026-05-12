@@ -1,3 +1,5 @@
+import shlex
+
 from tabulate import tabulate
 
 from quads_client.error_handler import require_connection
@@ -287,7 +289,11 @@ class CloudCommands:
             self.shell.poutput('  mod-cloud cloud06 cc-users "bob,alice,charlie"')
             return
 
-        parts = args.split()
+        try:
+            parts = shlex.split(args)
+        except ValueError:
+            parts = args.split()
+
         if len(parts) < 1:
             self.shell.perror("Usage: mod-cloud <cloud_name> [OPTIONS]")
             self.shell.perror("Run 'mod-cloud ?' for detailed help")
@@ -348,7 +354,25 @@ class CloudCommands:
             return
 
         try:
-            self.shell.connection.api.update_cloud(cloud_name, updates)
+            assignment = self.shell.connection.api.get_active_cloud_assignment(cloud_name)
+            if not assignment or not isinstance(assignment, dict):
+                err = f"No active assignment found for cloud '{cloud_name}'"
+                if self.rich_console:
+                    self.rich_console.print_error(err)
+                else:
+                    self.shell.perror(err)
+                return
+
+            assignment_id = assignment.get("id")
+            if assignment_id is None:
+                err = f"Could not determine assignment ID for cloud '{cloud_name}'"
+                if self.rich_console:
+                    self.rich_console.print_error(err)
+                else:
+                    self.shell.perror(err)
+                return
+
+            self.shell.connection.api.update_assignment(assignment_id, updates)
             if self.rich_console:
                 self.rich_console.print_success(f"Cloud '{cloud_name}' updated successfully")
                 for key, value in updates.items():
