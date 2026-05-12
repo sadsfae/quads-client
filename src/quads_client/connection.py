@@ -1,10 +1,28 @@
 from typing import Optional
+import sys
 import jwt
 import urllib3
-
 from quads_lib import QuadsApi
-
 from quads_client.config import QuadsClientConfig
+
+
+def _init_truststore():
+    # Conditionally inject truststore only on macOS
+    if sys.platform == "darwin":
+        try:
+            import truststore
+
+            truststore.inject_into_ssl()
+        except ImportError:
+            import warnings
+
+            warnings.warn(
+                "The 'truststore' package is missing. macOS system certificates "
+                "may not be recognized. Please run `pip install truststore`."
+            )
+
+
+_init_truststore()
 
 
 class ConnectionError(Exception):
