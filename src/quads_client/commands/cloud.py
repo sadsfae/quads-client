@@ -129,8 +129,8 @@ class CloudCommands:
                             [
                                 host.get("name", ""),
                                 host.get("model", ""),
-                                sched.get("start", ""),
-                                sched.get("end", ""),
+                                sched.get("start", "").replace("GMT", "UTC"),
+                                sched.get("end", "").replace("GMT", "UTC"),
                             ]
                         )
 
@@ -170,8 +170,8 @@ class CloudCommands:
                             [
                                 host.get("name", ""),
                                 host.get("model", ""),
-                                sched.get("start", ""),
-                                sched.get("end", ""),
+                                sched.get("start", "").replace("GMT", "UTC"),
+                                sched.get("end", "").replace("GMT", "UTC"),
                             ]
                         )
 

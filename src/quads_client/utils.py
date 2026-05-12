@@ -248,7 +248,7 @@ def format_schedule_datetime(datetime_str: str) -> str:
     Returns:
         Formatted datetime (e.g., "2026-05-07 13:00")
     """
-    return datetime_str.replace("T", " ").replace(":00.000Z", "").replace("Z", "")
+    return datetime_str.replace("T", " ").replace(":00.000Z", "").replace("Z", "").replace("GMT", "UTC")
 
 
 def validate_cloud_exists(api, cloud_name: str) -> bool:
