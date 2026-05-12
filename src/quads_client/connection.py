@@ -25,7 +25,7 @@ def _init_truststore():
             )
 
 
-__init_truststore()
+_init_truststore()
 
 
 class ConnectionError(Exception):
