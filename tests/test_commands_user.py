@@ -60,7 +60,7 @@ def test_my_hosts_success(mock_shell):
     mock_shell.connection.api.filter_assignments.return_value = [
         {"id": 1, "owner": "test", "cloud": {"name": "cloud02"}, "description": "Test assignment"}
     ]
-    mock_shell.connection.api.get_current_schedules.return_value = [
+    mock_shell.connection.api.get_schedules.return_value = [
         {"id": 1, "host": {"name": "host01.example.com"}, "start": "2026-05-01", "end": "2026-05-15"}
     ]
 
@@ -68,7 +68,7 @@ def test_my_hosts_success(mock_shell):
     user_cmd.cmd_my_hosts("")
 
     mock_shell.connection.api.filter_assignments.assert_called_once_with({"owner": "test", "active": True})
-    mock_shell.connection.api.get_current_schedules.assert_called_once_with({"assignment_id": 1})
+    mock_shell.connection.api.get_schedules.assert_called_once_with({"assignment_id": 1})
     assert mock_shell.poutput.call_count >= 2
 
 
@@ -110,7 +110,7 @@ def test_my_hosts_duplicate_hosts_across_assignments(mock_shell):
     ]
 
     # Each assignment has the same 3 hosts (simulating duplicate schedules)
-    def mock_get_current_schedules(filters):
+    def mock_get_schedules(filters):
         return [
             {
                 "id": 1,
@@ -129,7 +129,7 @@ def test_my_hosts_duplicate_hosts_across_assignments(mock_shell):
             },
         ]
 
-    mock_shell.connection.api.get_current_schedules.side_effect = mock_get_current_schedules
+    mock_shell.connection.api.get_schedules.side_effect = mock_get_schedules
 
     user_cmd = UserCommands(mock_shell)
     user_cmd.cmd_my_hosts("")
