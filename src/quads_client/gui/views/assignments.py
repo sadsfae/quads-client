@@ -97,24 +97,26 @@ class AssignmentsView(BaseAdminView):
 
         self.tree.clear()
         label = "all assignment(s)" if is_admin else "your assignment(s)"
-        assignments = self.safe_load_data(load_data, success_message="Showing {count} " + label)
 
-        if not assignments:
-            return
+        def on_loaded(assignments):
+            if not assignments:
+                return
 
-        for assignment in assignments:
-            if isinstance(assignment, dict):
-                assignment_id = extract_assignment_id(assignment)
-                cloud_name = extract_cloud_name(assignment)
-                description = assignment.get("description", "No description")
-                owner = assignment.get("owner", "N/A")
-                validated = "✓" if assignment.get("validated") else "○"
+            for assignment in assignments:
+                if isinstance(assignment, dict):
+                    assignment_id = extract_assignment_id(assignment)
+                    cloud_name = extract_cloud_name(assignment)
+                    description = assignment.get("description", "No description")
+                    owner = assignment.get("owner", "N/A")
+                    validated = "✓" if assignment.get("validated") else "○"
 
-                self.tree.insert(
-                    "",
-                    tk.END,
-                    values=(assignment_id, cloud_name, description, owner, validated),
-                )
+                    self.tree.insert(
+                        "",
+                        tk.END,
+                        values=(assignment_id, cloud_name, description, owner, validated),
+                    )
+
+        self.safe_load_data_async(load_data, on_loaded, success_message="Showing {count} " + label)
 
     def _auto_login(self):
         """Auto-login using centralized server selection logic"""

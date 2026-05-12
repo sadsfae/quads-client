@@ -1,5 +1,6 @@
 """My Hosts view - shows user's active assignments and hosts"""
 
+import threading
 import tkinter as tk
 from tkinter import ttk, messagebox
 
@@ -12,6 +13,7 @@ class MyHostsView(ttk.Frame):
     def __init__(self, parent, shell):
         super().__init__(parent)
         self.shell = shell
+        self._loading = False
 
         # Load preferences
         prefs = self._get_preferences()
@@ -19,6 +21,19 @@ class MyHostsView(ttk.Frame):
         self.refresh_interval = prefs.get("auto_refresh_interval", 30) * 1000  # Convert to ms
 
         self._create_ui()
+
+    def _run_in_thread(self, work_func, on_success, on_error=None):
+        """Run work_func in a background thread, deliver result to main thread."""
+
+        def _worker():
+            try:
+                result = work_func()
+                self.after(0, lambda: on_success(result))
+            except Exception as exc:
+                if on_error:
+                    self.after(0, lambda e=exc: on_error(e))
+
+        threading.Thread(target=_worker, daemon=True).start()
 
     def _get_preferences(self):
         """Get GUI preferences from config"""
@@ -73,11 +88,15 @@ class MyHostsView(ttk.Frame):
 
     def _load_assignments(self):
         """Load user's assignments"""
+        if self._loading:
+            return
+        self._loading = True
+
         for widget in self.content_frame.winfo_children():
             widget.destroy()
 
         if not self.shell.is_authenticated():
-            # Not logged in - show message and login button
+            self._loading = False
             message_frame = ttk.Frame(self.content_frame)
             message_frame.pack(pady=50)
 
@@ -92,11 +111,12 @@ class MyHostsView(ttk.Frame):
             self.status_label.config(text="Not authenticated")
             return
 
-        try:
-            self.status_label.config(text="Loading assignments...")
-            self.update()
+        self.status_label.config(text="Loading assignments...")
 
-            assignments_data = self._fetch_assignments()
+        def on_success(assignments_data):
+            self._loading = False
+            for widget in self.content_frame.winfo_children():
+                widget.destroy()
 
             if not assignments_data:
                 ttk.Label(
@@ -113,14 +133,20 @@ class MyHostsView(ttk.Frame):
 
             self.status_label.config(text=f"Showing {len(assignments_data)} assignment(s) | Last updated: Just now")
 
-        except Exception as e:
+        def on_error(exc):
+            self._loading = False
+            for widget in self.content_frame.winfo_children():
+                widget.destroy()
+
             error_label = ttk.Label(
                 self.content_frame,
-                text=f"Error loading assignments:\n{str(e)}",
+                text=f"Error loading assignments:\n{str(exc)}",
                 foreground="red",
             )
             error_label.pack(pady=50)
             self.status_label.config(text="Error loading data")
+
+        self._run_in_thread(self._fetch_assignments, on_success, on_error)
 
     def _fetch_assignments(self):
         """Fetch assignments from the server via CLI command"""

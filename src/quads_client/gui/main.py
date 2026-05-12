@@ -179,22 +179,34 @@ class QuadsClientApp(tk.Tk):
         pass
 
     def _create_views(self):
-        """Create all view instances"""
+        """Initialize view registry -- views are created lazily on first access"""
         self.views = {}
         self.current_view = None
+        self._view_factories = {
+            "servers": lambda: ConnectionView(self.content_frame, self.shell),
+            "schedule": lambda: ScheduleView(self.content_frame, self.shell),
+            "available": lambda: AvailableView(self.content_frame, self.shell),
+            "my_hosts": lambda: MyHostsView(self.content_frame, self.shell),
+            "assignments": lambda: AssignmentsView(self.content_frame, self.shell),
+            "admin_schedule": lambda: AdminScheduleView(self.content_frame, self.shell),
+            "clouds": lambda: CloudsView(self.content_frame, self.shell),
+            "hosts": lambda: HostsView(self.content_frame, self.shell),
+            "settings": lambda: SettingsView(self.content_frame, self.shell),
+        }
 
         self.views["welcome"] = self._create_welcome_view()
-        self.views["servers"] = ConnectionView(self.content_frame, self.shell)
-        self.views["schedule"] = ScheduleView(self.content_frame, self.shell)
-        self.views["available"] = AvailableView(self.content_frame, self.shell)
-        self.views["my_hosts"] = MyHostsView(self.content_frame, self.shell)
-        self.views["assignments"] = AssignmentsView(self.content_frame, self.shell)
-        self.views["admin_schedule"] = AdminScheduleView(self.content_frame, self.shell)
-        self.views["clouds"] = CloudsView(self.content_frame, self.shell)
-        self.views["hosts"] = HostsView(self.content_frame, self.shell)
-        self.views["settings"] = SettingsView(self.content_frame, self.shell)
-
         self._show_view("welcome")
+
+    def _ensure_view(self, view_name):
+        """Create a view on demand if it hasn't been created yet.
+
+        Returns:
+            True if the view was just created, False if it already existed.
+        """
+        if view_name not in self.views and view_name in self._view_factories:
+            self.views[view_name] = self._view_factories[view_name]()
+            return True
+        return False
 
     def _create_welcome_view(self):
         """Create welcome view with optional login button"""
@@ -358,20 +370,23 @@ class QuadsClientApp(tk.Tk):
         self.update_status("Refreshing view...")
 
     def _show_view(self, view_name):
-        """Show a specific view"""
+        """Show a specific view, creating it lazily on first access"""
         if self.current_view:
             self.current_view.pack_forget()
 
         # Recreate welcome view to reflect current auth status
         if view_name == "welcome":
-            self.views["welcome"].destroy()
+            if "welcome" in self.views:
+                self.views["welcome"].destroy()
             self.views["welcome"] = self._create_welcome_view()
+
+        just_created = self._ensure_view(view_name)
 
         if view_name in self.views:
             self.views[view_name].pack(fill=tk.BOTH, expand=True)
             self.current_view = self.views[view_name]
 
-            if hasattr(self.current_view, "refresh"):
+            if not just_created and hasattr(self.current_view, "refresh"):
                 self.current_view.refresh()
         else:
             self.update_status(f"{view_name.title()} view - Not yet implemented")

@@ -457,6 +457,46 @@ class ServerCommands:
         except Exception as e:
             return (False, f"Failed to edit server: {e}")
 
+    def rm_server_programmatic(self, name):
+        """
+        Non-interactive server removal for GUI and scripting.
+
+        Args:
+            name: Server name to remove
+
+        Returns:
+            (success: bool, message: str)
+        """
+        if not self.shell.config:
+            return (False, "Configuration not loaded")
+
+        if self.shell.connection and self.shell.connection.current_server == name:
+            return (False, f"Cannot remove '{name}' - currently connected. Disconnect first.")
+
+        config_path = Path(self.shell.config.config_path).expanduser()
+
+        try:
+            with open(config_path, "r") as f:
+                config_data = yaml.safe_load(f) or {}
+
+            if "servers" not in config_data or name not in config_data["servers"]:
+                return (False, f"Server '{name}' not found")
+
+            del config_data["servers"][name]
+
+            if config_data.get("default_server") == name:
+                config_data["default_server"] = None
+
+            with open(config_path, "w") as f:
+                yaml.dump(config_data, f, default_flow_style=False, sort_keys=False)
+
+            self.cmd_config_reload("")
+
+            return (True, f"Server '{name}' removed successfully")
+
+        except Exception as e:
+            return (False, f"Failed to remove server: {e}")
+
     def cmd_add_server(self, args):
         """Add a new server to configuration. Usage: add-server <name> <url> <username> <password>"""
         parts = args.split()
@@ -551,35 +591,26 @@ class ServerCommands:
             return
 
         config_path = Path(self.shell.config.config_path).expanduser()
-
         try:
             with open(config_path, "r") as f:
                 config_data = yaml.safe_load(f) or {}
-
             if "servers" not in config_data or name not in config_data["servers"]:
                 self.shell.perror(f"Server '{name}' not found")
                 return
-
-            response = input(f"Remove server '{name}'? [y/N]: ")
-            if response.lower() != "y":
-                self.shell.poutput("Server not removed")
-                return
-
-            del config_data["servers"][name]
-
-            if config_data.get("default_server") == name:
-                config_data["default_server"] = None
-
-            with open(config_path, "w") as f:
-                yaml.dump(config_data, f, default_flow_style=False, sort_keys=False)
-
-            # Automatically reload config
-            self.cmd_config_reload("")
-
-            self.shell.poutput(f"OK: Server '{name}' removed successfully")
-
         except Exception as e:
             self.shell.perror(f"Failed to remove server: {e}")
+            return
+
+        response = input(f"Remove server '{name}'? [y/N]: ")
+        if response.lower() != "y":
+            self.shell.poutput("Server not removed")
+            return
+
+        success, message = self.rm_server_programmatic(name)
+        if success:
+            self.shell.poutput(f"OK: {message}")
+        else:
+            self.shell.perror(message)
 
     def cmd_config_reload(self, args):
         """Reload configuration from file"""

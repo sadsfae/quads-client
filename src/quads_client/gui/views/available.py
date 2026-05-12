@@ -146,30 +146,24 @@ class AvailableView(BaseAdminView):
 
     def _load_available(self):
         """Load available hosts from server"""
-        # Check if connected first
         if not self.shell.is_authenticated():
             self.update_status("Not connected to server")
             return
 
-        # Check if tree exists (it won't if we showed the not-connected message)
         if self.tree is None:
             return
 
         self.tree.clear()
+        filters = self.filter_frame.get_filters()
 
-        try:
-            filters = self.filter_frame.get_filters()
+        def load_data():
+            return self.shell.get_available_hosts_data(**filters)
 
-            self.update_status("Loading available hosts...")
-
-            # Use GUI shell method to get structured data
-            hosts = self.shell.get_available_hosts_data(**filters)
-
+        def on_loaded(hosts):
             if not hosts:
                 self.update_status("No available hosts found")
                 return
 
-            # Populate table
             for host in hosts:
                 self.tree.insert(
                     "",
@@ -183,12 +177,9 @@ class AvailableView(BaseAdminView):
                 )
 
             self.update_status(f"Loaded {len(hosts)} available host(s)")
-
-            # Update button states after loading
             self._update_button_states()
 
-        except Exception as e:
-            self.update_status(f"Error: {str(e)}")
+        self.safe_load_data_async(load_data, on_loaded)
 
     def _copy_selected(self):
         """Copy selected hostnames (first column only) to clipboard"""
@@ -260,6 +251,7 @@ class AvailableView(BaseAdminView):
         # If admin, open admin schedule dialog with pre-filled hosts
         if self.shell.is_admin():
             # Get admin schedule view and call its create dialog with pre-filled hosts
+            self.shell.gui_app._ensure_view("admin_schedule")
             if "admin_schedule" in self.shell.gui_app.views:
                 admin_schedule_view = self.shell.gui_app.views["admin_schedule"]
                 admin_schedule_view._create_schedule(prefill_hosts=",".join(hostnames))
