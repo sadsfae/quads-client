@@ -1,6 +1,19 @@
 # CHANGELOG
 
 
+## v0.4.8 (2026-05-12)
+
+### Bug Fixes
+
+- My_hosts not returning correctly for SSM user
+  ([`29d975b`](https://github.com/quadsproject/quads-client/commit/29d975b881db8ad5e4e90925572f7ebbb67eed4d))
+
+### Chores
+
+- Update RPM spec version to 0.4.7
+  ([`d684321`](https://github.com/quadsproject/quads-client/commit/d684321ed8d651f9d1c1d6c965bf52f950664c4b))
+
+
 ## v0.4.7 (2026-05-12)
 
 ### Bug Fixes
