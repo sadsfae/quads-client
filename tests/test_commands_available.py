@@ -28,7 +28,38 @@ def test_ls_available_success(available_commands, mock_shell):
 
     available_commands.cmd_ls_available("")
 
+    expected_filters = {"cloud": "cloud01", "retired": False, "broken": False, "can_self_schedule": True}
+    mock_shell.connection.api.filter_hosts.assert_called_once_with(expected_filters)
+    mock_shell.poutput.assert_called()
+
+
+def test_ls_available_admin_sees_all(available_commands, mock_shell):
+    """Test that admin users see all available hosts (no self-schedule filter)"""
+    mock_shell.connection.is_connected = True
+    mock_shell.connection.is_admin = True
+    mock_shell.connection.api.filter_hosts.return_value = [
+        {"name": "host01.example.com", "model": "R630", "host_type": "baremetal", "can_self_schedule": True},
+        {"name": "host02.example.com", "model": "R640", "host_type": "baremetal", "can_self_schedule": False},
+    ]
+
+    available_commands.cmd_ls_available("")
+
     expected_filters = {"cloud": "cloud01", "retired": False, "broken": False}
+    mock_shell.connection.api.filter_hosts.assert_called_once_with(expected_filters)
+    mock_shell.poutput.assert_called()
+
+
+def test_ls_available_non_admin_filters_self_schedule(available_commands, mock_shell):
+    """Test that non-admin users only see self-schedulable hosts"""
+    mock_shell.connection.is_connected = True
+    mock_shell.connection.is_admin = False
+    mock_shell.connection.api.filter_hosts.return_value = [
+        {"name": "host01.example.com", "model": "R630", "host_type": "baremetal", "can_self_schedule": True},
+    ]
+
+    available_commands.cmd_ls_available("")
+
+    expected_filters = {"cloud": "cloud01", "retired": False, "broken": False, "can_self_schedule": True}
     mock_shell.connection.api.filter_hosts.assert_called_once_with(expected_filters)
     mock_shell.poutput.assert_called()
 
@@ -56,6 +87,7 @@ def test_ls_available_with_filters(available_commands, mock_shell):
         "retired": False,
         "broken": False,
         "model": "R630",  # Uppercased to match QUADS storage
+        "can_self_schedule": True,
     }
     mock_shell.connection.api.filter_hosts.assert_called_once_with(expected_filters)
     # Verify is_available was called with the host and date range
@@ -99,7 +131,7 @@ def test_ls_available_start_filter_only(available_commands, mock_shell):
     available_commands.cmd_ls_available("start 2026-05-01")
 
     # Start without end - won't trigger availability check, just shows hosts in cloud01
-    expected_filters = {"cloud": "cloud01", "retired": False, "broken": False}
+    expected_filters = {"cloud": "cloud01", "retired": False, "broken": False, "can_self_schedule": True}
     mock_shell.connection.api.filter_hosts.assert_called_once_with(expected_filters)
 
 
@@ -111,7 +143,7 @@ def test_ls_available_end_filter_only(available_commands, mock_shell):
     available_commands.cmd_ls_available("end 2026-05-15")
 
     # End without start - won't trigger availability check, just shows hosts in cloud01
-    expected_filters = {"cloud": "cloud01", "retired": False, "broken": False}
+    expected_filters = {"cloud": "cloud01", "retired": False, "broken": False, "can_self_schedule": True}
     mock_shell.connection.api.filter_hosts.assert_called_once_with(expected_filters)
 
 
@@ -122,7 +154,13 @@ def test_ls_available_model_filter_only(available_commands, mock_shell):
 
     available_commands.cmd_ls_available("model R630")
 
-    expected_filters = {"cloud": "cloud01", "retired": False, "broken": False, "model": "R630"}
+    expected_filters = {
+        "cloud": "cloud01",
+        "retired": False,
+        "broken": False,
+        "model": "R630",
+        "can_self_schedule": True,
+    }
     mock_shell.connection.api.filter_hosts.assert_called_once_with(expected_filters)
 
 
@@ -174,7 +212,13 @@ def test_ls_available_unknown_flag(available_commands, mock_shell):
     available_commands.cmd_ls_available("unknown value model R630")
 
     # Should still process the valid model flag (uppercased)
-    expected_filters = {"cloud": "cloud01", "retired": False, "broken": False, "model": "R630"}
+    expected_filters = {
+        "cloud": "cloud01",
+        "retired": False,
+        "broken": False,
+        "model": "R630",
+        "can_self_schedule": True,
+    }
     mock_shell.connection.api.filter_hosts.assert_called_once_with(expected_filters)
 
 
@@ -185,7 +229,13 @@ def test_ls_available_ram_filter(available_commands, mock_shell):
 
     available_commands.cmd_ls_available("ram 256")
 
-    expected_filters = {"cloud": "cloud01", "retired": False, "broken": False, "memory__gte": 256 * 1024}
+    expected_filters = {
+        "cloud": "cloud01",
+        "retired": False,
+        "broken": False,
+        "memory__gte": 256 * 1024,
+        "can_self_schedule": True,
+    }
     mock_shell.connection.api.filter_hosts.assert_called_once_with(expected_filters)
 
 
@@ -202,6 +252,7 @@ def test_ls_available_gpu_filters(available_commands, mock_shell):
         "broken": False,
         "processors.vendor": "NVIDIA",
         "processors.product": "V100",
+        "can_self_schedule": True,
     }
     mock_shell.connection.api.filter_hosts.assert_called_once_with(expected_filters)
 
@@ -220,6 +271,7 @@ def test_ls_available_disk_filters(available_commands, mock_shell):
         "disks.size_gb__gte": 500,
         "disks.disk_type": "nvme",
         "disks.count__gte": 2,
+        "can_self_schedule": True,
     }
     mock_shell.connection.api.filter_hosts.assert_called_once_with(expected_filters)
 
@@ -231,7 +283,13 @@ def test_ls_available_interface_filter(available_commands, mock_shell):
 
     available_commands.cmd_ls_available("interfaces 4")
 
-    expected_filters = {"cloud": "cloud01", "retired": False, "broken": False, "interfaces.count__gte": 4}
+    expected_filters = {
+        "cloud": "cloud01",
+        "retired": False,
+        "broken": False,
+        "interfaces.count__gte": 4,
+        "can_self_schedule": True,
+    }
     mock_shell.connection.api.filter_hosts.assert_called_once_with(expected_filters)
 
 
@@ -250,6 +308,7 @@ def test_ls_available_combined_filters(available_commands, mock_shell):
         "memory__gte": 128 * 1024,
         "disks.disk_type": "nvme",
         "interfaces.count__gte": 4,
+        "can_self_schedule": True,
     }
     mock_shell.connection.api.filter_hosts.assert_called_once_with(expected_filters)
 
@@ -296,5 +355,11 @@ def test_ls_available_case_insensitive_model(available_commands, mock_shell):
     available_commands.cmd_ls_available("model r650")
 
     # Should uppercase the model value
-    expected_filters = {"cloud": "cloud01", "retired": False, "broken": False, "model": "R650"}
+    expected_filters = {
+        "cloud": "cloud01",
+        "retired": False,
+        "broken": False,
+        "model": "R650",
+        "can_self_schedule": True,
+    }
     mock_shell.connection.api.filter_hosts.assert_called_once_with(expected_filters)
