@@ -3,7 +3,7 @@ from tabulate import tabulate
 
 from quads_client.arg_parser import parse_extend_args, parse_schedule_admin_args
 from quads_client.error_handler import handle_api_error, require_admin, require_connection
-from quads_client.utils import format_schedule_datetime
+from quads_client.utils import format_schedule_datetime, parse_api_datetime
 
 
 def parse_flexible_datetime(date_str):
@@ -83,8 +83,8 @@ class ScheduleCommands:
                         end_str = sched.get("end", "")
                         if start_str and end_str:
                             try:
-                                start = datetime.fromisoformat(start_str.replace("Z", ""))
-                                end = datetime.fromisoformat(end_str.replace("Z", ""))
+                                start = parse_api_datetime(start_str)
+                                end = parse_api_datetime(end_str)
                                 if start <= now <= end:
                                     current_schedule_id = sched.get("id")
                                     break
@@ -439,13 +439,13 @@ class ScheduleCommands:
 
                 for schedule in schedules:
                     if parsed["weeks"]:
-                        current_end = datetime.fromisoformat(schedule["end"].replace("Z", "+00:00"))
+                        current_end = parse_api_datetime(schedule["end"])
                         end_date = current_end + timedelta(weeks=parsed["weeks"])
                     else:
-                        end_date = datetime.strptime(parsed["date"], "%Y-%m-%d %H:%M")
+                        end_date = parse_flexible_datetime(parsed["date"])
 
                     self.shell.connection.api.update_schedule(
-                        schedule["id"], {"end": end_date.strftime("%Y-%m-%d %H:%M")}
+                        schedule["id"], {"end": end_date.strftime("%Y-%m-%dT%H:%M")}
                     )
                     if self.rich_console:
                         self.rich_console.print_success(schedule["host"]["name"])
@@ -474,12 +474,12 @@ class ScheduleCommands:
                 schedule = schedules[0]
 
                 if parsed["weeks"]:
-                    current_end = datetime.fromisoformat(schedule["end"].replace("Z", "+00:00"))
+                    current_end = parse_api_datetime(schedule["end"])
                     end_date = current_end + timedelta(weeks=parsed["weeks"])
                 else:
-                    end_date = datetime.strptime(parsed["date"], "%Y-%m-%d %H:%M")
+                    end_date = parse_flexible_datetime(parsed["date"])
 
-                self.shell.connection.api.update_schedule(schedule["id"], {"end": end_date.strftime("%Y-%m-%d %H:%M")})
+                self.shell.connection.api.update_schedule(schedule["id"], {"end": end_date.strftime("%Y-%m-%dT%H:%M")})
 
                 if parsed["weeks"]:
                     self.shell.poutput(f"OK: Extended {parsed['target']} by {parsed['weeks']} week(s)")
@@ -557,9 +557,9 @@ class ScheduleCommands:
                 updated_count = 0
                 for schedule in schedules:
                     try:
-                        current_end = datetime.strptime(schedule["end"], "%Y-%m-%d %H:%M")
+                        current_end = parse_api_datetime(schedule["end"])
                         new_end = current_end - timedelta(weeks=weeks)
-                        new_end_str = new_end.strftime("%Y-%m-%d %H:%M")
+                        new_end_str = new_end.strftime("%Y-%m-%dT%H:%M")
 
                         self.shell.connection.api.update_schedule(schedule["id"], {"end": new_end_str})
                         updated_count += 1
@@ -592,9 +592,9 @@ class ScheduleCommands:
                     return
 
                 current = schedules[0]
-                current_end = datetime.strptime(current["end"], "%Y-%m-%d %H:%M")
+                current_end = parse_api_datetime(current["end"])
                 new_end = current_end - timedelta(weeks=weeks)
-                new_end_str = new_end.strftime("%Y-%m-%d %H:%M")
+                new_end_str = new_end.strftime("%Y-%m-%dT%H:%M")
 
                 self.shell.connection.api.update_schedule(current["id"], {"end": new_end_str})
                 self.shell.poutput(f"Shrunk schedule for {target} by {weeks} weeks to {new_end_str}")
