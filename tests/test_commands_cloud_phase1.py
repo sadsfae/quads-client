@@ -104,14 +104,15 @@ def test_cloud_list_with_cloud_no_detail(mock_shell):
 def test_mod_cloud_success(mock_shell):
     """Test mod-cloud command"""
     mock_shell.connection.is_connected = True
-    mock_shell.connection.api.update_cloud.return_value = {"status": "success"}
+    mock_shell.connection.api.get_active_cloud_assignment.return_value = {"id": 42}
+    mock_shell.connection.api.update_assignment.return_value = {"status": "success"}
 
     cloud_cmd = CloudCommands(mock_shell)
     cloud_cmd.cmd_mod_cloud("cloud17 cloud-owner alice description Updated testing environment nowipe")
 
-    mock_shell.connection.api.update_cloud.assert_called_once()
-    call_args = mock_shell.connection.api.update_cloud.call_args[0]
-    assert call_args[0] == "cloud17"
+    mock_shell.connection.api.update_assignment.assert_called_once()
+    call_args = mock_shell.connection.api.update_assignment.call_args[0]
+    assert call_args[0] == 42
     assert call_args[1]["owner"] == "alice"
     assert call_args[1]["description"] == "Updated testing environment"
     assert call_args[1]["wipe"] is False
@@ -120,72 +121,78 @@ def test_mod_cloud_success(mock_shell):
 def test_mod_cloud_multiword_description(mock_shell):
     """Test mod-cloud with multi-word description"""
     mock_shell.connection.is_connected = True
-    mock_shell.connection.api.update_cloud.return_value = {"status": "success"}
+    mock_shell.connection.api.get_active_cloud_assignment.return_value = {"id": 42}
+    mock_shell.connection.api.update_assignment.return_value = {"status": "success"}
 
     cloud_cmd = CloudCommands(mock_shell)
     cloud_cmd.cmd_mod_cloud("cloud17 description CI/CD pipeline testing environment")
 
-    call_args = mock_shell.connection.api.update_cloud.call_args[0]
+    call_args = mock_shell.connection.api.update_assignment.call_args[0]
     assert call_args[1]["description"] == "CI/CD pipeline testing environment"
 
 
 def test_mod_cloud_ticket(mock_shell):
     """Test mod-cloud with ticket"""
     mock_shell.connection.is_connected = True
-    mock_shell.connection.api.update_cloud.return_value = {"status": "success"}
+    mock_shell.connection.api.get_active_cloud_assignment.return_value = {"id": 42}
+    mock_shell.connection.api.update_assignment.return_value = {"status": "success"}
 
     cloud_cmd = CloudCommands(mock_shell)
     cloud_cmd.cmd_mod_cloud("cloud17 cloud-ticket 54321")
 
-    call_args = mock_shell.connection.api.update_cloud.call_args[0]
+    call_args = mock_shell.connection.api.update_assignment.call_args[0]
     assert call_args[1]["ticket"] == "54321"
 
 
 def test_mod_cloud_ccusers(mock_shell):
     """Test mod-cloud with cc-users"""
     mock_shell.connection.is_connected = True
-    mock_shell.connection.api.update_cloud.return_value = {"status": "success"}
+    mock_shell.connection.api.get_active_cloud_assignment.return_value = {"id": 42}
+    mock_shell.connection.api.update_assignment.return_value = {"status": "success"}
 
     cloud_cmd = CloudCommands(mock_shell)
     cloud_cmd.cmd_mod_cloud("cloud17 cc-users bob@example.com,charlie@example.com")
 
-    call_args = mock_shell.connection.api.update_cloud.call_args[0]
+    call_args = mock_shell.connection.api.update_assignment.call_args[0]
     assert call_args[1]["ccuser"] == "bob@example.com,charlie@example.com"
 
 
 def test_mod_cloud_wipe_true(mock_shell):
     """Test mod-cloud wipe flag"""
     mock_shell.connection.is_connected = True
-    mock_shell.connection.api.update_cloud.return_value = {"status": "success"}
+    mock_shell.connection.api.get_active_cloud_assignment.return_value = {"id": 42}
+    mock_shell.connection.api.update_assignment.return_value = {"status": "success"}
 
     cloud_cmd = CloudCommands(mock_shell)
     cloud_cmd.cmd_mod_cloud("cloud17 wipe")
 
-    call_args = mock_shell.connection.api.update_cloud.call_args[0]
+    call_args = mock_shell.connection.api.update_assignment.call_args[0]
     assert call_args[1]["wipe"] is True
 
 
 def test_mod_cloud_wipe_false(mock_shell):
     """Test mod-cloud nowipe flag"""
     mock_shell.connection.is_connected = True
-    mock_shell.connection.api.update_cloud.return_value = {"status": "success"}
+    mock_shell.connection.api.get_active_cloud_assignment.return_value = {"id": 42}
+    mock_shell.connection.api.update_assignment.return_value = {"status": "success"}
 
     cloud_cmd = CloudCommands(mock_shell)
     cloud_cmd.cmd_mod_cloud("cloud17 nowipe")
 
-    call_args = mock_shell.connection.api.update_cloud.call_args[0]
+    call_args = mock_shell.connection.api.update_assignment.call_args[0]
     assert call_args[1]["wipe"] is False
 
 
 def test_mod_cloud_multiple_options(mock_shell):
     """Test mod-cloud with multiple options"""
     mock_shell.connection.is_connected = True
-    mock_shell.connection.api.update_cloud.return_value = {"status": "success"}
+    mock_shell.connection.api.get_active_cloud_assignment.return_value = {"id": 42}
+    mock_shell.connection.api.update_assignment.return_value = {"status": "success"}
 
     cloud_cmd = CloudCommands(mock_shell)
     cloud_cmd.cmd_mod_cloud("cloud17 cloud-owner alice wipe cloud-ticket 123")
 
-    call_args = mock_shell.connection.api.update_cloud.call_args[0]
+    call_args = mock_shell.connection.api.update_assignment.call_args[0]
     assert call_args[1]["owner"] == "alice"
     assert call_args[1]["wipe"] is True
     assert call_args[1]["ticket"] == "123"
@@ -228,13 +235,13 @@ def test_mod_cloud_not_connected(mock_shell):
 def test_mod_cloud_forbidden(mock_shell):
     """Test mod-cloud with 403 Forbidden (non-admin)"""
     mock_shell.connection.is_connected = True
-    mock_shell.connection.api.update_cloud.side_effect = Exception("403 Forbidden")
+    mock_shell.connection.api.get_active_cloud_assignment.return_value = {"id": 42}
+    mock_shell.connection.api.update_assignment.side_effect = Exception("403 Forbidden")
 
     cloud_cmd = CloudCommands(mock_shell)
     cloud_cmd.cmd_mod_cloud("cloud17 cloud-owner alice")
 
     mock_shell.perror.assert_called()
-    # Should show error with "permission" or "admin"
     error_msg = str(mock_shell.perror.call_args).lower()
     assert "permission" in error_msg or "admin" in error_msg or "403" in error_msg
 
@@ -242,12 +249,26 @@ def test_mod_cloud_forbidden(mock_shell):
 def test_mod_cloud_api_error(mock_shell):
     """Test mod-cloud with generic API error"""
     mock_shell.connection.is_connected = True
-    mock_shell.connection.api.update_cloud.side_effect = Exception("Server error")
+    mock_shell.connection.api.get_active_cloud_assignment.return_value = {"id": 42}
+    mock_shell.connection.api.update_assignment.side_effect = Exception("Server error")
 
     cloud_cmd = CloudCommands(mock_shell)
     cloud_cmd.cmd_mod_cloud("cloud17 cloud-owner alice")
 
     mock_shell.perror.assert_called()
+
+
+def test_mod_cloud_no_active_assignment(mock_shell):
+    """Test mod-cloud when cloud has no active assignment"""
+    mock_shell.connection.is_connected = True
+    mock_shell.connection.api.get_active_cloud_assignment.return_value = None
+
+    cloud_cmd = CloudCommands(mock_shell)
+    cloud_cmd.cmd_mod_cloud("cloud17 cloud-owner alice")
+
+    mock_shell.perror.assert_called()
+    error_msg = str(mock_shell.perror.call_args).lower()
+    assert "no active assignment" in error_msg
 
 
 def test_cloud_list_enhanced_table_format(mock_shell):
