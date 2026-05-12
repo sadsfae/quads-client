@@ -265,3 +265,37 @@ def test_connection_error_timeout(mock_config, mock_api):
         conn = ConnectionManager(mock_config)
         with pytest.raises(ConnectionError, match="Connection timed out"):
             conn.connect("test_server")
+
+
+def test_init_truststore_success_on_darwin():
+    """Test _init_truststore calls inject_into_ssl on macOS"""
+    import quads_client.connection as conn_module
+
+    mock_truststore = MagicMock()
+    with (
+        patch("sys.platform", "darwin"),
+        patch.dict("sys.modules", {"truststore": mock_truststore}),
+    ):
+        conn_module._init_truststore()
+
+    mock_truststore.inject_into_ssl.assert_called_once()
+
+
+def test_init_truststore_missing_on_darwin():
+    """Test _init_truststore warns when truststore is missing on macOS"""
+    import quads_client.connection as conn_module
+
+    with (
+        patch("sys.platform", "darwin"),
+        patch.dict("sys.modules", {"truststore": None}),
+        pytest.warns(UserWarning, match="truststore.*missing"),
+    ):
+        conn_module._init_truststore()
+
+
+def test_init_truststore_skipped_on_linux():
+    """Test _init_truststore does nothing on Linux"""
+    import quads_client.connection as conn_module
+
+    with patch("sys.platform", "linux"):
+        conn_module._init_truststore()
