@@ -438,21 +438,29 @@ class CloudCommands:
                 self.shell.perror(f"Cloud '{cloud_name}' not found")
                 return
 
-            # Get current schedules for this cloud
-            current_schedules = self.shell.connection.api.get_current_schedules({"cloud": cloud_name})
-
-            if not current_schedules:
-                self.shell.poutput(f"No hosts currently assigned to {cloud_name}")
-                return
-
-            # Extract unique hostnames
+            # cloud01 is the spare pool -- hosts live there without schedules
             hostnames = []
-            for schedule in current_schedules:
-                host = schedule.get("host")
-                if host:
-                    hostname = host.get("name") if isinstance(host, dict) else host
-                    if hostname and hostname not in hostnames:
-                        hostnames.append(hostname)
+            if cloud_name == "cloud01":
+                hosts = self.shell.connection.api.filter_hosts({"cloud": "cloud01"})
+                if hosts and isinstance(hosts, list):
+                    for host in hosts:
+                        if isinstance(host, dict):
+                            name = host.get("name", "")
+                        elif isinstance(host, str):
+                            name = host
+                        else:
+                            name = getattr(host, "name", "")
+                        if name and name not in hostnames:
+                            hostnames.append(name)
+            else:
+                current_schedules = self.shell.connection.api.get_current_schedules({"cloud": cloud_name})
+                if current_schedules:
+                    for schedule in current_schedules:
+                        host = schedule.get("host")
+                        if host:
+                            hostname = host.get("name") if isinstance(host, dict) else host
+                            if hostname and hostname not in hostnames:
+                                hostnames.append(hostname)
 
             if hostnames:
                 self.shell.poutput(f"Hosts in cloud {cloud_name}:")
