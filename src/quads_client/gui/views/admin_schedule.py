@@ -117,24 +117,26 @@ class AdminScheduleView(BaseAdminView):
             return self.shell.connection.api.filter_assignments(filters)
 
         self.tree.clear()
-        assignments = self.safe_load_data(load_data, success_message="Showing {count} assignment(s)")
 
-        if not assignments:
-            return
+        def on_loaded(assignments):
+            if not assignments:
+                return
 
-        for assignment in assignments:
-            if isinstance(assignment, dict):
-                assignment_id = extract_assignment_id(assignment)
-                cloud_name = extract_cloud_name(assignment)
-                description = assignment.get("description", "No description")
-                owner = assignment.get("owner", "N/A")
-                validated = "✓" if assignment.get("validated") else "○"
+            for assignment in assignments:
+                if isinstance(assignment, dict):
+                    assignment_id = extract_assignment_id(assignment)
+                    cloud_name = extract_cloud_name(assignment)
+                    description = assignment.get("description", "No description")
+                    owner = assignment.get("owner", "N/A")
+                    validated = "✓" if assignment.get("validated") else "○"
 
-                self.tree.insert(
-                    "",
-                    tk.END,
-                    values=(assignment_id, cloud_name, description, owner, validated),
-                )
+                    self.tree.insert(
+                        "",
+                        tk.END,
+                        values=(assignment_id, cloud_name, description, owner, validated),
+                    )
+
+        self.safe_load_data_async(load_data, on_loaded, success_message="Showing {count} assignment(s)")
 
     def _validate_hosts_availability(self, hostnames, start_date, end_date):
         """Validate hosts are available for the specified date range
@@ -152,7 +154,15 @@ class AdminScheduleView(BaseAdminView):
         Returns:
             tuple: (is_valid, error_list) where error_list contains hostname:reason pairs
         """
+        from quads_client.commands.schedule import parse_flexible_datetime
+
         errors = []
+
+        try:
+            start_iso = parse_flexible_datetime(start_date).isoformat()[:-3]
+            end_iso = parse_flexible_datetime(end_date).isoformat()[:-3]
+        except ValueError as e:
+            return (False, [str(e)])
 
         for hostname in hostnames:
             hostname = hostname.strip()
@@ -160,8 +170,7 @@ class AdminScheduleView(BaseAdminView):
                 continue
 
             try:
-                # is_available() handles all validation (exists, not broken/retired, schedule conflicts)
-                is_available = self.shell.connection.api.is_available(hostname, {"start": start_date, "end": end_date})
+                is_available = self.shell.connection.api.is_available(hostname, {"start": start_iso, "end": end_iso})
 
                 if not is_available:
                     errors.append(f"{hostname}: Not available for {start_date} to {end_date}")
@@ -428,8 +437,8 @@ class AdminScheduleView(BaseAdminView):
             else:
                 hosts = f"host-list {file_entry.get().strip()}"
 
-            # Build args string
-            args = f"{cloud} {hosts} {start} {end}"
+            # Build args string (dates must be quoted for shlex.split)
+            args = f'{cloud} {hosts} "{start}" "{end}"'
 
             if desc_entry.get().strip():
                 safe_desc = desc_entry.get().strip().replace('"', '\\"')

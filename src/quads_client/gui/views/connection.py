@@ -673,14 +673,14 @@ class ConnectionView(ttk.Frame):
             "Confirm",
             f"Are you sure you want to remove server '{self.selected_server}'?",
         ):
-            try:
-                self.shell.server_commands.cmd_rm_server(self.selected_server)
+            success, message = self.shell.server_commands.rm_server_programmatic(self.selected_server)
+            if success:
                 self._refresh_server_list()
                 self.selected_server = None
                 self._clear_status()
-                messagebox.showinfo("Success", "Server removed")
-            except Exception as e:
-                messagebox.showerror("Error", f"Failed to remove server: {e}")
+                messagebox.showinfo("Success", message)
+            else:
+                messagebox.showerror("Error", message)
 
     def _switch_session(self):
         """Switch to selected session (matches TUI: does not auto-reconnect)"""

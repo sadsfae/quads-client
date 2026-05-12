@@ -1,5 +1,6 @@
 """Base view class and helper widgets to reduce code duplication"""
 
+import threading
 import tkinter as tk
 from tkinter import ttk, messagebox
 from quads_client.gui.widgets.dialogs import show_error_dialog
@@ -221,6 +222,68 @@ class BaseAdminView(ttk.Frame):
             details = traceback.format_exc()
             show_error_dialog(self, "Load Failed", str(e), details)
             return None
+
+    def _run_in_thread(self, work_func, on_success, on_error=None):
+        """Run work_func in a background thread, deliver result to main thread."""
+
+        def _worker():
+            try:
+                result = work_func()
+                self.after(0, lambda: on_success(result))
+            except Exception as exc:
+                if on_error:
+                    self.after(0, lambda e=exc: on_error(e))
+
+        threading.Thread(target=_worker, daemon=True).start()
+
+    def safe_load_data_async(self, load_func, on_loaded, success_message=None, disable_widgets=None):
+        """
+        Async version of safe_load_data -- runs load_func in a background thread.
+
+        Args:
+            load_func: Function that loads and returns data (called in background)
+            on_loaded: Function(data) called on main thread with the result
+            success_message: Optional message template (use {count} for item count)
+            disable_widgets: Optional list of widgets to disable during loading
+        """
+        if not self.check_auth():
+            return
+
+        self.update_status("Loading...")
+
+        if disable_widgets:
+            for w in disable_widgets:
+                w.configure(state="disabled")
+
+        def _restore_widgets():
+            if disable_widgets:
+                for w in disable_widgets:
+                    try:
+                        w.configure(state="normal")
+                    except Exception:
+                        pass
+
+        def on_success(data):
+            _restore_widgets()
+            if success_message and data:
+                count = len(data) if isinstance(data, (list, tuple)) else 0
+                msg = success_message.format(count=count)
+                self.update_status(f"{msg} | Last updated: Just now")
+            elif data:
+                self.update_status("Loaded successfully")
+            else:
+                self.update_status("No items found")
+            on_loaded(data)
+
+        def on_error(exc):
+            _restore_widgets()
+            self.update_status("Error loading data")
+            import traceback
+
+            details = traceback.format_exc()
+            show_error_dialog(self, "Load Failed", str(exc), details)
+
+        self._run_in_thread(load_func, on_success, on_error)
 
     def get_selected_item(self, warning_message="Please select an item"):
         """

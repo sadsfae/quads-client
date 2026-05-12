@@ -25,13 +25,16 @@ class HostsView(BaseAdminView):
 
         ttk.Label(filter_frame, text="Filter:").pack(side=tk.LEFT, padx=(0, 10))
 
+        self._filter_buttons = []
         for label, mode in [
             ("Active", "active"),
             ("All Hosts", "all"),
             ("Broken", "broken"),
             ("Retired", "retired"),
         ]:
-            ttk.Button(filter_frame, text=label, command=lambda m=mode: self._set_filter(m)).pack(side=tk.LEFT, padx=2)
+            btn = ttk.Button(filter_frame, text=label, command=lambda m=mode: self._set_filter(m))
+            btn.pack(side=tk.LEFT, padx=2)
+            self._filter_buttons.append(btn)
 
         # Content frame with scrolled treeview
         content_frame = ttk.Frame(self)
@@ -76,7 +79,6 @@ class HostsView(BaseAdminView):
 
         def load_data():
             if self.filter_mode == "active":
-                # Default: show only active hosts (not broken, not retired)
                 return self.shell.connection.api.filter_hosts({"broken": False, "retired": False})
             elif self.filter_mode == "all":
                 return self.shell.connection.api.get_hosts()
@@ -87,38 +89,42 @@ class HostsView(BaseAdminView):
             return []
 
         self.tree.clear()
-        hosts = self.safe_load_data(load_data, success_message="Showing {count} host(s)")
 
-        if not hosts:
-            return
+        def on_loaded(hosts):
+            if not hosts:
+                return
 
-        for host in hosts:
-            name = host.get("name", "")
-            model = host.get("model", "")
-            default_cloud = host.get("default_cloud", {})
-            if isinstance(default_cloud, dict):
-                default_cloud = default_cloud.get("name", "")
-            host_type = host.get("host_type", "")
-            broken = "Yes" if host.get("broken", False) else "No"
-            retired = "Yes" if host.get("retired", False) else "No"
+            for host in hosts:
+                name = host.get("name", "")
+                model = host.get("model", "")
+                default_cloud = host.get("default_cloud", {})
+                if isinstance(default_cloud, dict):
+                    default_cloud = default_cloud.get("name", "")
+                host_type = host.get("host_type", "")
+                broken = "Yes" if host.get("broken", False) else "No"
+                retired = "Yes" if host.get("retired", False) else "No"
 
-            item_id = self.tree.insert(
-                "",
-                tk.END,
-                values=(name, model, default_cloud, host_type, broken, retired),
-            )
+                item_id = self.tree.insert(
+                    "",
+                    tk.END,
+                    values=(name, model, default_cloud, host_type, broken, retired),
+                )
 
-            # Color code
-            if host.get("broken", False):
-                self.tree.tree.item(item_id, tags=("broken",))
-                self.tree.tree.tag_configure("broken", foreground=self.shell.gui_app.theme_manager.get_color("error"))
-            elif host.get("retired", False):
-                self.tree.tree.item(item_id, tags=("retired",))
-                self.tree.tree.tag_configure("retired", foreground="#999999")
+                if host.get("broken", False):
+                    self.tree.tree.item(item_id, tags=("broken",))
+                    self.tree.tree.tag_configure(
+                        "broken", foreground=self.shell.gui_app.theme_manager.get_color("error")
+                    )
+                elif host.get("retired", False):
+                    self.tree.tree.item(item_id, tags=("retired",))
+                    self.tree.tree.tag_configure("retired", foreground="#999999")
 
-        # Update status with filter info
-        filter_text = f" ({self.filter_mode})" if self.filter_mode != "active" else ""
-        self.update_status(f"Showing {len(hosts)} host(s){filter_text} | Last updated: Just now")
+            filter_text = f" ({self.filter_mode})" if self.filter_mode != "active" else ""
+            self.update_status(f"Showing {len(hosts)} host(s){filter_text} | Last updated: Just now")
+
+        self.safe_load_data_async(
+            load_data, on_loaded, success_message="Showing {count} host(s)", disable_widgets=self._filter_buttons
+        )
 
     def _mark_broken(self):
         """Mark selected host as broken"""
