@@ -657,7 +657,7 @@ class UserCommands:
                 description = assignment.get("description", "")
 
                 # Get current schedules for this assignment
-                schedules = self.shell.connection.api.get_current_schedules({"assignment_id": assignment_id})
+                schedules = self.shell.connection.api.get_schedules({"assignment_id": assignment_id})
                 if schedules:
                     for schedule in schedules:
                         host_name = schedule.get("host", {}).get("name", "Unknown")
