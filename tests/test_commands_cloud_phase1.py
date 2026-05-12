@@ -271,6 +271,113 @@ def test_mod_cloud_no_active_assignment(mock_shell):
     assert "no active assignment" in error_msg
 
 
+def test_mod_cloud_assignment_missing_id(mock_shell):
+    """Test mod-cloud when assignment has no id field"""
+    mock_shell.connection.is_connected = True
+    mock_shell.connection.api.get_active_cloud_assignment.return_value = {"description": "test"}
+
+    cloud_cmd = CloudCommands(mock_shell)
+    cloud_cmd.cmd_mod_cloud("cloud17 cloud-owner alice")
+
+    mock_shell.perror.assert_called()
+    error_msg = str(mock_shell.perror.call_args).lower()
+    assert "could not determine assignment id" in error_msg
+
+
+def test_mod_cloud_rich_console_success(mock_shell):
+    """Test mod-cloud success output via rich_console"""
+    mock_shell.connection.is_connected = True
+    mock_shell.rich_console = MagicMock()
+    mock_shell.connection.api.get_active_cloud_assignment.return_value = {"id": 42}
+    mock_shell.connection.api.update_assignment.return_value = {"status": "success"}
+
+    cloud_cmd = CloudCommands(mock_shell)
+    cloud_cmd.cmd_mod_cloud("cloud17 cloud-owner alice")
+
+    mock_shell.rich_console.print_success.assert_called_once()
+    mock_shell.rich_console.print_property.assert_called_once_with("owner", "alice")
+
+
+def test_mod_cloud_rich_console_no_assignment(mock_shell):
+    """Test mod-cloud no-assignment error via rich_console"""
+    mock_shell.connection.is_connected = True
+    mock_shell.rich_console = MagicMock()
+    mock_shell.connection.api.get_active_cloud_assignment.return_value = None
+
+    cloud_cmd = CloudCommands(mock_shell)
+    cloud_cmd.cmd_mod_cloud("cloud17 cloud-owner alice")
+
+    mock_shell.rich_console.print_error.assert_called_once()
+    assert "no active assignment" in str(mock_shell.rich_console.print_error.call_args).lower()
+
+
+def test_mod_cloud_rich_console_missing_id(mock_shell):
+    """Test mod-cloud missing-id error via rich_console"""
+    mock_shell.connection.is_connected = True
+    mock_shell.rich_console = MagicMock()
+    mock_shell.connection.api.get_active_cloud_assignment.return_value = {"description": "test"}
+
+    cloud_cmd = CloudCommands(mock_shell)
+    cloud_cmd.cmd_mod_cloud("cloud17 cloud-owner alice")
+
+    mock_shell.rich_console.print_error.assert_called_once()
+    assert "could not determine" in str(mock_shell.rich_console.print_error.call_args).lower()
+
+
+def test_mod_cloud_rich_console_forbidden(mock_shell):
+    """Test mod-cloud forbidden error via rich_console"""
+    mock_shell.connection.is_connected = True
+    mock_shell.rich_console = MagicMock()
+    mock_shell.connection.api.get_active_cloud_assignment.return_value = {"id": 42}
+    mock_shell.connection.api.update_assignment.side_effect = Exception("403 Forbidden")
+
+    cloud_cmd = CloudCommands(mock_shell)
+    cloud_cmd.cmd_mod_cloud("cloud17 cloud-owner alice")
+
+    mock_shell.rich_console.print_error.assert_called_once()
+    assert "admin" in str(mock_shell.rich_console.print_error.call_args).lower()
+
+
+def test_mod_cloud_rich_console_api_error(mock_shell):
+    """Test mod-cloud generic error via rich_console"""
+    mock_shell.connection.is_connected = True
+    mock_shell.rich_console = MagicMock()
+    mock_shell.connection.api.get_active_cloud_assignment.return_value = {"id": 42}
+    mock_shell.connection.api.update_assignment.side_effect = Exception("Server error")
+
+    cloud_cmd = CloudCommands(mock_shell)
+    cloud_cmd.cmd_mod_cloud("cloud17 cloud-owner alice")
+
+    mock_shell.rich_console.print_error.assert_called_once()
+    assert "failed to modify" in str(mock_shell.rich_console.print_error.call_args).lower()
+
+
+def test_mod_cloud_quoted_description(mock_shell):
+    """Test mod-cloud with quoted description via shlex"""
+    mock_shell.connection.is_connected = True
+    mock_shell.connection.api.get_active_cloud_assignment.return_value = {"id": 42}
+    mock_shell.connection.api.update_assignment.return_value = {"status": "success"}
+
+    cloud_cmd = CloudCommands(mock_shell)
+    cloud_cmd.cmd_mod_cloud('cloud17 description "admin test 15"')
+
+    call_args = mock_shell.connection.api.update_assignment.call_args[0]
+    assert call_args[1]["description"] == "admin test 15"
+
+
+def test_mod_cloud_shlex_fallback(mock_shell):
+    """Test mod-cloud falls back to split on malformed quotes"""
+    mock_shell.connection.is_connected = True
+    mock_shell.connection.api.get_active_cloud_assignment.return_value = {"id": 42}
+    mock_shell.connection.api.update_assignment.return_value = {"status": "success"}
+
+    cloud_cmd = CloudCommands(mock_shell)
+    cloud_cmd.cmd_mod_cloud('cloud17 description "unclosed quote')
+
+    call_args = mock_shell.connection.api.update_assignment.call_args[0]
+    assert "unclosed" in call_args[1]["description"]
+
+
 def test_cloud_list_enhanced_table_format(mock_shell):
     """Test enhanced cloud-list table format"""
     mock_shell.connection.is_connected = True
