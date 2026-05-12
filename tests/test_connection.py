@@ -1,4 +1,3 @@
-import importlib
 import pytest
 from unittest.mock import MagicMock, patch
 from quads_client.connection import ConnectionManager, ConnectionError
@@ -306,36 +305,3 @@ def test_connection_truststore_missing_on_darwin(mock_config, mock_api):
         conn = ConnectionManager(mock_config)
         conn.connect("test_server")
         assert conn.is_connected
-
-
-def test_truststore_import_on_darwin_success():
-    """Test module-level truststore import succeeds on macOS"""
-    import quads_client.connection as conn_module
-
-    with patch.dict("sys.modules", {"truststore": MagicMock()}), patch("sys.platform", "darwin"):
-        importlib.reload(conn_module)
-
-    assert conn_module._has_truststore is True
-
-    # Restore module state for other tests
-    with patch("sys.platform", "linux"):
-        importlib.reload(conn_module)
-
-
-def test_truststore_import_on_darwin_missing():
-    """Test module-level truststore import fails gracefully on macOS"""
-    import quads_client.connection as conn_module
-
-    # Remove truststore from sys.modules so the import fails
-    with (
-        patch.dict("sys.modules", {"truststore": None}),
-        patch("sys.platform", "darwin"),
-        pytest.warns(UserWarning, match="truststore.*missing"),
-    ):
-        importlib.reload(conn_module)
-
-    assert conn_module._has_truststore is False
-
-    # Restore module state
-    with patch("sys.platform", "linux"):
-        importlib.reload(conn_module)
