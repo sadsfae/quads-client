@@ -168,18 +168,47 @@ class GuiShell:
             # Silently fail
             return []
 
-    def get_available_hosts_data(self, days=None, model=None, ram=None):
+    def get_available_nic_vendors(self):
+        """
+        Fetch unique NIC vendor names from hosts for dropdown population.
+
+        Returns:
+            list: Sorted list of unique NIC vendor names, or empty list if error
+        """
+        if not self.is_authenticated():
+            return []
+
+        try:
+            hosts = self.connection.api.get_hosts()
+            if not hosts:
+                return []
+
+            vendors = set()
+            for host in hosts:
+                interfaces = host.get("interfaces", [])
+                if isinstance(interfaces, list):
+                    for iface in interfaces:
+                        if isinstance(iface, dict):
+                            vendor = iface.get("vendor", "").strip()
+                            if vendor:
+                                vendors.add(vendor)
+
+            return sorted(list(vendors))
+
+        except Exception:
+            return []
+
+    def get_available_hosts_data(self, **filters):
         """
         Fetch available hosts from API and return structured data.
         Uses existing quads-client logic but returns data instead of printing.
 
-        IMPORTANT: This method checks ACTUAL availability using is_available() API
-        to filter out hosts with active schedules, matching quads-client ls-available behavior.
+        Accepts filter keys matching the CLI ls-available command:
+            model, memory__gte, disks.disk_type, disks.size_gb__gte,
+            disks.count__gte, interfaces.vendor, interfaces.speed__gte,
+            processors.vendor__like, start, end
 
-        Args:
-            days: Number of days to check (optional, default=3)
-            model: Model filter (optional)
-            ram: RAM filter in GB (optional)
+        Start/end dates trigger per-host is_available() checks (same as CLI).
 
         Returns:
             list: List of dicts with keys: name, model, host_type, can_self_schedule
@@ -188,20 +217,13 @@ class GuiShell:
             return []
 
         try:
+            from datetime import datetime
+
             from quads_client.utils import extract_host_field, get_available_hosts_filter
 
-            filters = {}
-
-            # Add model filter
-            if model and model != "All":
-                filters["model"] = model.upper()
-
-            # Add RAM filter
-            if ram:
-                try:
-                    filters["memory__gte"] = int(ram) * 1024
-                except ValueError:
-                    pass
+            # Pop start/end for schedule checking (not passed to filter_hosts)
+            start_date = filters.pop("start", None)
+            end_date = filters.pop("end", None)
 
             # Get available hosts using filter_hosts for cloud01 (available pool)
             host_filters = get_available_hosts_filter(**filters)
@@ -220,7 +242,6 @@ class GuiShell:
             try:
                 current_schedules = self.connection.api.get_current_schedules({})
             except Exception:
-                # If we can't get schedules, proceed without filtering
                 pass
 
             # Build set of hosts that have current schedules (excluding cloud01)
@@ -228,12 +249,10 @@ class GuiShell:
             if current_schedules:
                 for schedule in current_schedules:
                     if isinstance(schedule, dict):
-                        # Get the assignment/cloud this schedule is for
                         assignment = schedule.get("assignment", {})
                         if isinstance(assignment, dict):
                             cloud = assignment.get("cloud", {})
                             cloud_name = cloud.get("name") if isinstance(cloud, dict) else str(cloud)
-                            # If scheduled to a cloud other than cloud01, mark as unavailable
                             if cloud_name and cloud_name != "cloud01":
                                 host = schedule.get("host", {})
                                 host_name = host.get("name") if isinstance(host, dict) else str(host)
@@ -255,6 +274,22 @@ class GuiShell:
                 if name in scheduled_hosts:
                     continue
 
+                # If start/end dates specified, check schedule availability
+                if start_date and end_date:
+                    try:
+                        start_dt = datetime.strptime(start_date, "%Y-%m-%d")
+                        end_dt = datetime.strptime(end_date, "%Y-%m-%d")
+                        start_iso = start_dt.isoformat()[:-3]
+                        end_iso = end_dt.isoformat()[:-3]
+
+                        is_available = self.connection.api.is_available(
+                            name, {"start": start_iso, "end": end_iso}
+                        )
+                        if not is_available:
+                            continue
+                    except Exception:
+                        pass
+
                 results.append(
                     {"name": name, "model": model_val, "host_type": host_type, "can_self_schedule": can_self_schedule}
                 )
@@ -262,7 +297,6 @@ class GuiShell:
             return results
 
         except Exception:
-            # Silently fail
             return []
 
     def execute_command(self, command_name, args=""):
