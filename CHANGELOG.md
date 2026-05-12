@@ -1,6 +1,19 @@
 # CHANGELOG
 
 
+## v0.4.9 (2026-05-12)
+
+### Bug Fixes
+
+- My_hosts should show cloud, assignment id
+  ([`a0b45df`](https://github.com/quadsproject/quads-client/commit/a0b45df668c72e0602d4799fa999d586f20ad0a2))
+
+### Chores
+
+- Update RPM spec version to 0.4.8
+  ([`970f714`](https://github.com/quadsproject/quads-client/commit/970f714f1c0d4db9a686af603ebe920f345f851d))
+
+
 ## v0.4.8 (2026-05-12)
 
 ### Bug Fixes
