@@ -1,6 +1,50 @@
 # CHANGELOG
 
 
+## v0.4.2 (2026-05-12)
+
+### Bug Fixes
+
+- Allow cloud_only to return cloud01 hosts too in CLI
+  ([`2ea38c5`](https://github.com/quadsproject/quads-client/commit/2ea38c5f459bc630344174289f8c43132f4eae88))
+
+- Available filters, view hosts details, mac styling
+  ([`7e05994`](https://github.com/quadsproject/quads-client/commit/7e05994d5faf1ed9988c2ea6171eaad6682b3a63))
+
+* Work around OSX ignoring dark mode in some modal shading hopefully * Adding rest of search
+  filters: GPU, interfaces, disks * Adding/fixing view cloud host details (equivalent of quads
+  --cloud-only * quads-client allow listing cloud_only cloud01
+
+- Black theme on osx
+  ([`5811caa`](https://github.com/quadsproject/quads-client/commit/5811caa7cccf7e18d2abc820467df5a5178cd492))
+
+- Remove extraneous status string
+  ([`985e586`](https://github.com/quadsproject/quads-client/commit/985e586bc0bf05582da44a609ea48e5361a0e530))
+
+- Remove hardcoded colors and use theme manager.
+  ([`52179f6`](https://github.com/quadsproject/quads-client/commit/52179f6e91f956ba43f5f147111636b1b6e30087))
+
+- Rest of search filters, view details
+  ([`63ef61a`](https://github.com/quadsproject/quads-client/commit/63ef61a95dfaa7b3310730ad5bdcd5b42f90df7e))
+
+### Chores
+
+- Black formatting
+  ([`5a10dbb`](https://github.com/quadsproject/quads-client/commit/5a10dbbbeb2b0f59a25fdac6c757331218270aa1))
+
+- Fix tests
+  ([`c1bb1e1`](https://github.com/quadsproject/quads-client/commit/c1bb1e1f922550182a6284ef95ddb52027a8c763))
+
+- Update docs
+  ([`d869973`](https://github.com/quadsproject/quads-client/commit/d869973d97f9c9378d50408e9b3be57693e3d278))
+
+- Update docs
+  ([`f592698`](https://github.com/quadsproject/quads-client/commit/f59269866ed8f0654dfbc726dcb335fd2e525f54))
+
+- Update RPM spec version to 0.4.1
+  ([`16df70a`](https://github.com/quadsproject/quads-client/commit/16df70a38a6180325cb706a9945c090863448b21))
+
+
 ## v0.4.1 (2026-05-11)
 
 ### Bug Fixes
