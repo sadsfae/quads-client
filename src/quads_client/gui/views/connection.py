@@ -404,8 +404,8 @@ class ConnectionView(ttk.Frame):
         """Add a new server"""
         dialog = tk.Toplevel(self)
         dialog.title("Add Server")
-        dialog.geometry("450x380")
-        dialog.resizable(False, False)
+        dialog.geometry("500x400")
+        dialog.minsize(500, 400)
         dialog.transient(self)
         dialog.grab_set()
 
@@ -537,8 +537,8 @@ class ConnectionView(ttk.Frame):
 
         dialog = tk.Toplevel(self)
         dialog.title(f"Authenticate - {server_name}")
-        dialog.geometry("400x320")
-        dialog.resizable(False, False)
+        dialog.geometry("500x380")
+        dialog.minsize(500, 380)
         dialog.transient(self)
         dialog.grab_set()
 
@@ -688,8 +688,8 @@ class ConnectionView(ttk.Frame):
 
         dialog = tk.Toplevel(self)
         dialog.title(f"Edit Server: {self.selected_server}")
-        dialog.geometry("450x300")
-        dialog.resizable(False, False)
+        dialog.geometry("500x350")
+        dialog.minsize(500, 350)
         dialog.transient(self)
         dialog.grab_set()
 

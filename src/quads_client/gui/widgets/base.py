@@ -334,7 +334,11 @@ class BaseAdminView(ttk.Frame):
         dialog = tk.Toplevel(self)
         dialog.title(title)
         dialog.geometry(geometry)
-        dialog.resizable(False, False)
+        try:
+            w, h = (int(v) for v in geometry.split("x"))
+            dialog.minsize(w, h)
+        except (ValueError, AttributeError):
+            pass
         dialog.transient(self)
         dialog.grab_set()
 
