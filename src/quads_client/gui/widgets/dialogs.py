@@ -16,8 +16,13 @@ def show_error_dialog(parent, title, message, details=None):
     """
     dialog = tk.Toplevel(parent)
     dialog.title(title)
-    dialog.geometry("500x300" if details else "400x150")
-    dialog.resizable(True, True)
+    size = "500x350" if details else "450x200"
+    dialog.geometry(size)
+    try:
+        w, h = (int(v) for v in size.split("x"))
+        dialog.minsize(w, h)
+    except (ValueError, AttributeError):
+        pass
     dialog.transient(parent)
     dialog.grab_set()
 
@@ -113,8 +118,8 @@ def show_info_dialog(parent, title, message):
     """Show an info dialog"""
     dialog = tk.Toplevel(parent)
     dialog.title(title)
-    dialog.geometry("400x200")
-    dialog.resizable(False, False)
+    dialog.geometry("450x220")
+    dialog.minsize(450, 220)
     dialog.transient(parent)
     dialog.grab_set()
 

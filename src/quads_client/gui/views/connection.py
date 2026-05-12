@@ -404,8 +404,8 @@ class ConnectionView(ttk.Frame):
         """Add a new server"""
         dialog = tk.Toplevel(self)
         dialog.title("Add Server")
-        dialog.geometry("450x380")
-        dialog.resizable(False, False)
+        dialog.geometry("500x400")
+        dialog.minsize(500, 400)
         dialog.transient(self)
         dialog.grab_set()
 
@@ -492,9 +492,10 @@ class ConnectionView(ttk.Frame):
                     messagebox.showerror("Error", message)
                     return
 
-            self._refresh_server_list()
             self._clear_status()
             dialog.destroy()
+            self._refresh_server_list()
+            self.update_idletasks()
 
             if version_info and version_info != "unknown":
                 messagebox.showinfo("Success", f"Server '{name}' added successfully\n\nQUADS version: {version_info}")
@@ -526,6 +527,122 @@ class ConnectionView(ttk.Frame):
             self._clear_status()
         if hasattr(self.shell, "gui_app"):
             self.shell.gui_app.update_role_visibility()
+
+        if success and self.shell.connection and self.shell.connection.registration_mode:
+            self._show_login_register_dialog()
+
+    def _show_login_register_dialog(self):
+        """Show login/register dialog when connected with blank credentials"""
+        server_name = self.shell.connection.current_server
+
+        dialog = tk.Toplevel(self)
+        dialog.title(f"Authenticate - {server_name}")
+        dialog.geometry("500x380")
+        dialog.minsize(500, 380)
+        dialog.transient(self)
+        dialog.grab_set()
+
+        try:
+            if hasattr(self.shell, "gui_app") and hasattr(self.shell.gui_app, "theme_manager"):
+                self.shell.gui_app.theme_manager.configure_toplevel(dialog)
+        except Exception:
+            pass
+
+        ttk.Label(
+            dialog,
+            text=f"Connected to {server_name}",
+            font=("TkDefaultFont", 10, "bold"),
+        ).pack(pady=(10, 5))
+        ttk.Label(dialog, text="Please login or register to continue").pack(pady=(0, 10))
+
+        notebook = ttk.Notebook(dialog)
+        notebook.pack(fill=tk.BOTH, expand=True, padx=15, pady=5)
+
+        # Login tab
+        login_frame = ttk.Frame(notebook, padding=15)
+        notebook.add(login_frame, text="Login")
+
+        ttk.Label(login_frame, text="Email:").grid(row=0, column=0, sticky=tk.W, pady=5)
+        login_email = ttk.Entry(login_frame, width=30)
+        login_email.grid(row=0, column=1, pady=5, sticky=tk.W)
+
+        ttk.Label(login_frame, text="Password:").grid(row=1, column=0, sticky=tk.W, pady=5)
+        login_pass = ttk.Entry(login_frame, width=30, show="*")
+        login_pass.grid(row=1, column=1, pady=5, sticky=tk.W)
+
+        def do_login():
+            email = login_email.get().strip()
+            password = login_pass.get().strip()
+            if not email or not password:
+                messagebox.showerror("Error", "Email and password are required", parent=dialog)
+                return
+
+            success, message, role = self.shell.user_commands.login_programmatic(email, password)
+            if success:
+                self.shell.config.update_server_credentials(server_name, email, password)
+                dialog.destroy()
+                self._refresh_server_list()
+                self._update_server_details()
+                if hasattr(self.shell, "gui_app"):
+                    self.shell.gui_app.update_role_visibility()
+                messagebox.showinfo("Success", f"Logged in as {email}")
+            else:
+                messagebox.showerror("Login Failed", message, parent=dialog)
+
+        ttk.Button(login_frame, text="Login", command=do_login).grid(row=2, column=1, pady=15, sticky=tk.W)
+        login_email.focus()
+
+        # Register tab
+        reg_frame = ttk.Frame(notebook, padding=15)
+        notebook.add(reg_frame, text="Register")
+
+        ttk.Label(reg_frame, text="Email:").grid(row=0, column=0, sticky=tk.W, pady=5)
+        reg_email = ttk.Entry(reg_frame, width=30)
+        reg_email.grid(row=0, column=1, pady=5, sticky=tk.W)
+
+        ttk.Label(reg_frame, text="Password:").grid(row=1, column=0, sticky=tk.W, pady=5)
+        reg_pass = ttk.Entry(reg_frame, width=30, show="*")
+        reg_pass.grid(row=1, column=1, pady=5, sticky=tk.W)
+
+        ttk.Label(reg_frame, text="Confirm:").grid(row=2, column=0, sticky=tk.W, pady=5)
+        reg_confirm = ttk.Entry(reg_frame, width=30, show="*")
+        reg_confirm.grid(row=2, column=1, pady=5, sticky=tk.W)
+
+        ttk.Label(
+            reg_frame, text="Admin accounts must be created server-side", font=("TkDefaultFont", 8), foreground="gray"
+        ).grid(row=3, column=0, columnspan=2, pady=(5, 0))
+
+        def do_register():
+            email = reg_email.get().strip()
+            password = reg_pass.get().strip()
+            confirm = reg_confirm.get().strip()
+
+            if not email or not password:
+                messagebox.showerror("Error", "Email and password are required", parent=dialog)
+                return
+            if "@" not in email or "." not in email:
+                messagebox.showerror("Error", "Please enter a valid email address", parent=dialog)
+                return
+            if len(password) < 6:
+                messagebox.showerror("Error", "Password must be at least 6 characters", parent=dialog)
+                return
+            if password != confirm:
+                messagebox.showerror("Error", "Passwords do not match", parent=dialog)
+                return
+
+            success, message, role = self.shell.user_commands.register_programmatic(email, password)
+            if success:
+                self.shell.config.update_server_credentials(server_name, email, password)
+                dialog.destroy()
+                self._refresh_server_list()
+                self._update_server_details()
+                if hasattr(self.shell, "gui_app"):
+                    self.shell.gui_app.update_role_visibility()
+                messagebox.showinfo("Success", f"Registered and logged in as {email}")
+            else:
+                messagebox.showerror("Registration Failed", message, parent=dialog)
+
+        ttk.Button(reg_frame, text="Register", command=do_register).grid(row=4, column=1, pady=10, sticky=tk.W)
 
     def _disconnect_server(self):
         """Disconnect the session connected to the selected server"""
@@ -571,8 +688,8 @@ class ConnectionView(ttk.Frame):
 
         dialog = tk.Toplevel(self)
         dialog.title(f"Edit Server: {self.selected_server}")
-        dialog.geometry("450x300")
-        dialog.resizable(False, False)
+        dialog.geometry("500x350")
+        dialog.minsize(500, 350)
         dialog.transient(self)
         dialog.grab_set()
 

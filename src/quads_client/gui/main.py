@@ -126,12 +126,12 @@ class QuadsClientApp(tk.Tk):
 
     def _create_sidebar(self):
         """Create navigation sidebar"""
-        title_label = ttk.Label(
+        self.sidebar_title_label = ttk.Label(
             self.sidebar_frame,
             text="QUADS Client",
             font=("TkDefaultFont", 12, "bold"),
         )
-        title_label.pack(pady=10, padx=10)
+        self.sidebar_title_label.pack(pady=10, padx=10)
 
         ttk.Separator(self.sidebar_frame, orient=tk.HORIZONTAL).pack(fill=tk.X, padx=5, pady=5)
 
@@ -182,6 +182,7 @@ class QuadsClientApp(tk.Tk):
         """Initialize view registry -- views are created lazily on first access"""
         self.views = {}
         self.current_view = None
+        self.current_view_name = None
         self._view_factories = {
             "servers": lambda: ConnectionView(self.content_frame, self.shell),
             "schedule": lambda: ScheduleView(self.content_frame, self.shell),
@@ -385,6 +386,7 @@ class QuadsClientApp(tk.Tk):
         if view_name in self.views:
             self.views[view_name].pack(fill=tk.BOTH, expand=True)
             self.current_view = self.views[view_name]
+            self.current_view_name = view_name
 
             if not just_created and hasattr(self.current_view, "refresh"):
                 self.current_view.refresh()
@@ -651,6 +653,20 @@ class QuadsClientApp(tk.Tk):
         # Update connection indicator
         self.update_connection_indicator()
 
+        # Invalidate cached role-dependent views so they rebuild with correct role
+        role_dependent_views = ["available", "assignments"]
+        current_invalidated = False
+        for vn in role_dependent_views:
+            if vn in self.views:
+                if self.current_view is self.views[vn]:
+                    self.current_view.pack_forget()
+                    current_invalidated = True
+                self.views[vn].destroy()
+                del self.views[vn]
+
+        if current_invalidated and self.current_view_name:
+            self._show_view(self.current_view_name)
+
     def show_message(self, message, level="info"):
         """
         Show message to user (called by gui_shell)
@@ -805,6 +821,14 @@ class QuadsClientApp(tk.Tk):
 
         heading_font = tkfont.nametofont("TkHeadingFont")
         heading_font.configure(size=sizes["heading"])
+
+        # Update sidebar button styles to match new font size
+        style = ttk.Style()
+        style.configure("Sidebar.TButton", font=("TkDefaultFont", sizes["default"]))
+        style.configure("Sidebar.Active.TButton", font=("TkDefaultFont", sizes["default"]))
+
+        if hasattr(self, "sidebar_title_label"):
+            self.sidebar_title_label.configure(font=("TkDefaultFont", sizes["title"], "bold"))
 
     def _auto_connect_on_startup(self):
         """Auto-connect to default server on startup if enabled"""

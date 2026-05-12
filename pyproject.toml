@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "quads-client"
 version = "0.4.5"
-description = "QUADS Client is an interactive TUI (Text User Interface) shell for managing multiple QUADS server instances."
+description = "QUADS Client provides both a powerful CLI and an intuitive GUI for managing multiple QUADS servers."
 readme = "README.md"
 requires-python = ">=3.13"
 license = {file = "LICENSE"}

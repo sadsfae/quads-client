@@ -202,10 +202,8 @@ class CloudsView(BaseAdminView):
         cc_entry = FormDialog.create_labeled_entry(form_frame, "CC Users:", 3, 40)
         vlan_entry = FormDialog.create_labeled_entry(form_frame, "VLAN ID:", 4, 40)
 
-        ttk.Label(form_frame, text="QinQ:").grid(row=5, column=0, sticky=tk.W, pady=5)
-        qinq_combo = ttk.Combobox(form_frame, values=["0", "1"], width=37, state="readonly")
-        qinq_combo.set("0")
-        qinq_combo.grid(row=5, column=1, pady=5, sticky=tk.W)
+        qinq_var = tk.BooleanVar(value=False)
+        ttk.Checkbutton(form_frame, text="Enable QinQ", variable=qinq_var).grid(row=5, column=1, sticky=tk.W, pady=5)
 
         wipe_var = tk.BooleanVar(value=False)
         ttk.Checkbutton(form_frame, text="Enable wipe", variable=wipe_var).grid(row=6, column=1, sticky=tk.W, pady=5)
@@ -225,8 +223,8 @@ class CloudsView(BaseAdminView):
                 args += f' cc-users "{safe_cc}"'
             if vlan_entry.get().strip():
                 args += f" vlan {vlan_entry.get().strip()}"
-            if qinq_combo.get():
-                args += f" qinq {qinq_combo.get()}"
+            if qinq_var.get():
+                args += " qinq 1"
             if wipe_var.get():
                 args += " wipe"
 

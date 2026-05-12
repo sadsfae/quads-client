@@ -146,6 +146,35 @@ class UserCommands:
                 return (False, "Login failed: incorrect username or password", None)
             return (False, f"Failed to login: {e}", None)
 
+    def register_programmatic(self, email, password):
+        """
+        Non-interactive user registration for GUI and scripting.
+        Admin accounts cannot be registered -- they must be created server-side.
+
+        Args:
+            email: User email
+            password: User password
+
+        Returns:
+            (success: bool, message: str, role: str or None)
+        """
+        if not self.shell.connection or not self.shell.connection.is_connected:
+            return (False, "Not connected to any server", None)
+
+        try:
+            self.shell.connection.api.username = email
+            self.shell.connection.api.password = password
+            result = self.shell.connection.api.register()
+
+            if isinstance(result, dict) and result.get("message"):
+                if "already exists" in result["message"].lower():
+                    return (False, "Email already registered. Please use Login instead.", None)
+
+            return self.login_programmatic(email, password)
+
+        except Exception as e:
+            return (False, f"Registration failed: {e}", None)
+
     def cmd_login(self, args):
         """Explicit login. Usage: login"""
         if not self._require_connection():
