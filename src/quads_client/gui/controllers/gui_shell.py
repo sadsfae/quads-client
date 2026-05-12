@@ -1,5 +1,7 @@
 """GUI Shell Adapter - bridges GUI with existing command classes"""
 
+import time
+
 from quads_client.commands.available import AvailableCommands
 from quads_client.commands.cloud import CloudCommands
 from quads_client.commands.connection import ConnectionCommands
@@ -37,6 +39,11 @@ class GuiShell:
         self.gui_mode = True
         self._capture_output = False
         self._captured_messages = []
+        self._models_cache = None
+        self._models_cache_time = 0
+        self._nic_vendors_cache = None
+        self._nic_vendors_cache_time = 0
+        self._metadata_cache_ttl = 300
 
         try:
             self.config = QuadsClientConfig()
@@ -92,34 +99,45 @@ class GuiShell:
         """Feedback output to GUI (same as poutput for GUI)"""
         self.poutput(message)
 
+    def invalidate_metadata_cache(self):
+        """Clear cached metadata (call after connecting to a different server)"""
+        self._models_cache = None
+        self._models_cache_time = 0
+        self._nic_vendors_cache = None
+        self._nic_vendors_cache_time = 0
+
     def get_available_models(self):
         """
         Fetch unique host models from the API.
-        Uses existing host_commands to get data.
+        Uses existing host_commands to get data. Results cached for 5 minutes.
 
         Returns:
             list: Sorted list of unique model names, or empty list if error
         """
+        now = time.monotonic()
+        if self._models_cache is not None and (now - self._models_cache_time) < self._metadata_cache_ttl:
+            return self._models_cache
+
         if not self.is_authenticated():
             return []
 
         try:
-            # Use the existing API connection through host commands
             hosts = self.connection.api.get_hosts()
             if not hosts:
                 return []
 
-            # Extract unique models
             models = set()
             for host in hosts:
                 model = host.get("model", "").strip()
                 if model:
                     models.add(model)
 
-            return sorted(list(models))
+            result = sorted(list(models))
+            self._models_cache = result
+            self._models_cache_time = now
+            return result
 
         except Exception:
-            # Silently fail - this is a helper method
             return []
 
     def get_available_vlans(self):
@@ -171,10 +189,15 @@ class GuiShell:
     def get_available_nic_vendors(self):
         """
         Fetch unique NIC vendor names from hosts for dropdown population.
+        Results cached for 5 minutes.
 
         Returns:
             list: Sorted list of unique NIC vendor names, or empty list if error
         """
+        now = time.monotonic()
+        if self._nic_vendors_cache is not None and (now - self._nic_vendors_cache_time) < self._metadata_cache_ttl:
+            return self._nic_vendors_cache
+
         if not self.is_authenticated():
             return []
 
@@ -193,7 +216,10 @@ class GuiShell:
                             if vendor:
                                 vendors.add(vendor)
 
-            return sorted(list(vendors))
+            result = sorted(list(vendors))
+            self._nic_vendors_cache = result
+            self._nic_vendors_cache_time = now
+            return result
 
         except Exception:
             return []
@@ -409,6 +435,8 @@ class GuiShell:
             (success: bool, error_message: str or None)
         """
         from quads_client.connection import ConnectionError as ConnError
+
+        self.invalidate_metadata_cache()
 
         if not self.session_manager:
             return False, "Configuration not loaded"

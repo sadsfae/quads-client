@@ -99,7 +99,7 @@ class ScheduleView(ttk.Frame):
         count_frame.grid(row=0, column=1, padx=20, sticky=tk.W)
         ttk.Label(count_frame, text="Count:").pack(side=tk.LEFT)
         self.count_spinbox = ttk.Spinbox(count_frame, from_=1, to=50, width=10)
-        self.count_spinbox.set(3)
+        self.count_spinbox.set(1)
         self.count_spinbox.pack(side=tk.LEFT, padx=5)
 
         ttk.Radiobutton(
@@ -669,7 +669,7 @@ class ScheduleView(ttk.Frame):
     def _reset_form(self):
         """Reset the form to defaults"""
         self.mode_var.set("count")
-        self.count_spinbox.set(3)
+        self.count_spinbox.set(1)
         self.description_entry.delete(0, tk.END)
         self.description_entry.insert(0, "Development testing environment")
         if hasattr(self, "host_filter_frame"):

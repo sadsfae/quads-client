@@ -115,6 +115,71 @@ class TestServerCommandsProgrammatic:
                 assert success is False
                 assert "already exists" in message.lower()
 
+    def test_rm_server_programmatic_success(self, server_commands, mock_shell):
+        """Test removing server programmatically succeeds"""
+        mock_config_data = {
+            "servers": {"test-server": {"url": "https://test.example.com", "username": "", "password": ""}},
+            "default_server": "other-server",
+        }
+        mock_shell.connection = None
+
+        with patch("builtins.open", mock_open(read_data=yaml.dump(mock_config_data))):
+            with patch("yaml.safe_load", return_value=mock_config_data):
+                with patch("yaml.dump"):
+                    success, message = server_commands.rm_server_programmatic("test-server")
+
+                    assert success is True
+                    assert "removed successfully" in message.lower()
+
+    def test_rm_server_programmatic_not_found(self, server_commands, mock_shell):
+        """Test removing non-existent server"""
+        mock_config_data = {"servers": {}}
+        mock_shell.connection = None
+
+        with patch("builtins.open", mock_open(read_data=yaml.dump(mock_config_data))):
+            with patch("yaml.safe_load", return_value=mock_config_data):
+                success, message = server_commands.rm_server_programmatic("nonexistent")
+
+                assert success is False
+                assert "not found" in message.lower()
+
+    def test_rm_server_programmatic_currently_connected(self, server_commands, mock_shell):
+        """Test removing currently connected server is prevented"""
+        mock_shell.connection = MagicMock()
+        mock_shell.connection.current_server = "test-server"
+
+        success, message = server_commands.rm_server_programmatic("test-server")
+
+        assert success is False
+        assert "currently connected" in message.lower()
+
+    def test_rm_server_programmatic_clears_default(self, server_commands, mock_shell):
+        """Test removing default server clears default_server"""
+        mock_config_data = {
+            "servers": {"test-server": {"url": "https://test.example.com", "username": "", "password": ""}},
+            "default_server": "test-server",
+        }
+        mock_shell.connection = None
+
+        with patch("builtins.open", mock_open(read_data=yaml.dump(mock_config_data))):
+            with patch("yaml.safe_load", return_value=mock_config_data):
+                with patch("yaml.dump") as mock_dump:
+                    success, message = server_commands.rm_server_programmatic("test-server")
+
+                    assert success is True
+                    dumped_data = mock_dump.call_args[0][0]
+                    assert dumped_data["default_server"] is None
+                    assert "test-server" not in dumped_data["servers"]
+
+    def test_rm_server_programmatic_no_config(self, server_commands, mock_shell):
+        """Test removing server when config not loaded"""
+        mock_shell.config = None
+
+        success, message = server_commands.rm_server_programmatic("test-server")
+
+        assert success is False
+        assert "configuration not loaded" in message.lower()
+
 
 class TestUserCommandsProgrammatic:
     """Test programmatic user command methods"""
@@ -214,3 +279,65 @@ class TestUserCommandsProgrammatic:
             assert role == "admin"
             assert mock_shell.connection._user_role == "admin"
             mock_shell._update_visible_commands.assert_called_once()
+
+
+class TestGuiShellMetadataCache:
+    """Test metadata caching in GuiShell"""
+
+    @pytest.fixture
+    def gui_shell(self):
+        """Create a GuiShell with mocked dependencies"""
+        from quads_client.gui.controllers.gui_shell import GuiShell
+
+        mock_app = MagicMock()
+        mock_app.theme_manager = MagicMock()
+
+        with patch("quads_client.gui.controllers.gui_shell.QuadsClientConfig"):
+            with patch("quads_client.gui.controllers.gui_shell.SessionManager"):
+                shell = GuiShell(mock_app)
+
+        mock_connection = MagicMock()
+        mock_connection.is_connected = True
+        mock_connection.is_authenticated = True
+        mock_connection.api = MagicMock()
+        shell.session_manager = MagicMock()
+        shell.session_manager.active_connection = mock_connection
+        return shell
+
+    def test_get_available_models_caches_result(self, gui_shell):
+        """Second call returns cached result without re-fetching"""
+        gui_shell.connection.api.get_hosts.return_value = [
+            {"model": "1029P", "name": "host1"},
+            {"model": "6049P", "name": "host2"},
+        ]
+
+        result1 = gui_shell.get_available_models()
+        result2 = gui_shell.get_available_models()
+
+        assert result1 == ["1029P", "6049P"]
+        assert result2 == result1
+        assert gui_shell.connection.api.get_hosts.call_count == 1
+
+    def test_get_available_models_cache_expires(self, gui_shell):
+        """Cache expires after TTL and re-fetches"""
+        gui_shell.connection.api.get_hosts.return_value = [{"model": "1029P", "name": "host1"}]
+
+        gui_shell.get_available_models()
+        gui_shell._models_cache_time = 0  # Force expiry
+        gui_shell.get_available_models()
+
+        assert gui_shell.connection.api.get_hosts.call_count == 2
+
+    def test_invalidate_metadata_cache_clears(self, gui_shell):
+        """invalidate_metadata_cache clears both caches"""
+        gui_shell.connection.api.get_hosts.return_value = [{"model": "1029P", "name": "host1"}]
+
+        gui_shell.get_available_models()
+        gui_shell.get_available_nic_vendors()
+        gui_shell.invalidate_metadata_cache()
+
+        assert gui_shell._models_cache is None
+        assert gui_shell._nic_vendors_cache is None
+
+        gui_shell.get_available_models()
+        assert gui_shell.connection.api.get_hosts.call_count == 3

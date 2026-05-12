@@ -59,55 +59,64 @@ class CloudsView(BaseAdminView):
         """Load clouds from server"""
 
         def load_data():
-            return self.shell.connection.api.get_clouds()
+            clouds = self.shell.connection.api.get_clouds()
+            if not clouds:
+                return []
+
+            active_assignments = {}
+            try:
+                all_assignments = self.shell.connection.api.filter_assignments({"active": True})
+                if all_assignments:
+                    for assignment in all_assignments:
+                        if isinstance(assignment, dict):
+                            cloud_obj = assignment.get("cloud", {})
+                            cname = cloud_obj.get("name") if isinstance(cloud_obj, dict) else str(cloud_obj)
+                            if cname:
+                                active_assignments[cname] = assignment
+            except Exception:
+                pass
+
+            return (clouds, active_assignments)
 
         self.tree.clear()
-        clouds = self.safe_load_data(load_data, success_message="Showing {count} cloud(s)")
 
-        if not clouds:
-            return
+        def on_loaded(data):
+            if not data:
+                return
 
-        # Batch-fetch all active assignments in one call instead of N+1 per-cloud queries
-        active_assignments = {}
-        try:
-            all_assignments = self.shell.connection.api.filter_assignments({"active": True})
-            if all_assignments:
-                for assignment in all_assignments:
-                    if isinstance(assignment, dict):
-                        cloud_obj = assignment.get("cloud", {})
-                        cname = cloud_obj.get("name") if isinstance(cloud_obj, dict) else str(cloud_obj)
-                        if cname:
-                            active_assignments[cname] = assignment
-        except Exception:
-            pass
+            clouds, active_assignments = data
 
-        for cloud in clouds:
-            cloud_name = cloud.get("name", "")
-            assignment_id = "-"
-            owner = "-"
-            description = "-"
-            vlan = "-"
-            wipe = "No"
+            for cloud in clouds:
+                cloud_name = cloud.get("name", "")
+                assignment_id = "-"
+                owner = "-"
+                description = "-"
+                vlan = "-"
+                wipe = "No"
 
-            assignment = active_assignments.get(cloud_name)
-            if assignment and isinstance(assignment, dict):
-                assignment_id = str(assignment.get("id", "-"))
-                owner = assignment.get("owner", "-") or "-"
-                desc_full = assignment.get("description", "-") or "-"
-                description = desc_full[:40] if len(desc_full) > 40 else desc_full
-                wipe = "Yes" if assignment.get("wipe", False) else "No"
+                assignment = active_assignments.get(cloud_name)
+                if assignment and isinstance(assignment, dict):
+                    assignment_id = str(assignment.get("id", "-"))
+                    owner = assignment.get("owner", "-") or "-"
+                    desc_full = assignment.get("description", "-") or "-"
+                    description = desc_full[:40] if len(desc_full) > 40 else desc_full
+                    wipe = "Yes" if assignment.get("wipe", False) else "No"
 
-                vlan_obj = assignment.get("vlan")
-                if isinstance(vlan_obj, dict):
-                    vlan = str(vlan_obj.get("vlan_id", "-"))
-                elif vlan_obj:
-                    vlan = str(vlan_obj)
+                    vlan_obj = assignment.get("vlan")
+                    if isinstance(vlan_obj, dict):
+                        vlan = str(vlan_obj.get("vlan_id", "-"))
+                    elif vlan_obj:
+                        vlan = str(vlan_obj)
 
-            self.tree.insert(
-                "",
-                tk.END,
-                values=(cloud_name, assignment_id, owner, description, vlan, wipe),
-            )
+                self.tree.insert(
+                    "",
+                    tk.END,
+                    values=(cloud_name, assignment_id, owner, description, vlan, wipe),
+                )
+
+            self.update_status(f"Showing {len(clouds)} cloud(s) | Last updated: Just now")
+
+        self.safe_load_data_async(load_data, on_loaded)
 
     def _create_cloud(self):
         """Create a new cloud"""
