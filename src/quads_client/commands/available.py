@@ -90,6 +90,9 @@ class AvailableCommands:
 
             host_filters = get_available_hosts_filter(**filters)
 
+            if not (self.shell.connection and self.shell.connection.is_admin):
+                host_filters["can_self_schedule"] = True
+
             hosts = self.shell.connection.api.filter_hosts(host_filters)
 
             # Check if API returned an error

@@ -227,6 +227,10 @@ class GuiShell:
 
             # Get available hosts using filter_hosts for cloud01 (available pool)
             host_filters = get_available_hosts_filter(**filters)
+
+            if not self.is_admin():
+                host_filters["can_self_schedule"] = True
+
             hosts = self.connection.api.filter_hosts(host_filters)
 
             # Check if API returned an error
