@@ -1,6 +1,28 @@
 # CHANGELOG
 
 
+## v0.4.7 (2026-05-12)
+
+### Bug Fixes
+
+- Use truststore for darwin users
+  ([`10294a1`](https://github.com/quadsproject/quads-client/commit/10294a1273c9ca06bb5ae7fbd53a75417d3bc748))
+
+This allows for the SSL verify to remain checked, and use the system trust store on darwin. This can
+  also be done on linux, though some distributions may not have python3-truststore bundled and users
+  may not wish to pip install into a venv.
+
+- Use truststore for Mac Users
+  ([`270d67f`](https://github.com/quadsproject/quads-client/commit/270d67fe6967a3e9e91cddfcb4c1603f8bca50fb))
+
+fix: use truststore for Mac Users for TLS verification using pip instal
+
+### Chores
+
+- Update RPM spec version to 0.4.6
+  ([`d2cd9e3`](https://github.com/quadsproject/quads-client/commit/d2cd9e33a1cac7ad81d69c19cb33ea6e81a3bb2b))
+
+
 ## v0.4.6 (2026-05-12)
 
 ### Bug Fixes
