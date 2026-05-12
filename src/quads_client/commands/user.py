@@ -679,9 +679,17 @@ class UserCommands:
             # Display unique hosts in a single table
             table_data = []
             for host_name, info in sorted(unique_hosts.items()):
-                table_data.append([host_name, info["status"], f"Expires: {info['end']}"])
+                table_data.append(
+                    [
+                        host_name,
+                        info["assignment_id"],
+                        info["cloud"],
+                        info["status"],
+                        f"Expires: {info['end']}",
+                    ]
+                )
 
-            headers = ["Host", "Status", "Schedule"]
+            headers = ["Host", "Assignment", "Cloud", "Status", "Schedule"]
             self.shell.poutput(tabulate(table_data, headers=headers, tablefmt="simple"))
             self.shell.poutput(f"\nTotal unique hosts: {len(unique_hosts)}")
 
