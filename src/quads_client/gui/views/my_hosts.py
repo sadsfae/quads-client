@@ -2,6 +2,8 @@
 
 import threading
 import tkinter as tk
+from datetime import datetime, timezone
+from email.utils import parsedate_to_datetime
 from tkinter import ttk, messagebox
 
 from quads_client.gui.widgets.dialogs import show_error_dialog
@@ -178,6 +180,10 @@ class MyHostsView(ttk.Frame):
                     is_validated = assignment.get("validated", False)
 
                     hosts = []
+                    created = "N/A"
+                    expires = "N/A"
+                    days_remaining = "N/A"
+
                     for schedule in schedules if schedules else []:
                         if isinstance(schedule, dict):
                             hostname = schedule.get("host", {})
@@ -187,15 +193,21 @@ class MyHostsView(ttk.Frame):
                             status = "active" if is_validated else "provisioning"
                             hosts.append({"name": str(hostname), "status": status, "progress": "N/A"})
 
+                    if schedules:
+                        first = schedules[0] if isinstance(schedules[0], dict) else {}
+                        created = first.get("start", "N/A").replace("GMT", "UTC")
+                        expires = first.get("end", "N/A").replace("GMT", "UTC")
+                        days_remaining = self._calc_days_remaining(expires)
+
                     assignments_data.append(
                         {
                             "id": assignment_id,
                             "cloud": cloud_name,
                             "description": description,
-                            "created": "N/A",
-                            "expires": "N/A",
+                            "created": created,
+                            "expires": expires,
                             "hosts": hosts,
-                            "days_remaining": "N/A",
+                            "days_remaining": days_remaining,
                         }
                     )
 
@@ -203,6 +215,22 @@ class MyHostsView(ttk.Frame):
             self.shell.perror(f"Failed to fetch assignments: {e}")
 
         return assignments_data
+
+    @staticmethod
+    def _calc_days_remaining(date_str):
+        """Calculate days remaining from a date string (RFC 2822 or ISO format)"""
+        try:
+            try:
+                dt = parsedate_to_datetime(date_str)
+            except Exception:
+                dt = datetime.fromisoformat(date_str)
+            if dt.tzinfo is None:
+                dt = dt.replace(tzinfo=timezone.utc)
+            delta = dt - datetime.now(timezone.utc)
+            days = max(0, delta.days)
+            return str(days)
+        except Exception:
+            return "N/A"
 
     def _create_assignment_panel(self, assignment):
         """Create a panel for one assignment"""

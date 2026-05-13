@@ -181,7 +181,6 @@ class QuadsClientShell(cmd2.Cmd):
             "schedule_update",
             "schedule_delete",
             "add_server",
-            "edit_server",
             "rm_server",
         ]
 

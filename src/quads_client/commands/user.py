@@ -41,19 +41,29 @@ class UserCommands:
             self.shell.connection.api.password = password
             result = self.shell.connection.api.register()
 
-            # Check if user already exists
+            # Check if user already exists - attempt auto-login
             if isinstance(result, dict) and result.get("message"):
                 message = result["message"]
                 if "already exists" in message.lower():
-                    self.shell.pwarning(f"Warning: {message}")
-                    self.shell.pwarning("This email is already registered.")
-                    self.shell.pwarning("If this is your account, use the correct password and try:")
-                    server = self.shell.connection.current_server
-                    self.shell.pwarning(
-                        f"  1. Update config: edit-server {server} --username {email} --password <correct_password>"
-                    )
-                    self.shell.pwarning(f"  2. Reconnect: connect {server}")
-                    self.shell.pwarning("If you forgot your password, contact your QUADS administrator.")
+                    self.shell.poutput("Account already exists - attempting login...")
+                    success, login_msg, role = self.login_programmatic(email, password)
+                    if success:
+                        server_name = self.shell.connection.current_server
+                        if server_name:
+                            self.shell.config.update_server_credentials(server_name, email, password)
+                            self.shell.poutput("OK: Credentials saved to configuration")
+                            self.shell._update_prompt()
+                            self.shell._update_visible_commands()
+                            self.shell.poutput(f"OK: Logged in successfully as {email}")
+                    else:
+                        self.shell.pwarning(f"Login failed: {login_msg}")
+                        server = self.shell.connection.current_server
+                        self.shell.pwarning("If this is your account, verify your password and try:")
+                        self.shell.pwarning(
+                            f"  1. Update config: edit-server {server} username {email} password <correct_password>"
+                        )
+                        self.shell.pwarning(f"  2. Reconnect: connect {server}")
+                        self.shell.pwarning("If you forgot your password, contact your QUADS administrator.")
                     return
 
             # Only save credentials and login for NEW registrations
@@ -319,8 +329,8 @@ class UserCommands:
                     host = schedule.get("host", {})
                     hostname = host.get("name", "Unknown")
                     model = host.get("model", "N/A")
-                    start = schedule.get("start", "N/A")
-                    end = schedule.get("end", "N/A")
+                    start = schedule.get("start", "N/A").replace("GMT", "UTC")
+                    end = schedule.get("end", "N/A").replace("GMT", "UTC")
                     table_data.append([hostname, model, start, end])
 
                 headers = ["Hostname", "Model", "Start", "End"]
@@ -661,7 +671,7 @@ class UserCommands:
                 if schedules:
                     for schedule in schedules:
                         host_name = schedule.get("host", {}).get("name", "Unknown")
-                        end = schedule.get("end", "N/A")
+                        end = schedule.get("end", "N/A").replace("GMT", "UTC")
                         # Use hostname as key to ensure uniqueness
                         if host_name not in unique_hosts:
                             unique_hosts[host_name] = {

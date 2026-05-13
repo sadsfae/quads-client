@@ -135,8 +135,8 @@ class ScheduleCommands:
                         host_name,
                         cloud_name,
                         owner,
-                        sched.get("start", ""),
-                        sched.get("end", ""),
+                        sched.get("start", "").replace("GMT", "UTC"),
+                        sched.get("end", "").replace("GMT", "UTC"),
                     ]
                 )
 
