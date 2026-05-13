@@ -1,6 +1,22 @@
 # CHANGELOG
 
 
+## v0.4.10 (2026-05-13)
+
+### Bug Fixes
+
+- Edit-server, simplify onboard flows for CLI
+  ([`9cc226d`](https://github.com/quadsproject/quads-client/commit/9cc226d0ab719303ebed8ffb7ced4b6ffd38b0fc))
+
+- Show create/expire date on my_assignments in TUI
+  ([`4380b78`](https://github.com/quadsproject/quads-client/commit/4380b783e0b46e341e9a84cacddf7c9a30a859ba))
+
+### Chores
+
+- Update RPM spec version to 0.4.9
+  ([`939e590`](https://github.com/quadsproject/quads-client/commit/939e5902030c93b11a0edbc2917f7fbd8483fb9a))
+
+
 ## v0.4.9 (2026-05-12)
 
 ### Bug Fixes
