@@ -1,6 +1,19 @@
 # CHANGELOG
 
 
+## v0.4.11 (2026-05-13)
+
+### Bug Fixes
+
+- Use getpass to hide pw input on add server
+  ([`a8563cd`](https://github.com/quadsproject/quads-client/commit/a8563cd90a9fcb8078e68b9d4fabba22ce649dc1))
+
+### Chores
+
+- Update RPM spec version to 0.4.10
+  ([`1d60342`](https://github.com/quadsproject/quads-client/commit/1d60342ce9e75e9743acdc7fe54cabf772dc0b3a))
+
+
 ## v0.4.10 (2026-05-13)
 
 ### Bug Fixes
