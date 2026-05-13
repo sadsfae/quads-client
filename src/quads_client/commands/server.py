@@ -272,6 +272,15 @@ class ServerCommands:
         verify_input = input("Enable SSL certificate verification? [Y/n]: ").strip().lower()
         verify = verify_input != "n"
 
+        # Optionally collect existing credentials
+        cred_input = input("Do you have existing credentials? [y/N]: ").strip().lower()
+        if cred_input == "y":
+            username = input("Username (email): ").strip()
+            password = input("Password: ").strip()
+        else:
+            username = ""
+            password = ""
+
         # Test connection (without credentials - just check if server is reachable)
         self.shell.poutput(f"\nTesting connection to {server_url}...")
         try:
@@ -295,11 +304,11 @@ class ServerCommands:
                 self.shell.poutput("Server not added")
                 return
 
-        # Add server to config with empty credentials
+        # Add server to config
         config_data["servers"][server_name] = {
             "url": server_url,
-            "username": "",
-            "password": "",
+            "username": username,
+            "password": password,
             "verify": verify,
         }
 
@@ -314,12 +323,14 @@ class ServerCommands:
                 self.rich_console.print_success(f"\nServer '{server_name}' added successfully!")
                 self.rich_console.print_info("\nNext steps:")
                 self.rich_console.print_info(f"  1. Connect to server: connect {server_name}")
-                self.rich_console.print_info("  2. Register account: register <email> <password>")
+                if not username:
+                    self.rich_console.print_info("  2. Register account: register <email> <password>")
             else:
                 self.shell.poutput(f"\nOK: Server '{server_name}' added successfully!")
                 self.shell.poutput("\nNext steps:")
                 self.shell.poutput(f"  1. Connect to server: connect {server_name}")
-                self.shell.poutput("  2. Register account: register <email> <password>")
+                if not username:
+                    self.shell.poutput("  2. Register account: register <email> <password>")
         except Exception as e:
             self.shell.perror(f"Failed to save configuration: {e}")
 
