@@ -178,7 +178,7 @@ Use the interactive `add-quads-server` command:
 quads-client
 add-quads-server
 # Follow the prompts to add your QUADS server
-config-reload
+# (includes optional credential entry for existing users)
 connect <server_name>
 register your.email@example.com YourPassword123
 ```
@@ -188,8 +188,8 @@ register your.email@example.com YourPassword123
 Alternatively, manually create the configuration file using the provided [example configuration](conf/quads-client.yml.example) as a template.
 
 **Configuration Notes**:
-- For new users: Leave `username` and `password` blank. Use the `register` command after connecting.
-- For existing users: Fill in credentials to login automatically on connect.
+- For new users: Leave `username` and `password` blank (or skip credentials during `add-quads-server`). Use the `register` command after connecting — if the account already exists, it will auto-login.
+- For existing users: Enter credentials during `add-quads-server` or fill them into the config file to login automatically on connect.
 - Specify the base URL only (no `/api/v3/` path, no port `:5000`). The client automatically appends the API path.
 - `verify: true` enables SSL certificate verification (recommended). Set to `false` only for development/testing with self-signed certificates.
 
@@ -394,7 +394,7 @@ fi
 Quick start for regular users:
 
 ```bash
-# 1. Connect and register
+# 1. Connect and register (if account already exists, register will auto-login)
 quads-client
 connect quads-prod.example.com
 register your.email@example.com YourPassword123
@@ -710,7 +710,9 @@ add-quads-server
 #   1. Enter server name (e.g., quads1.example.com)
 #   2. Enter server URL (e.g., https://quads1.example.com)
 #   3. Enable SSL verification? [Y/n]
-# Then: config-reload, connect, and register
+#   4. Do you have existing credentials? [y/N]
+#      (If yes, enter username and password - they'll be saved to config)
+# Then: connect and register (or just connect if credentials were provided)
 ```
 
 ### Cloud Management
@@ -955,6 +957,8 @@ Users can register accounts directly from the CLI:
 
 1. **Connect** to a server (credentials can be blank in config)
 2. **Register** with `register <email> <password>`
+   - If the account already exists, the client will auto-login and save credentials
+   - If auto-login fails (wrong password), guidance is shown to update credentials via `edit-server`
 3. Credentials are automatically saved to your config file
 4. **Login** with the `login` command or reconnect
 
@@ -966,7 +970,7 @@ SSM users can:
 - **Limits**: Max 10 hosts per assignment, max 3 active assignments per user
 
 Command visibility:
-- SSM users see only allowed commands (no `extend`, no admin commands)
+- SSM users see only allowed commands (no `extend`, no admin commands); `edit-server` is always visible since it modifies local config only
 - Admin users see all commands
 
 The server controls which hosts can be self-scheduled via the `can_self_schedule` flag.
@@ -1023,7 +1027,7 @@ quads-client/
 │       └── version.py        - Version command
 ├── conf/
 │   └── quads-client.yml.example - Example configuration
-├── tests/                    - pytest test suite (519 tests, 71.0% coverage)
+├── tests/                    - pytest test suite (691 tests, 74.81% coverage)
 │   ├── test_commands_programmatic.py - Tests for GUI-supporting programmatic methods
 │   └── ...                   - Other test files
 ├── rpm/

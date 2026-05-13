@@ -275,8 +275,10 @@ class ServerCommands:
         # Optionally collect existing credentials
         cred_input = input("Do you have existing credentials? [y/N]: ").strip().lower()
         if cred_input == "y":
+            import getpass
+
             username = input("Username (email): ").strip()
-            password = input("Password: ").strip()
+            password = getpass.getpass("Password: ").strip()
         else:
             username = ""
             password = ""
