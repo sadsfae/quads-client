@@ -1,6 +1,27 @@
 # CHANGELOG
 
 
+## v0.5.0 (2026-05-14)
+
+### Chores
+
+- Fix flake8 CI
+  ([`c874ab9`](https://github.com/quadsproject/quads-client/commit/c874ab9ba9410bb22cef78450bdb1825454ee5f2))
+
+- Update RPM spec version to 0.4.12
+  ([`8a920d5`](https://github.com/quadsproject/quads-client/commit/8a920d58c8a9bfc6c3a1e78c1847e3f44400d556))
+
+### Features
+
+- Add support for os_list in CLI and GUI.
+  ([`e725ad9`](https://github.com/quadsproject/quads-client/commit/e725ad9dac780e1827553bdea5e0c8a5c979f92b))
+
+* Adds command os_list to CLI * Adds drop-down query for OS API endpoint via QuadsAPI (via
+  quads-lib) in admin and normal user GUI areas.
+
+Assisted-by: claude
+
+
 ## v0.4.12 (2026-05-14)
 
 ### Bug Fixes
