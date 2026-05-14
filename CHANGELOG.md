@@ -1,6 +1,22 @@
 # CHANGELOG
 
 
+## v0.4.12 (2026-05-14)
+
+### Bug Fixes
+
+- Add_quads_server in first run, fix echo one-shot
+  ([`b1b2032`](https://github.com/quadsproject/quads-client/commit/b1b20323bda40f345ed6beaa66da117ad06c5784))
+
+### Chores
+
+- Fix black formatting
+  ([`5e994de`](https://github.com/quadsproject/quads-client/commit/5e994de2c8e168d7250bd78f267d74430010c058))
+
+- Update RPM spec version to 0.4.11
+  ([`a0e0e4d`](https://github.com/quadsproject/quads-client/commit/a0e0e4d572c83f86acbb6f3ec21605af8a87eecf))
+
+
 ## v0.4.11 (2026-05-13)
 
 ### Bug Fixes
