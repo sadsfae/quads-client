@@ -70,6 +70,7 @@ def parse_schedule_ssm_args(args):
         "wipe": True,  # Default: wipe enabled
         "vlan": None,
         "qinq": None,  # Optional: only set if user specifies
+        "os": None,
         "model": None,
         "ram": None,
     }
@@ -99,7 +100,7 @@ def parse_schedule_ssm_args(args):
             # Collect description until next keyword
             desc_parts = []
             i += 1
-            while i < len(parts) and parts[i] not in ["nowipe", "vlan", "qinq", "model", "ram"]:
+            while i < len(parts) and parts[i] not in ["nowipe", "vlan", "qinq", "os", "model", "ram"]:
                 desc_parts.append(parts[i])
                 i += 1
             result["description"] = " ".join(desc_parts)
@@ -111,6 +112,9 @@ def parse_schedule_ssm_args(args):
             i += 2
         elif parts[i] == "qinq" and i + 1 < len(parts):
             result["qinq"] = int(parts[i + 1])
+            i += 2
+        elif parts[i] == "os" and i + 1 < len(parts):
+            result["os"] = parts[i + 1]
             i += 2
         elif parts[i] == "model" and i + 1 < len(parts):
             result["model"] = parts[i + 1]
@@ -156,7 +160,7 @@ def parse_schedule_admin_args(args):
     if len(parts) < 4:
         raise ValueError(
             "Usage: schedule <cloud> <hosts|host-list path> <start> <end> [description <text>] "
-            "[cloud-owner <user>] [cloud-ticket <id>] [cc-users <users>] [vlan <id>] [qinq <0|1>] [nowipe]"
+            "[cloud-owner <user>] [cloud-ticket <id>] [cc-users <users>] [vlan <id>] [qinq <0|1>] [os <title>] [nowipe]"
         )
 
     result = {
@@ -170,6 +174,7 @@ def parse_schedule_admin_args(args):
         "cloud_ticket": None,
         "vlan": None,
         "qinq": None,
+        "os": None,
         "wipe": True,  # Default: wipe enabled (systems wiped before new tenants)
         "nowipe": False,
     }
@@ -190,7 +195,7 @@ def parse_schedule_admin_args(args):
         params_start = 2
 
     # Extract start/end dates (must come before optional keywords)
-    keywords = ["description", "cloud-owner", "cc-users", "cloud-ticket", "vlan", "qinq", "nowipe"]
+    keywords = ["description", "cloud-owner", "cc-users", "cloud-ticket", "vlan", "qinq", "os", "nowipe"]
     if params_start + 2 <= len(parts):
         # Check if next items are dates or keywords
         if parts[params_start] not in keywords:
@@ -235,6 +240,9 @@ def parse_schedule_admin_args(args):
                 result["qinq"] = qinq_val
             except ValueError as e:
                 raise ValueError(f"Invalid QinQ value: {e}")
+            i += 2
+        elif parts[i] == "os" and i + 1 < len(parts):
+            result["os"] = parts[i + 1]
             i += 2
         elif parts[i] == "nowipe":
             result["wipe"] = False  # Disable wiping
