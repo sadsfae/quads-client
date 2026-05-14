@@ -234,8 +234,10 @@ class ServerCommands:
 
         self.shell.poutput("\n=== Add New QUADS Server ===\n")
 
-        # Prompt for server name
-        server_name = input("Enter server name (e.g., quads1.example.com): ").strip()
+        # Prompt for friendly name
+        server_name = input(
+            "Enter a friendly name for this server (e.g., my-quads, scalelab): "
+        ).strip()
         if not server_name:
             self.shell.perror("Server name cannot be empty")
             return

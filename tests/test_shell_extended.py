@@ -59,7 +59,7 @@ def test_shell_print_onboarding_message():
             # Verify expected content
             output_text = "\n".join(output_lines)
             assert "Welcome to QUADS Client!" in output_text
-            assert "add-quads-server" in output_text
+            assert "add_quads_server" in output_text
             assert "config_reload" in output_text
             assert "connect <server_name>" in output_text
             assert "register" in output_text
