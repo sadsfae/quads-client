@@ -26,9 +26,10 @@ class RichConsole:
             f"[bold cyan]{banner_text}[/bold cyan]\n\n"
             f"[bold white]QUADS Client v{__version__} - Interactive TUI Shell[/bold white]\n"
             "[dim]https://quads.dev[/dim]\n\n"
-            "[yellow]Type 'help' for available commands[/yellow]\n"
+            "[yellow]Type 'add_quads_server' to add your first QUADS server[/yellow]\n"
             "[yellow]Type 'connect' to connect to a server[/yellow]\n"
-            "[yellow]Type 'register' to create a new account[/yellow]\n\n"
+            "[yellow]Type 'register' to create a new account[/yellow]\n"
+            "[yellow]Type 'help' for available commands[/yellow]\n\n"
             "[dim]Configuration: ~/.config/quads/quads-client.yml[/dim]\n"
             "[dim]History: ~/.config/quads/.quads-client-history.db[/dim]",
             border_style="cyan",

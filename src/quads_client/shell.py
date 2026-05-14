@@ -87,7 +87,7 @@ class QuadsClientShell(cmd2.Cmd):
         self.poutput("\n\033[1;33m Welcome to QUADS Client! \033[0m")
         self.poutput("\n\033[1mGetting Started:\033[0m")
         self.poutput("  1. Add your QUADS server:")
-        self.poutput("     \033[1;36madd-quads-server\033[0m")
+        self.poutput("     \033[1;36madd_quads_server\033[0m")
         self.poutput("     (Follow the interactive prompts)\n")
         self.poutput("  2. Reload configuration:")
         self.poutput("     \033[1;36mconfig_reload\033[0m\n")
@@ -857,7 +857,18 @@ class QuadsClientShell(cmd2.Cmd):
     def _auto_connect_for_oneshot(self, cmd_str):
         """Auto-connect to default server for one-shot commands that need it"""
         # Commands that don't require connection
-        no_connection_cmds = ["version", "help", "servers", "exit", "quit"]
+        no_connection_cmds = [
+            "version",
+            "help",
+            "servers",
+            "exit",
+            "quit",
+            "add_quads_server",
+            "add_server",
+            "edit_server",
+            "rm_server",
+            "config_reload",
+        ]
         cmd_name = cmd_str.split()[0] if cmd_str else ""
 
         # Skip auto-connect for commands that don't need it
