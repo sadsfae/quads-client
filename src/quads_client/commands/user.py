@@ -586,6 +586,8 @@ class UserCommands:
                 assignment_data["qinq"] = parsed["qinq"]
             if parsed["vlan"]:
                 assignment_data["vlan"] = parsed["vlan"]
+            if parsed["os"]:
+                assignment_data["ostype"] = parsed["os"]
 
             # Step 1: Create self-assignment (SSM endpoint auto-assigns cloud)
             assignment = auto_refresh_on_auth_error(

@@ -232,6 +232,19 @@ class ScheduleView(ttk.Frame):
         self.qinq_combo.pack(side=tk.LEFT, padx=5)
         self.qinq_combo.bind("<<ComboboxSelected>>", lambda e: self._update_preview())
 
+        # OS checkbox
+        self.use_os_var = tk.BooleanVar(value=False)
+        os_check = ttk.Checkbutton(options_right, text="Use OS", variable=self.use_os_var, command=self._toggle_os)
+        os_check.pack(side=tk.LEFT, padx=5)
+
+        # OS dropdown (initially disabled)
+        available_os = self.shell.get_available_os()
+        os_values = ["Select OS..."] + available_os
+        self.os_combo = ttk.Combobox(options_right, values=os_values, width=18, state="disabled")
+        self.os_combo.set("Select OS...")
+        self.os_combo.pack(side=tk.LEFT, padx=5)
+        self.os_combo.bind("<<ComboboxSelected>>", lambda e: self._update_preview())
+
         self.advanced_frame = ttk.LabelFrame(main_frame, text="Advanced Options", padding=10)
 
         self.host_filter_frame = HostFilterFrame(self.advanced_frame, self.shell, show_dates=True)
@@ -326,6 +339,22 @@ class ScheduleView(ttk.Frame):
         else:
             self.qinq_combo.config(state="disabled")
             self.qinq_combo.set("0")
+
+        self._update_preview()
+
+    def _toggle_os(self):
+        """Toggle OS dropdown based on checkbox"""
+        if self.use_os_var.get():
+            available_os = self.shell.get_available_os()
+            if available_os:
+                os_values = ["Select OS..."] + available_os
+                self.os_combo.config(values=os_values, state="readonly")
+            else:
+                self.os_combo.config(values=["No OS options available"], state="readonly")
+                self.os_combo.set("No OS options available")
+        else:
+            self.os_combo.config(state="disabled")
+            self.os_combo.set("Select OS...")
 
         self._update_preview()
 
@@ -454,6 +483,12 @@ class ScheduleView(ttk.Frame):
             qinq = self.qinq_combo.get()
             if qinq:
                 preview += f"• QinQ: {qinq}\n"
+
+        # Show OS if enabled
+        if self.use_os_var.get():
+            os_val = self.os_combo.get()
+            if os_val and os_val != "Select OS..." and os_val != "No OS options available":
+                preview += f"• OS: {os_val}\n"
 
         # Show nowipe if enabled
         if self.nowipe_var.get():
@@ -615,6 +650,13 @@ class ScheduleView(ttk.Frame):
             if qinq:
                 args += f" qinq {qinq}"
 
+        # Add OS if enabled
+        if self.use_os_var.get():
+            os_val = self.os_combo.get()
+            if os_val and os_val != "Select OS..." and os_val != "No OS options available":
+                safe_os = os_val.replace('"', '\\"')
+                args += f' os "{safe_os}"'
+
         # Add nowipe if enabled
         if self.nowipe_var.get():
             args += " nowipe"
@@ -681,6 +723,9 @@ class ScheduleView(ttk.Frame):
         self.use_qinq_var.set(False)
         self.qinq_combo.set("0")
         self.qinq_combo.config(state="disabled")
+        self.use_os_var.set(False)
+        self.os_combo.set("Select OS...")
+        self.os_combo.config(state="disabled")
         self.advanced_var.set(False)
         self.advanced_frame.pack_forget()
         self._on_mode_changed()

@@ -31,14 +31,6 @@ class QuadsClientShell(cmd2.Cmd):
         self.rich_console = RichConsole()
         self.quiet = quiet
 
-        # Only print banner in interactive mode
-        if not quiet:
-            self.rich_console.print_banner()
-
-            # Show onboarding message if no servers configured
-            if self.config and self.config.needs_initial_setup():
-                self._print_onboarding_message()
-
         # Hide unwanted cmd2 built-in commands and dangerous cloud management commands
         self.permanently_hidden = [
             "macro",
@@ -57,6 +49,14 @@ class QuadsClientShell(cmd2.Cmd):
             self.session_manager = SessionManager(self.config)
         except ConfigError as e:
             self.pwarning(f"Configuration error: {e}")
+
+        # Print banner after config is loaded so we know if servers exist
+        if not quiet:
+            has_servers = self.config and not self.config.needs_initial_setup()
+            self.rich_console.print_banner(has_servers=has_servers)
+
+            if not has_servers:
+                self._print_onboarding_message()
 
         self.connection_commands = ConnectionCommands(self)
         self.version_commands = VersionCommands(self)
@@ -202,6 +202,7 @@ class QuadsClientShell(cmd2.Cmd):
             "release",
             "cloud_list",
             "ls_available",
+            "os_list",
         ]
 
         # Get current authentication state
@@ -279,6 +280,10 @@ class QuadsClientShell(cmd2.Cmd):
         """List VLANs with assigned clouds (admin only)"""
         self.cloud_commands.cmd_ls_vlan(args)
 
+    def do_os_list(self, args):
+        """List available operating systems for provisioning"""
+        self.cloud_commands.cmd_os_list(args)
+
     def do_cloud_create(self, args):
         """Create a new cloud (admin only)"""
         self.cloud_commands.cmd_cloud_create(args)
@@ -333,7 +338,7 @@ class QuadsClientShell(cmd2.Cmd):
             return []
 
         parts = line.split()
-        keywords = ["description", "nowipe", "vlan", "qinq", "model", "ram", "host-list"]
+        keywords = ["description", "nowipe", "vlan", "qinq", "os", "model", "ram", "host-list"]
 
         # For admin mode, try to get cloud names
         if self.connection.is_admin:

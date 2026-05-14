@@ -145,6 +145,25 @@ class TestParseScheduleSSMArgs:
         assert result["description"] == "This is a long description"
         assert result["model"] == "r640"
 
+    def test_os_option(self):
+        """Test os option"""
+        result = parse_schedule_ssm_args('2 description "Test" os "RHEL 9.4"')
+        assert result["os"] == "RHEL 9.4"
+
+    def test_os_default_none(self):
+        """Test that os defaults to None"""
+        result = parse_schedule_ssm_args('2 description "Test"')
+        assert result["os"] is None
+
+    def test_all_options_with_os(self):
+        """Test all options combined including os"""
+        result = parse_schedule_ssm_args(
+            '3 description "Full test" model r640 ram 128 vlan 1150 qinq 1 os "RHEL 9.4" nowipe'
+        )
+        assert result["os"] == "RHEL 9.4"
+        assert result["model"] == "r640"
+        assert result["vlan"] == 1150
+
 
 class TestParseScheduleAdminArgs:
     """Test parse_schedule_admin_args function"""
@@ -184,6 +203,16 @@ class TestParseScheduleAdminArgs:
         """Test host-list without file path in admin mode"""
         with pytest.raises(ValueError, match="host-list requires a file path"):
             parse_schedule_admin_args("cloud02 host-list 2026-05-11 2026-06-11")
+
+    def test_os_option_admin(self):
+        """Test os option in admin mode"""
+        result = parse_schedule_admin_args('cloud02 host01 2026-05-11 2026-06-11 description "Test" os "RHEL 9.4"')
+        assert result["os"] == "RHEL 9.4"
+
+    def test_os_default_none_admin(self):
+        """Test that os defaults to None in admin mode"""
+        result = parse_schedule_admin_args("cloud02 host01 2026-05-11 2026-06-11")
+        assert result["os"] is None
 
 
 class TestParseExtendArgs:
