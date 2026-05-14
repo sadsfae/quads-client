@@ -160,7 +160,8 @@ def parse_schedule_admin_args(args):
     if len(parts) < 4:
         raise ValueError(
             "Usage: schedule <cloud> <hosts|host-list path> <start> <end> [description <text>] "
-            "[cloud-owner <user>] [cloud-ticket <id>] [cc-users <users>] [vlan <id>] [qinq <0|1>] [os <title>] [nowipe]"
+            "[cloud-owner <user>] [cloud-ticket <id>] [cc-users <users>] "
+            "[vlan <id>] [qinq <0|1>] [os <title>] [nowipe]"
         )
 
     result = {
