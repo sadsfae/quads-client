@@ -186,6 +186,24 @@ class GuiShell:
             # Silently fail
             return []
 
+    def get_available_os(self):
+        """
+        Fetch available OS options from API.
+
+        Returns:
+            list: List of OS title strings, or empty list if error
+        """
+        if not self.is_authenticated():
+            return []
+
+        try:
+            os_list = self.connection.api.get_os_list()
+            if not os_list:
+                return []
+            return [os_item.get("Title", "") for os_item in os_list if os_item.get("Title")]
+        except Exception:
+            return []
+
     def get_available_nic_vendors(self):
         """
         Fetch unique NIC vendor names from hosts for dropdown population.

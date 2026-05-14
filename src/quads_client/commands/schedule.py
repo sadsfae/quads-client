@@ -165,6 +165,7 @@ class ScheduleCommands:
           cc-users <user1,user2>   Comma-separated CC users
           vlan <vlan_id>           VLAN ID number
           qinq <0|1>              QinQ setting (default 0)
+          os <title>               OS for provisioning (see os-list)
           nowipe                   Disable host wiping (default: wipe enabled)
 
         Examples:
@@ -259,6 +260,8 @@ class ScheduleCommands:
                     batch_data["vlan"] = parsed["vlan"]
                 if parsed["qinq"] is not None:
                     batch_data["qinq"] = parsed["qinq"]
+                if parsed.get("os"):
+                    batch_data["ostype"] = parsed["os"]
 
             try:
                 result = self.shell.connection.api.create_schedules_batch(batch_data)

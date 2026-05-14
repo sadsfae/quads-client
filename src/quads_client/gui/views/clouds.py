@@ -184,7 +184,7 @@ class CloudsView(BaseAdminView):
             return
 
         cloud_name = values[0]
-        dialog = self.create_simple_dialog(f"Modify Cloud: {cloud_name}", "500x400")
+        dialog = self.create_simple_dialog(f"Modify Cloud: {cloud_name}", "500x450")
 
         ttk.Label(
             dialog,
@@ -201,12 +201,13 @@ class CloudsView(BaseAdminView):
         ticket_entry = FormDialog.create_labeled_entry(form_frame, "Ticket ID:", 2, 40)
         cc_entry = FormDialog.create_labeled_entry(form_frame, "CC Users:", 3, 40)
         vlan_entry = FormDialog.create_labeled_entry(form_frame, "VLAN ID:", 4, 40)
+        os_entry = FormDialog.create_labeled_entry(form_frame, "OS:", 5, 40)
 
         qinq_var = tk.BooleanVar(value=False)
-        ttk.Checkbutton(form_frame, text="Enable QinQ", variable=qinq_var).grid(row=5, column=1, sticky=tk.W, pady=5)
+        ttk.Checkbutton(form_frame, text="Enable QinQ", variable=qinq_var).grid(row=6, column=1, sticky=tk.W, pady=5)
 
         wipe_var = tk.BooleanVar(value=False)
-        ttk.Checkbutton(form_frame, text="Enable wipe", variable=wipe_var).grid(row=6, column=1, sticky=tk.W, pady=5)
+        ttk.Checkbutton(form_frame, text="Enable wipe", variable=wipe_var).grid(row=7, column=1, sticky=tk.W, pady=5)
 
         def on_modify():
             args = cloud_name
@@ -223,6 +224,9 @@ class CloudsView(BaseAdminView):
                 args += f' cc-users "{safe_cc}"'
             if vlan_entry.get().strip():
                 args += f" vlan {vlan_entry.get().strip()}"
+            if os_entry.get().strip():
+                safe_os = os_entry.get().strip().replace('"', '\\"')
+                args += f' os "{safe_os}"'
             if qinq_var.get():
                 args += " qinq 1"
             if wipe_var.get():
