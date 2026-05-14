@@ -382,9 +382,28 @@ else
 fi
 ```
 
+**Piped Commands:**
+
+Commands can also be piped via stdin. Empty lines and `#` comments are skipped:
+
+```bash
+# Single command
+echo 'version' | quads-client
+
+# Multiple commands
+echo -e 'cloud_list\nmy_hosts' | quads-client
+
+# From a script file
+cat <<'EOF' | quads-client
+# Check assignments
+my_assignments
+my_hosts
+EOF
+```
+
 **Tips:**
 - Set `default_server` in your config to enable auto-connect
-- One-shot commands suppress banner and connection messages for clean output
+- One-shot and piped commands suppress banner and connection messages for clean output
 - Use `> /dev/null 2>&1` to suppress all output in scripts
 - Commands use underscores (e.g., `cloud_list`, `my_hosts`)
 - All table output goes to stdout for easy parsing
