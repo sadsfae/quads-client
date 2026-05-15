@@ -1,6 +1,43 @@
 # CHANGELOG
 
 
+## v0.5.1 (2026-05-15)
+
+### Bug Fixes
+
+- Big performance increases/fixes
+  ([`36cdef4`](https://github.com/quadsproject/quads-client/commit/36cdef42463189d7d7d6a4adce45dbc7d894a633))
+
+1. gui/views/schedule.py — Deferred all API calls out of _create_ui(). VLAN/OS dropdowns now render
+  with placeholders and populate via _load_metadata_async() in a background thread.
+  _load_available_hosts() also converted from synchronous to threaded. 2.
+  gui/widgets/host_filters.py — Model and NIC vendor dropdowns now start empty, populated via new
+  populate_metadata_async() method using background thread. Both Schedule and Available views use
+  this. 3. gui/controllers/gui_shell.py — Added shared _get_cached_hosts() with TTL so
+  get_available_models() and get_available_nic_vendors() share a single get_hosts() API call instead
+  of two separate ones. 4. gui/views/available.py — Calls populate_metadata_async() on its filter
+  frame too
+
+Assisted-by: claude
+
+- Remove/hide commands, sort assignments, fixes
+  ([`e573e85`](https://github.com/quadsproject/quads-client/commit/e573e85a3f581ad3799bf3c2fef75abcf0642dae))
+
+* sort assignments list by cloud * eof, set, ipy, py — added to permanently_hidden (hidden from all
+  users) * debug_admin — added to admin_commands (hidden from normal users, whoami is sufficient) *
+  terminate — added to auth_required_commands
+
+related-to: https://github.com/quadsproject/quads-client/issues/93
+
+### Chores
+
+- Update RPM spec version to 0.5.0
+  ([`d6afd7f`](https://github.com/quadsproject/quads-client/commit/d6afd7fd7ac00d5c63681e86f8c681dba36734e5))
+
+- Update tests
+  ([`ac1acd9`](https://github.com/quadsproject/quads-client/commit/ac1acd904f754dd0aeaf86b0406cbab92c3265bb))
+
+
 ## v0.5.0 (2026-05-14)
 
 ### Chores
