@@ -310,6 +310,14 @@ class TestParseShrinkArgs:
         with pytest.raises(ValueError, match="Usage:"):
             parse_shrink_args("cloud02")
 
+    def test_weeks_missing_number(self):
+        with pytest.raises(ValueError, match="weeks requires a number"):
+            parse_shrink_args("cloud02 weeks")
+
+    def test_days_missing_number(self):
+        with pytest.raises(ValueError, match="days requires a number"):
+            parse_shrink_args("cloud02 days")
+
     def test_invalid_weeks_value(self):
         with pytest.raises(ValueError, match="weeks requires a number"):
             parse_shrink_args("cloud02 weeks abc")

@@ -261,6 +261,137 @@ def test_shrink_missing_args(schedule_commands, mock_shell):
     mock_shell.perror.assert_called()
 
 
+def test_shrink_no_schedules(schedule_commands, mock_shell):
+    """Test shrink when no current schedules exist"""
+    mock_shell.connection.is_connected = True
+    mock_shell.connection.is_authenticated = True
+    mock_shell.connection.is_admin = True
+    mock_shell.connection.api.get_current_schedules.return_value = []
+
+    schedule_commands.cmd_shrink("host01 weeks 1")
+
+    mock_shell.perror.assert_called_with("No current schedules found for host01")
+
+
+@patch("builtins.input", return_value="y")
+def test_shrink_cloud_weeks(mock_input, schedule_commands, mock_shell):
+    """Test shrinking all schedules in a cloud by weeks"""
+    mock_shell.connection.is_connected = True
+    mock_shell.connection.is_authenticated = True
+    mock_shell.connection.is_admin = True
+    mock_shell.connection.api.get_current_schedules.return_value = [
+        {
+            "id": 10,
+            "host": {"name": "host01.example.com"},
+            "end": "2026-05-15 00:00",
+        },
+        {
+            "id": 11,
+            "host": {"name": "host02.example.com"},
+            "end": "2026-05-15 00:00",
+        },
+    ]
+
+    schedule_commands.cmd_shrink("cloud02 weeks 1")
+
+    assert mock_shell.connection.api.update_schedule.call_count == 2
+    for call in mock_shell.connection.api.update_schedule.call_args_list:
+        assert "2026-05-08" in call[0][1]["end"]
+
+
+@patch("builtins.input", return_value="y")
+def test_shrink_cloud_now(mock_input, schedule_commands, mock_shell):
+    """Test shrinking all schedules in a cloud to now"""
+    mock_shell.connection.is_connected = True
+    mock_shell.connection.is_authenticated = True
+    mock_shell.connection.is_admin = True
+    mock_shell.connection.api.get_current_schedules.return_value = [
+        {
+            "id": 10,
+            "host": {"name": "host01.example.com"},
+            "end": "2026-05-15 00:00",
+        },
+    ]
+
+    schedule_commands.cmd_shrink("cloud02 now")
+
+    mock_shell.connection.api.update_schedule.assert_called_once()
+
+
+@patch("builtins.input", return_value="y")
+def test_shrink_cloud_days(mock_input, schedule_commands, mock_shell):
+    """Test shrinking all schedules in a cloud by days"""
+    mock_shell.connection.is_connected = True
+    mock_shell.connection.is_authenticated = True
+    mock_shell.connection.is_admin = True
+    mock_shell.connection.api.get_current_schedules.return_value = [
+        {
+            "id": 10,
+            "host": {"name": "host01.example.com"},
+            "end": "2026-05-15 00:00",
+        },
+    ]
+
+    schedule_commands.cmd_shrink("cloud02 days 3")
+
+    mock_shell.connection.api.update_schedule.assert_called_once()
+    args = mock_shell.connection.api.update_schedule.call_args[0]
+    assert "2026-05-12" in args[1]["end"]
+
+
+@patch("builtins.input", return_value="y")
+def test_shrink_cloud_date(mock_input, schedule_commands, mock_shell):
+    """Test shrinking all schedules in a cloud to a specific date"""
+    mock_shell.connection.is_connected = True
+    mock_shell.connection.is_authenticated = True
+    mock_shell.connection.is_admin = True
+    mock_shell.connection.api.get_current_schedules.return_value = [
+        {
+            "id": 10,
+            "host": {"name": "host01.example.com"},
+            "end": "2026-05-15 00:00",
+        },
+    ]
+
+    schedule_commands.cmd_shrink('cloud02 date "2026-05-10 22:00"')
+
+    mock_shell.connection.api.update_schedule.assert_called_once()
+    args = mock_shell.connection.api.update_schedule.call_args[0]
+    assert "2026-05-10" in args[1]["end"]
+
+
+@patch("builtins.input", return_value="n")
+def test_shrink_cloud_cancelled(mock_input, schedule_commands, mock_shell):
+    """Test shrink cloud cancelled by user"""
+    mock_shell.connection.is_connected = True
+    mock_shell.connection.is_authenticated = True
+    mock_shell.connection.is_admin = True
+    mock_shell.connection.api.get_current_schedules.return_value = [
+        {
+            "id": 10,
+            "host": {"name": "host01.example.com"},
+            "end": "2026-05-15 00:00",
+        },
+    ]
+
+    schedule_commands.cmd_shrink("cloud02 weeks 1")
+
+    mock_shell.connection.api.update_schedule.assert_not_called()
+    mock_shell.poutput.assert_any_call("Cancelled")
+
+
+def test_shrink_summary_all_modes(schedule_commands):
+    """Test _shrink_summary for all modes"""
+    from quads_client.commands.schedule import ScheduleCommands
+
+    assert "to now" in ScheduleCommands._shrink_summary("cloud02", {"mode": "now"}, 2, 2)
+    assert "1 week(s)" in ScheduleCommands._shrink_summary("cloud02", {"mode": "weeks", "weeks": 1}, 2, 2)
+    assert "3 day(s)" in ScheduleCommands._shrink_summary("cloud02", {"mode": "days", "days": 3}, 2, 2)
+    assert "2026-05-10" in ScheduleCommands._shrink_summary(
+        "cloud02", {"mode": "date", "date": "2026-05-10 22:00"}, 2, 2
+    )
+
+
 def test_schedule_not_connected(schedule_commands, mock_shell):
     """Test schedule commands when not connected"""
     mock_shell.connection.is_connected = False
