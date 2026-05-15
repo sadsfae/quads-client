@@ -269,3 +269,44 @@ def test_schedule_count_with_string_hosts(mock_shell):
 
     # Should create schedule for 2 hosts
     assert mock_shell.connection.api.create_schedule.call_count == 2
+
+
+def test_assignment_list_sorted_by_cloud_number(mock_shell):
+    """Test that assignment_list output is sorted by cloud number"""
+    mock_shell.connection.is_connected = True
+    mock_shell.connection.is_authenticated = True
+    mock_shell.connection.is_admin = True
+    mock_shell.connection.username = "admin@example.com"
+    mock_shell.connection.api.filter_assignments.return_value = [
+        {
+            "id": 264,
+            "cloud": {"name": "cloud21"},
+            "owner": "user1",
+            "description": "Test A",
+            "validated": True,
+        },
+        {
+            "id": 252,
+            "cloud": {"name": "cloud06"},
+            "owner": "user2",
+            "description": "Test B",
+            "validated": False,
+        },
+        {
+            "id": 16,
+            "cloud": {"name": "cloud20"},
+            "owner": "user3",
+            "description": "Test C",
+            "validated": True,
+        },
+    ]
+
+    user_commands = UserCommands(mock_shell)
+    user_commands.cmd_assignment_list("")
+
+    output_calls = mock_shell.poutput.call_args_list
+    table_output = output_calls[-1][0][0]
+    cloud06_pos = table_output.find("cloud06")
+    cloud20_pos = table_output.find("cloud20")
+    cloud21_pos = table_output.find("cloud21")
+    assert cloud06_pos < cloud20_pos < cloud21_pos

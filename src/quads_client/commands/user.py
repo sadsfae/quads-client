@@ -5,6 +5,7 @@ from quads_client.error_handler import auto_refresh_on_auth_error, handle_api_er
 from quads_client.utils import (
     extract_assignment_id,
     extract_cloud_name,
+    extract_cloud_number,
     extract_hostname,
     get_username_short,
 )
@@ -370,6 +371,8 @@ class UserCommands:
 
             self.shell.poutput(f"\n{title}:")
             self.shell.poutput("=" * 80)
+
+            assignments = sorted(assignments, key=lambda a: extract_cloud_number(extract_cloud_name(a)))
 
             table_data = []
             for assignment in assignments:

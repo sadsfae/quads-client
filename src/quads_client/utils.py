@@ -1,5 +1,7 @@
 """Utility functions for quads-client"""
 
+import re
+
 AVAILABLE_HOSTS_BASE_FILTER = {
     "cloud": "cloud01",
     "retired": False,
@@ -53,6 +55,11 @@ def extract_cloud_name(assignment, default="N/A"):
         if cloud:
             return getattr(cloud, "name", default)
         return default
+
+
+def extract_cloud_number(cloud_name):
+    match = re.search(r"(\d+)$", cloud_name)
+    return int(match.group(1)) if match else float("inf")
 
 
 def extract_assignment_id(assignment, default="N/A"):
