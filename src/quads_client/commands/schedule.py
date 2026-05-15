@@ -1,7 +1,7 @@
 from datetime import datetime, timedelta
 from tabulate import tabulate
 
-from quads_client.arg_parser import parse_extend_args, parse_schedule_admin_args
+from quads_client.arg_parser import parse_extend_args, parse_schedule_admin_args, parse_shrink_args
 from quads_client.error_handler import handle_api_error, require_admin, require_connection
 from quads_client.utils import format_schedule_datetime, parse_api_datetime
 
@@ -388,22 +388,6 @@ class ScheduleCommands:
         except Exception as e:
             self.shell.perror(f"Failed to update schedule: {e}")
 
-    def cmd_rm_schedule(self, args):
-        """Remove a schedule. Usage: rm-schedule <schedule_id>"""
-        if not self._require_connection():
-            return
-
-        if not args.strip():
-            self.shell.perror("Usage: rm-schedule <schedule_id>")
-            return
-
-        schedule_id = args.strip()
-        try:
-            self.shell.connection.api.remove_schedule(schedule_id)
-            self.shell.poutput(f"Schedule {schedule_id} removed successfully")
-        except Exception as e:
-            self.shell.perror(f"Failed to remove schedule: {e}")
-
     def cmd_extend(self, args):
         """
         Extend cloud or host schedules (admin only - HIDDEN from SSM users)
@@ -499,53 +483,54 @@ class ScheduleCommands:
 
     def cmd_shrink(self, args):
         """
-        Shrink a schedule. Usage: shrink <cloud|hostname> weeks <number>
+        Shrink cloud or host schedules (admin only)
+        Usage: shrink <cloud|hostname> weeks <N>
+               shrink <cloud|hostname> days <N>
+               shrink <cloud|hostname> now
+               shrink <cloud|hostname> date <YYYY-MM-DD HH:MM>
 
-        For clouds: Sets all current schedules to end now (cancels assignment)
-        For hosts: Reduces schedule by specified weeks
+        Examples:
+          shrink cloud02 weeks 2
+          shrink cloud02 days 5
+          shrink cloud23 now
+          shrink host01.example.com date "2026-05-12 22:00"
         """
-        if not self._require_connection():
+        if not require_admin(self.shell):
             return
 
-        parts = args.split()
-        target = None
-        weeks = None
-
-        i = 0
-        while i < len(parts):
-            if parts[i] == "weeks" and i + 1 < len(parts):
-                try:
-                    weeks = int(parts[i + 1])
-                except ValueError:
-                    self.shell.perror("Invalid weeks value")
-                    return
-                i += 2
-            else:
-                # First non-keyword argument is the target (cloud or hostname)
-                if target is None and parts[i] != "weeks":
-                    target = parts[i]
-                i += 1
-
-        if not target or weeks is None:
-            self.shell.perror("Usage: shrink <cloud|hostname> weeks <number>")
-            return
+        usage = "Usage: shrink <cloud|hostname> weeks <N> | days <N> | now | date <YYYY-MM-DD HH:MM>"
 
         try:
-            # Determine if target is cloud or hostname
+            parsed = parse_shrink_args(args)
+        except ValueError as e:
+            self.shell.perror(f"Invalid arguments: {e}")
+            self.shell.perror(usage)
+            return
+
+        target = parsed["target"]
+
+        try:
             if target.startswith("cloud"):
-                # Cloud mode: shrink entire cloud (cancel assignment)
                 schedules = self.shell.connection.api.get_current_schedules({"cloud": target})
+            else:
+                schedules = self.shell.connection.api.get_current_schedules({"host": target})
 
-                if not schedules:
-                    self.shell.perror(f"No current schedules found for {target}")
-                    return
+            if not schedules:
+                self.shell.perror(f"No current schedules found for {target}")
+                return
 
-                # Show summary and prompt for confirmation
+            if target.startswith("cloud"):
                 host_count = len(schedules)
                 self.shell.poutput(f"\nFound {host_count} active schedule(s) in {target}")
-                self.shell.poutput(f"This will shrink all schedules by {weeks} week(s)")
+                if parsed["mode"] == "now":
+                    self.shell.poutput("This will set all schedules to end now")
+                elif parsed["mode"] == "weeks":
+                    self.shell.poutput(f"This will shrink all schedules by {parsed['weeks']} week(s)")
+                elif parsed["mode"] == "days":
+                    self.shell.poutput(f"This will shrink all schedules by {parsed['days']} day(s)")
+                else:
+                    self.shell.poutput(f"This will set all schedule end dates to {parsed['date']}")
 
-                # Prompt for confirmation
                 try:
                     response = input("Continue? [y/N]: ").strip().lower()
                 except (EOFError, KeyboardInterrupt):
@@ -556,14 +541,11 @@ class ScheduleCommands:
                     self.shell.poutput("Cancelled")
                     return
 
-                # Shrink all schedules
                 updated_count = 0
                 for schedule in schedules:
                     try:
-                        current_end = parse_api_datetime(schedule["end"])
-                        new_end = current_end - timedelta(weeks=weeks)
+                        new_end = self._compute_shrink_end(schedule, parsed)
                         new_end_str = new_end.strftime("%Y-%m-%dT%H:%M")
-
                         self.shell.connection.api.update_schedule(schedule["id"], {"end": new_end_str})
                         updated_count += 1
 
@@ -579,28 +561,43 @@ class ScheduleCommands:
                         else:
                             self.shell.perror(f"  Failed: {host_name}: {e}")
 
+                summary = self._shrink_summary(target, parsed, updated_count, host_count)
                 if self.rich_console:
-                    self.rich_console.print_success(
-                        f"\nShrunk {updated_count}/{host_count} schedule(s) in {target} by {weeks} week(s)"
-                    )
+                    self.rich_console.print_success(f"\n{summary}")
                 else:
-                    self.shell.poutput(
-                        f"OK: Shrunk {updated_count}/{host_count} schedule(s) in {target} by {weeks} week(s)"
-                    )
+                    self.shell.poutput(f"OK: {summary}")
             else:
-                # Hostname mode: shrink single host (existing behavior)
-                schedules = self.shell.connection.api.get_current_schedules({"host": target})
-                if not schedules:
-                    self.shell.perror(f"No current schedule found for {target}")
-                    return
-
-                current = schedules[0]
-                current_end = parse_api_datetime(current["end"])
-                new_end = current_end - timedelta(weeks=weeks)
+                schedule = schedules[0]
+                new_end = self._compute_shrink_end(schedule, parsed)
                 new_end_str = new_end.strftime("%Y-%m-%dT%H:%M")
+                self.shell.connection.api.update_schedule(schedule["id"], {"end": new_end_str})
+                self.shell.poutput(f"OK: Shrunk schedule for {target} to {new_end_str}")
 
-                self.shell.connection.api.update_schedule(current["id"], {"end": new_end_str})
-                self.shell.poutput(f"Shrunk schedule for {target} by {weeks} weeks to {new_end_str}")
-
+        except ValueError as e:
+            self.shell.perror(f"Invalid arguments: {e}")
+            self.shell.perror(usage)
         except Exception as e:
-            self.shell.perror(f"Failed to shrink schedule: {e}")
+            handle_api_error(self.shell, e, "Shrinking schedule")
+
+    def _compute_shrink_end(self, schedule, parsed):
+        if parsed["mode"] == "now":
+            return datetime.now()
+        elif parsed["mode"] == "weeks":
+            current_end = parse_api_datetime(schedule["end"])
+            return current_end - timedelta(weeks=parsed["weeks"])
+        elif parsed["mode"] == "days":
+            current_end = parse_api_datetime(schedule["end"])
+            return current_end - timedelta(days=parsed["days"])
+        else:
+            return parse_flexible_datetime(parsed["date"])
+
+    @staticmethod
+    def _shrink_summary(target, parsed, updated_count, host_count):
+        if parsed["mode"] == "now":
+            return f"Shrunk {updated_count}/{host_count} schedule(s) in {target} to now"
+        elif parsed["mode"] == "weeks":
+            return f"Shrunk {updated_count}/{host_count} schedule(s) in {target} by {parsed['weeks']} week(s)"
+        elif parsed["mode"] == "days":
+            return f"Shrunk {updated_count}/{host_count} schedule(s) in {target} by {parsed['days']} day(s)"
+        else:
+            return f"Shrunk {updated_count}/{host_count} schedule(s) in {target} to {parsed['date']}"

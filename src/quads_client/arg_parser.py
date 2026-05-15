@@ -297,3 +297,58 @@ def parse_extend_args(args):
         raise ValueError("Second argument must be 'weeks' or 'date'")
 
     return result
+
+
+def parse_shrink_args(args):
+    """
+    Parse shrink command arguments.
+
+    Syntax: shrink <cloud|hostname> weeks <N>
+            shrink <cloud|hostname> days <N>
+            shrink <cloud|hostname> now
+            shrink <cloud|hostname> date <YYYY-MM-DD HH:MM>
+
+    Returns:
+        dict with keys: target, mode, weeks, days, date
+
+    Raises:
+        ValueError: If arguments are invalid
+    """
+    parts = shlex.split(args)
+    if len(parts) < 2:
+        raise ValueError("Usage: shrink <cloud|hostname> weeks <N> | days <N> | now | date <YYYY-MM-DD HH:MM>")
+
+    result = {
+        "target": parts[0],
+        "mode": parts[1],
+        "weeks": None,
+        "days": None,
+        "date": None,
+    }
+
+    if parts[1] == "now":
+        if len(parts) > 2:
+            raise ValueError("'now' takes no additional arguments")
+    elif parts[1] == "weeks":
+        if len(parts) < 3:
+            raise ValueError("weeks requires a number")
+        try:
+            result["weeks"] = int(parts[2])
+        except ValueError:
+            raise ValueError("weeks requires a number")
+    elif parts[1] == "days":
+        if len(parts) < 3:
+            raise ValueError("days requires a number")
+        try:
+            result["days"] = int(parts[2])
+        except ValueError:
+            raise ValueError("days requires a number")
+    elif parts[1] == "date":
+        date_str = " ".join(parts[2:]).strip('"')
+        if not date_str:
+            raise ValueError("date requires a value in format YYYY-MM-DD HH:MM")
+        result["date"] = date_str
+    else:
+        raise ValueError("Second argument must be 'weeks', 'days', 'now', or 'date'")
+
+    return result

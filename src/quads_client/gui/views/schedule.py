@@ -1,5 +1,6 @@
 """Schedule view for self-service scheduling (SSM users)"""
 
+import threading
 import tkinter as tk
 from tkinter import ttk, filedialog, messagebox
 
@@ -211,9 +212,8 @@ class ScheduleView(ttk.Frame):
         )
         vlan_check.pack(side=tk.LEFT, padx=5)
 
-        # VLAN dropdown (initially disabled)
-        free_vlans = self.shell.get_available_vlans()
-        vlan_values = ["Select VLAN..."] + free_vlans
+        # VLAN dropdown (initially disabled, populated async)
+        vlan_values = ["Select VLAN..."]
         self.vlan_combo = ttk.Combobox(options_right, values=vlan_values, width=12, state="disabled")
         self.vlan_combo.set("Select VLAN...")
         self.vlan_combo.pack(side=tk.LEFT, padx=5)
@@ -237,9 +237,8 @@ class ScheduleView(ttk.Frame):
         os_check = ttk.Checkbutton(options_right, text="Use OS", variable=self.use_os_var, command=self._toggle_os)
         os_check.pack(side=tk.LEFT, padx=5)
 
-        # OS dropdown (initially disabled)
-        available_os = self.shell.get_available_os()
-        os_values = ["Select OS..."] + available_os
+        # OS dropdown (initially disabled, populated async)
+        os_values = ["Select OS..."]
         self.os_combo = ttk.Combobox(options_right, values=os_values, width=18, state="disabled")
         self.os_combo.set("Select OS...")
         self.os_combo.pack(side=tk.LEFT, padx=5)
@@ -287,6 +286,34 @@ class ScheduleView(ttk.Frame):
 
         ttk.Button(button_frame, text="Cancel", command=self._cancel).pack(side=tk.RIGHT, padx=5)
         ttk.Button(button_frame, text="Schedule Now", command=self._schedule).pack(side=tk.RIGHT, padx=5)
+
+        self.after(100, self._load_metadata_async)
+
+    def _load_metadata_async(self):
+        """Populate VLAN, OS, model, and NIC vendor dropdowns in background."""
+
+        def _fetch():
+            vlans = self.shell.get_available_vlans()
+            os_list = self.shell.get_available_os()
+            return vlans, os_list
+
+        def _apply(vlans, os_list):
+            if vlans:
+                self.vlan_combo.config(values=["Select VLAN..."] + vlans)
+            if os_list:
+                self.os_combo.config(values=["Select OS..."] + os_list)
+
+        def _worker():
+            try:
+                vlans, os_list = _fetch()
+                self.after(0, lambda: _apply(vlans, os_list))
+            except Exception:
+                pass
+
+        threading.Thread(target=_worker, daemon=True).start()
+
+        if hasattr(self, "host_filter_frame"):
+            self.host_filter_frame.populate_metadata_async()
 
     def _on_mode_changed(self):
         """Handle mode change"""
@@ -364,37 +391,35 @@ class ScheduleView(ttk.Frame):
             self.available_status.config(text="Not connected")
             return
 
-        try:
-            self.available_status.config(text="Loading...")
-            self.update()
+        self.available_status.config(text="Loading...")
+        self.update()
 
-            # Read filters from the shared HostFilterFrame in advanced options
-            filters = {}
-            if hasattr(self, "host_filter_frame"):
-                filters = self.host_filter_frame.get_filters()
+        filters = {}
+        if hasattr(self, "host_filter_frame"):
+            filters = self.host_filter_frame.get_filters()
 
-            # Get available hosts data from API
-            hosts = self.shell.get_available_hosts_data(**filters)
+        def _fetch():
+            return self.shell.get_available_hosts_data(**filters)
 
+        def _on_loaded(hosts):
             self.available_listbox.delete(0, tk.END)
-
             if not hosts:
                 self.available_listbox.insert(tk.END, "No available hosts found")
                 self.available_status.config(text="No hosts found")
                 return
-
-            # Populate listbox with hostnames
             for host in hosts:
                 self.available_listbox.insert(tk.END, host["name"])
-
             self.available_status.config(text=f"Loaded {len(hosts)} host(s)")
 
-        except Exception as e:
-            self.available_status.config(text="Error")
-            import traceback
+        def _worker():
+            try:
+                result = _fetch()
+                self.after(0, lambda: _on_loaded(result))
+            except Exception as exc:
+                msg = str(exc)
+                self.after(0, lambda: self.available_status.config(text=f"Error: {msg}"))
 
-            details = traceback.format_exc()
-            show_error_dialog(self, "Load Available Failed", str(e), details)
+        threading.Thread(target=_worker, daemon=True).start()
 
     def _use_selected_hosts(self):
         """Use selected hosts from listbox"""

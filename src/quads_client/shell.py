@@ -39,6 +39,10 @@ class QuadsClientShell(cmd2.Cmd):
             "run_pyscript",
             "shortcuts",
             "_relative_run_script",
+            "eof",
+            "set",
+            "ipy",
+            "py",
             "cloud_create",  # Too dangerous - no use case for empty clouds
             "cloud_delete",  # Too dangerous - can break active assignments
         ]
@@ -173,7 +177,6 @@ class QuadsClientShell(cmd2.Cmd):
             "ls_schedule",
             "add_schedule",
             "mod_schedule",
-            "rm_schedule",
             "extend",
             "shrink",
             "define_cloud",
@@ -182,6 +185,7 @@ class QuadsClientShell(cmd2.Cmd):
             "schedule_delete",
             "add_server",
             "rm_server",
+            "debug_admin",
         ]
 
         # Deprecated commands (hidden from all users)
@@ -199,6 +203,7 @@ class QuadsClientShell(cmd2.Cmd):
             "assignment_list",
             "my_hosts",
             "my_assignments",
+            "terminate",
             "release",
             "cloud_list",
             "ls_available",
@@ -441,26 +446,27 @@ class QuadsClientShell(cmd2.Cmd):
         return []
 
     def complete_shrink(self, text, line, begidx, endidx):
-        """Autocomplete for shrink command"""
+        """Autocomplete for shrink command - cloud names or hostnames, then mode keywords"""
         if not self.connection or not self.connection.is_admin:
             return []
 
         parts = line.split()
         try:
-            keywords = ["--host", "--weeks"]
-
-            # If looking for hostname after --host
-            if len(parts) > 1 and parts[-2] == "--host":
+            if len(parts) <= 2:
+                clouds = self.connection.api.get_clouds()
+                cloud_names = [c.get("name") for c in clouds]
                 schedules = self.connection.api.get_current_schedules({})
-                hostnames = [s.get("host", {}).get("name", "") for s in schedules]
+                hostnames = list(set(s.get("host", {}).get("name", "") for s in schedules))
+                candidates = cloud_names + hostnames
                 if text:
-                    return [h for h in hostnames if h.startswith(text)]
-                return hostnames
+                    return [c for c in candidates if c.startswith(text)]
+                return candidates
 
-            # Otherwise suggest keywords
-            if text:
-                return [k for k in keywords if k.startswith(text)]
-            return keywords
+            if len(parts) == 3:
+                keywords = ["weeks", "days", "now", "date"]
+                if text:
+                    return [k for k in keywords if k.startswith(text)]
+                return keywords
         except Exception:
             pass
         return []
@@ -684,21 +690,6 @@ class QuadsClientShell(cmd2.Cmd):
             pass
         return []
 
-    def complete_rm_schedule(self, text, line, begidx, endidx):
-        """Autocomplete for rm-schedule command"""
-        if not self.connection or not self.connection.is_admin:
-            return []
-
-        try:
-            schedules = self.connection.api.get_schedules({})
-            schedule_ids = [str(s.get("id")) for s in schedules]
-            if text:
-                return [i for i in schedule_ids if i.startswith(text)]
-            return schedule_ids
-        except Exception:
-            pass
-        return []
-
     def complete_edit_server(self, text, line, begidx, endidx):
         """Autocomplete for edit-server command"""
         if not self.config:
@@ -790,10 +781,6 @@ class QuadsClientShell(cmd2.Cmd):
     def do_mod_schedule(self, args):
         """Modify a schedule"""
         self.schedule_commands.cmd_mod_schedule(args)
-
-    def do_rm_schedule(self, args):
-        """Remove a schedule"""
-        self.schedule_commands.cmd_rm_schedule(args)
 
     def do_extend(self, args):
         """Extend a schedule"""
