@@ -1,6 +1,34 @@
 # CHANGELOG
 
 
+## v0.5.2 (2026-05-15)
+
+### Bug Fixes
+
+- Date and color picker backgrounds for add schedule.
+  ([`ea906e1`](https://github.com/quadsproject/quads-client/commit/ea906e17246c07a16e9c42b83a05e30e0a5931c4))
+
+* We need better consistent dark/light theme backgrounds for date picker.
+
+- My hosts view in GUI for large assignments.
+  ([`c602af7`](https://github.com/quadsproject/quads-client/commit/c602af778f8d15e59cef222880d2d1bdfc969735))
+
+* We needed an outer scrollbar in the my hosts area for normal users. * We need to fix os list
+  dropdown and qinq for admin scheduling.
+
+Assisted-by: claude
+
+- Os, qinq drop-downs, assignment view outer accessibility, color theme fixes
+  ([`f2307a5`](https://github.com/quadsproject/quads-client/commit/f2307a5fdf3b20e2cea531eaab0093a22dd82057))
+
+fix: os, qinq drop-downs, assignment view outer accessibility, color theme fixes
+
+### Chores
+
+- Update RPM spec version to 0.5.1
+  ([`6314cbd`](https://github.com/quadsproject/quads-client/commit/6314cbdb8640746c1bd40f80667f877e31f7a80d))
+
+
 ## v0.5.1 (2026-05-15)
 
 ### Bug Fixes
