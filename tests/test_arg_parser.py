@@ -6,6 +6,7 @@ from quads_client.arg_parser import (
     parse_schedule_ssm_args,
     parse_schedule_admin_args,
     parse_extend_args,
+    parse_shrink_args,
 )
 
 
@@ -264,3 +265,67 @@ class TestParseExtendArgs:
         """Test error when date value is missing"""
         with pytest.raises(ValueError, match="(date requires a value|Usage:)"):
             parse_extend_args("cloud02 date")
+
+
+class TestParseShrinkArgs:
+    def test_shrink_by_weeks(self):
+        result = parse_shrink_args("cloud02 weeks 2")
+        assert result["target"] == "cloud02"
+        assert result["mode"] == "weeks"
+        assert result["weeks"] == 2
+        assert result["days"] is None
+        assert result["date"] is None
+
+    def test_shrink_by_days(self):
+        result = parse_shrink_args("cloud02 days 5")
+        assert result["target"] == "cloud02"
+        assert result["mode"] == "days"
+        assert result["days"] == 5
+        assert result["weeks"] is None
+
+    def test_shrink_now(self):
+        result = parse_shrink_args("cloud23 now")
+        assert result["target"] == "cloud23"
+        assert result["mode"] == "now"
+        assert result["weeks"] is None
+        assert result["days"] is None
+        assert result["date"] is None
+
+    def test_shrink_by_date(self):
+        result = parse_shrink_args('cloud02 date "2026-05-12 22:00"')
+        assert result["target"] == "cloud02"
+        assert result["mode"] == "date"
+        assert result["date"] == "2026-05-12 22:00"
+
+    def test_shrink_date_unquoted(self):
+        result = parse_shrink_args("cloud02 date 2026-05-12 22:00")
+        assert result["date"] == "2026-05-12 22:00"
+
+    def test_shrink_hostname(self):
+        result = parse_shrink_args("host01.example.com weeks 1")
+        assert result["target"] == "host01.example.com"
+        assert result["weeks"] == 1
+
+    def test_too_few_args(self):
+        with pytest.raises(ValueError, match="Usage:"):
+            parse_shrink_args("cloud02")
+
+    def test_invalid_weeks_value(self):
+        with pytest.raises(ValueError, match="weeks requires a number"):
+            parse_shrink_args("cloud02 weeks abc")
+
+    def test_invalid_days_value(self):
+        with pytest.raises(ValueError, match="days requires a number"):
+            parse_shrink_args("cloud02 days abc")
+
+    def test_invalid_mode(self):
+        with pytest.raises(ValueError, match="Second argument must be"):
+            parse_shrink_args("cloud02 invalid 5")
+
+    def test_now_with_extra_args(self):
+        with pytest.raises(ValueError, match="'now' takes no additional arguments"):
+            parse_shrink_args("cloud02 now extra")
+
+    def test_date_missing_value(self):
+        with pytest.raises(ValueError, match="(date requires a value|Usage:)"):
+            parse_shrink_args("cloud02 date")

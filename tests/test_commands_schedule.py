@@ -116,25 +116,6 @@ def test_mod_schedule_no_updates(schedule_commands, mock_shell):
     mock_shell.perror.assert_called_with("No updates specified")
 
 
-def test_rm_schedule_success(schedule_commands, mock_shell):
-    """Test removing a schedule successfully"""
-    mock_shell.connection.is_connected = True
-
-    schedule_commands.cmd_rm_schedule("123")
-
-    mock_shell.connection.api.remove_schedule.assert_called_once_with("123")
-    mock_shell.poutput.assert_called_with("Schedule 123 removed successfully")
-
-
-def test_rm_schedule_no_args(schedule_commands, mock_shell):
-    """Test rm-schedule without schedule ID"""
-    mock_shell.connection.is_connected = True
-
-    schedule_commands.cmd_rm_schedule("")
-
-    mock_shell.perror.assert_called_with("Usage: rm-schedule <schedule_id>")
-
-
 def test_extend_success(schedule_commands, mock_shell):
     """Test extending a schedule successfully"""
     mock_shell.connection.is_connected = True
@@ -184,11 +165,14 @@ def test_extend_missing_args(schedule_commands, mock_shell):
 
 
 def test_shrink_success(schedule_commands, mock_shell):
-    """Test shrinking a schedule successfully"""
+    """Test shrinking a schedule by weeks"""
     mock_shell.connection.is_connected = True
+    mock_shell.connection.is_authenticated = True
+    mock_shell.connection.is_admin = True
     mock_shell.connection.api.get_current_schedules.return_value = [
         {
             "id": 123,
+            "host": {"name": "host01.example.com"},
             "end": "2026-05-15 00:00",
         }
     ]
@@ -201,6 +185,80 @@ def test_shrink_success(schedule_commands, mock_shell):
     assert args[0] == 123
     assert "2026-05-08" in args[1]["end"]
     mock_shell.poutput.assert_called()
+
+
+def test_shrink_by_days(schedule_commands, mock_shell):
+    """Test shrinking a schedule by days"""
+    mock_shell.connection.is_connected = True
+    mock_shell.connection.is_authenticated = True
+    mock_shell.connection.is_admin = True
+    mock_shell.connection.api.get_current_schedules.return_value = [
+        {
+            "id": 123,
+            "host": {"name": "host01.example.com"},
+            "end": "2026-05-15 00:00",
+        }
+    ]
+
+    schedule_commands.cmd_shrink("host01 days 3")
+
+    mock_shell.connection.api.update_schedule.assert_called_once()
+    args = mock_shell.connection.api.update_schedule.call_args[0]
+    assert args[0] == 123
+    assert "2026-05-12" in args[1]["end"]
+
+
+def test_shrink_now(schedule_commands, mock_shell):
+    """Test shrinking a schedule to now"""
+    mock_shell.connection.is_connected = True
+    mock_shell.connection.is_authenticated = True
+    mock_shell.connection.is_admin = True
+    mock_shell.connection.api.get_current_schedules.return_value = [
+        {
+            "id": 123,
+            "host": {"name": "host01.example.com"},
+            "end": "2026-05-15 00:00",
+        }
+    ]
+
+    schedule_commands.cmd_shrink("host01 now")
+
+    mock_shell.connection.api.update_schedule.assert_called_once()
+    args = mock_shell.connection.api.update_schedule.call_args[0]
+    assert args[0] == 123
+    assert "end" in args[1]
+
+
+def test_shrink_by_date(schedule_commands, mock_shell):
+    """Test shrinking a schedule to a specific date"""
+    mock_shell.connection.is_connected = True
+    mock_shell.connection.is_authenticated = True
+    mock_shell.connection.is_admin = True
+    mock_shell.connection.api.get_current_schedules.return_value = [
+        {
+            "id": 123,
+            "host": {"name": "host01.example.com"},
+            "end": "2026-05-15 00:00",
+        }
+    ]
+
+    schedule_commands.cmd_shrink('host01 date "2026-05-12 22:00"')
+
+    mock_shell.connection.api.update_schedule.assert_called_once()
+    args = mock_shell.connection.api.update_schedule.call_args[0]
+    assert args[0] == 123
+    assert "2026-05-12" in args[1]["end"]
+
+
+def test_shrink_missing_args(schedule_commands, mock_shell):
+    """Test shrink with missing arguments"""
+    mock_shell.connection.is_connected = True
+    mock_shell.connection.is_authenticated = True
+    mock_shell.connection.is_admin = True
+
+    schedule_commands.cmd_shrink("host01")
+
+    mock_shell.perror.assert_called()
 
 
 def test_schedule_not_connected(schedule_commands, mock_shell):

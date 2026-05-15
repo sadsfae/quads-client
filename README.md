@@ -873,10 +873,12 @@ Options:
 Other Schedule Commands:
   ls-schedule [host <hostname>] [cloud <cloud>]             - List schedules
   mod-schedule id <id> [start <date>] [end <date>]          - Modify schedule dates
-  rm-schedule <schedule_id>                                 - Remove a schedule
   extend <cloud|hostname> weeks <N>                         - Extend by weeks
   extend <cloud|hostname> date "YYYY-MM-DD HH:MM"           - Extend to specific date
-  shrink <hostname> weeks <N>                               - Shrink schedule by weeks
+  shrink <cloud|hostname> weeks <N>                         - Shrink schedule by weeks
+  shrink <cloud|hostname> days <N>                          - Shrink schedule by days
+  shrink <cloud|hostname> now                               - Set schedule end to now
+  shrink <cloud|hostname> date "YYYY-MM-DD HH:MM"           - Shrink to specific date
 ```
 
 **Unified Schedule Examples:**
