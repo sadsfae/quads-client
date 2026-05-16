@@ -16,6 +16,11 @@ from quads_client.session_manager import SessionManager
 from quads_client.utils import get_ssl_indicator
 
 
+def _rl(ansi):
+    """Wrap ANSI escape code for readline (mark as non-printing)"""
+    return f"\001{ansi}\002"
+
+
 class QuadsClientShell(cmd2.Cmd):
     intro = ""  # We'll use rich console for the banner
 
@@ -82,6 +87,16 @@ class QuadsClientShell(cmd2.Cmd):
             return self.session_manager.active_connection
         return None
 
+    def preloop(self):
+        """Configure custom readline keybindings"""
+        super().preloop()
+        try:
+            import readline
+
+            readline.parse_and_bind('"\\C-a\\C-a": "session_switch\\n"')
+        except (ImportError, OSError):
+            pass
+
     def do_exit(self, args):
         """Exit the application"""
         return True
@@ -113,29 +128,19 @@ class QuadsClientShell(cmd2.Cmd):
             server = self.connection.current_server
             short_name = self._shorten_server_name(server)
 
-            # Get SSL indicator
             url = self.config.get_server_url(server)
             verify = self.config.get_server_verify(server)
             symbol, color = get_ssl_indicator(url, verify)
 
-            # Add session indicators
             session_info = self._get_session_indicators()
 
-            # Add admin badge if user is admin
             admin_badge = ""
             if self.connection and self.connection.is_admin:
-                admin_badge = " \033[1;31m[ADMIN]\033[0m"
+                admin_badge = f" {_rl(chr(27) + '[1;31m')}[ADMIN]{_rl(chr(27) + '[0m')}"
 
-            # DEBUG: Uncomment to troubleshoot admin detection
-            # import sys
-            # print(
-            #     f"DEBUG: is_admin={self.connection.is_admin}, username={self.connection.username}",
-            #     file=sys.stderr
-            # )
-
-            self.prompt = f"{color}{symbol} {session_info}({short_name}){admin_badge}\033[0m > "
+            self.prompt = f"{_rl(color)}{symbol} {session_info}({short_name}){admin_badge}{_rl(chr(27) + '[0m')} > "
         else:
-            self.prompt = "\033[1;31m(disconnected)\033[0m > "
+            self.prompt = f"{_rl(chr(27) + '[1;31m')}(disconnected){_rl(chr(27) + '[0m')} > "
 
     def _get_session_indicators(self) -> str:
         """Generate session indicator string like '[1:dev* 2:prod]'"""
@@ -175,14 +180,9 @@ class QuadsClientShell(cmd2.Cmd):
             "ls_broken",
             "ls_retired",
             "ls_schedule",
-            "add_schedule",
             "mod_schedule",
             "extend",
             "shrink",
-            "define_cloud",
-            "schedule_list",
-            "schedule_update",
-            "schedule_delete",
             "add_server",
             "rm_server",
             "debug_admin",
@@ -204,7 +204,6 @@ class QuadsClientShell(cmd2.Cmd):
             "my_hosts",
             "my_assignments",
             "terminate",
-            "release",
             "cloud_list",
             "ls_available",
             "os_list",
@@ -322,8 +321,8 @@ class QuadsClientShell(cmd2.Cmd):
         self.user_commands.cmd_assignment_status(args)
 
     def do_assignment_terminate(self, args):
-        """Terminate an assignment"""
-        self.user_commands.cmd_assignment_terminate(args)
+        """Terminate an assignment (deprecated, use terminate)"""
+        self.user_commands.cmd_terminate(args)
 
     def do_schedule(self, args):
         """
@@ -632,39 +631,6 @@ class QuadsClientShell(cmd2.Cmd):
             pass
         return []
 
-    def complete_add_schedule(self, text, line, begidx, endidx):
-        """Autocomplete for add-schedule command"""
-        if not self.connection or not self.connection.is_admin:
-            return []
-
-        parts = line.split()
-        try:
-            keywords = ["--host", "--cloud", "--start", "--end"]
-
-            # If looking for hostname after --host
-            if len(parts) > 1 and parts[-2] == "--host":
-                hosts = self.connection.api.get_hosts()
-                hostnames = [h.get("name") for h in hosts]
-                if text:
-                    return [h for h in hostnames if h.startswith(text)]
-                return hostnames
-
-            # If looking for cloud name after --cloud
-            if len(parts) > 1 and parts[-2] == "--cloud":
-                clouds = self.connection.api.get_clouds()
-                cloud_names = [c.get("name") for c in clouds]
-                if text:
-                    return [c for c in cloud_names if c.startswith(text)]
-                return cloud_names
-
-            # Otherwise suggest keywords
-            if text:
-                return [k for k in keywords if k.startswith(text)]
-            return keywords
-        except Exception:
-            pass
-        return []
-
     def complete_mod_schedule(self, text, line, begidx, endidx):
         """Autocomplete for mod-schedule command"""
         if not self.connection or not self.connection.is_admin:
@@ -773,10 +739,6 @@ class QuadsClientShell(cmd2.Cmd):
     def do_ls_schedule(self, args):
         """List schedules"""
         self.schedule_commands.cmd_ls_schedule(args)
-
-    def do_add_schedule(self, args):
-        """Add a schedule"""
-        self.schedule_commands.cmd_add_schedule(args)
 
     def do_mod_schedule(self, args):
         """Modify a schedule"""
