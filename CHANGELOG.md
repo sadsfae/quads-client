@@ -1,6 +1,22 @@
 # CHANGELOG
 
 
+## v0.5.4 (2026-05-16)
+
+### Bug Fixes
+
+- Missing UI buttons, use unicode blocks for compat
+  ([`a72ffbf`](https://github.com/quadsproject/quads-client/commit/a72ffbfb4e86ac93c7fa50827faaca573dfe6fe0))
+
+### Chores
+
+- Docs update
+  ([`14377a7`](https://github.com/quadsproject/quads-client/commit/14377a7a48813c948146fac39eb4640a931fe762))
+
+- Update RPM spec version to 0.5.3
+  ([`f147b1c`](https://github.com/quadsproject/quads-client/commit/f147b1c38057ba3765f48d6f0f0b6c0a55d46975))
+
+
 ## v0.5.3 (2026-05-16)
 
 ### Bug Fixes
