@@ -1,6 +1,35 @@
 # CHANGELOG
 
 
+## v0.5.3 (2026-05-16)
+
+### Bug Fixes
+
+- Cli session title caching, session hotkeys
+  ([`ea461d9`](https://github.com/quadsproject/quads-client/commit/ea461d9fc9a970d970a80a670c170f32c5e5b608))
+
+fix: CLI session title caching, session hotkeys
+
+- Cli session title caching, session hotkeys
+  ([`0bf618e`](https://github.com/quadsproject/quads-client/commit/0bf618e65b2453d9039abb85b92e665638a7e930))
+
+* Fix session title caching * Implement control + a control + a to toggle between sessions * docs
+  cleanup
+
+Assisted-by: claude
+
+- Orphaned commands, readme
+  ([`e6af005`](https://github.com/quadsproject/quads-client/commit/e6af0058bb2eabd6a487a3995c972966d0df1d0b))
+
+### Chores
+
+- Update RPM spec version to 0.5.2
+  ([`fb9a71c`](https://github.com/quadsproject/quads-client/commit/fb9a71c8027ab61e7ad373d44d43cb78d4d9430e))
+
+- Update tests
+  ([`04c53e6`](https://github.com/quadsproject/quads-client/commit/04c53e6e7871a08853bbbf8020496948d97d1db1))
+
+
 ## v0.5.2 (2026-05-15)
 
 ### Bug Fixes
