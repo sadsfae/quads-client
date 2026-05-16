@@ -60,33 +60,6 @@ def test_ls_schedule_empty(schedule_commands, mock_shell):
     mock_shell.poutput.assert_called_with("No schedules found")
 
 
-def test_add_schedule_success(schedule_commands, mock_shell):
-    """Test adding a schedule successfully"""
-    mock_shell.connection.is_connected = True
-    mock_shell.connection.api.create_schedule.return_value = {"id": 123}
-
-    schedule_commands.cmd_add_schedule("host host01 cloud cloud01 start 2026-05-01 end 2026-05-15")
-
-    expected_data = {
-        "hostname": "host01",  # API expects "hostname" not "host"
-        "cloud": "cloud01",
-        "start": "2026-05-01",
-        "end": "2026-05-15",
-    }
-    mock_shell.connection.api.create_schedule.assert_called_once_with(expected_data)
-    mock_shell.poutput.assert_called_with("Schedule created successfully (ID: 123)")
-
-
-def test_add_schedule_missing_args(schedule_commands, mock_shell):
-    """Test add-schedule with missing arguments"""
-    mock_shell.connection.is_connected = True
-
-    schedule_commands.cmd_add_schedule("host host01")
-
-    mock_shell.perror.assert_called()
-    assert "Usage:" in mock_shell.perror.call_args[0][0]
-
-
 def test_mod_schedule_success(schedule_commands, mock_shell):
     """Test modifying a schedule successfully"""
     mock_shell.connection.is_connected = True

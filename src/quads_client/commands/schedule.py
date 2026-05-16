@@ -311,46 +311,6 @@ class ScheduleCommands:
         except Exception as e:
             handle_api_error(self.shell, e, "Scheduling")
 
-    def cmd_add_schedule(self, args):
-        """Add a schedule. (deprecated, use schedule command)
-        Usage: add-schedule host <hostname> cloud <cloudname> start <YYYY-MM-DD> end <YYYY-MM-DD>
-        """
-        if not self._require_connection():
-            return
-
-        parts = args.split()
-        data = {}
-
-        i = 0
-        while i < len(parts):
-            if parts[i] == "host" and i + 1 < len(parts):
-                data["hostname"] = parts[i + 1]  # API expects "hostname"
-                i += 2
-            elif parts[i] == "cloud" and i + 1 < len(parts):
-                data["cloud"] = parts[i + 1]
-                i += 2
-            elif parts[i] == "start" and i + 1 < len(parts):
-                data["start"] = parts[i + 1]
-                i += 2
-            elif parts[i] == "end" and i + 1 < len(parts):
-                data["end"] = parts[i + 1]
-                i += 2
-            else:
-                i += 1
-
-        if not all(k in data for k in ["hostname", "cloud", "start", "end"]):
-            self.shell.perror(
-                "Usage: add-schedule host <hostname> cloud <cloudname> start <YYYY-MM-DD> end <YYYY-MM-DD>"
-            )
-            return
-
-        try:
-            result = self.shell.connection.api.create_schedule(data)
-            schedule_id = result.get("id", "unknown")
-            self.shell.poutput(f"Schedule created successfully (ID: {schedule_id})")
-        except Exception as e:
-            handle_api_error(self.shell, e, "Creating schedule")
-
     def cmd_mod_schedule(self, args):
         """Modify a schedule. Usage: mod-schedule id <schedule_id> [start <YYYY-MM-DD>] [end <YYYY-MM-DD>]"""
         if not self._require_connection():
