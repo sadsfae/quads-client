@@ -83,7 +83,9 @@ class MyHostsView(ttk.Frame):
         canvas_frame = ttk.Frame(self)
         canvas_frame.pack(fill=tk.BOTH, expand=True, padx=20, pady=(0, 20))
 
-        self._canvas = tk.Canvas(canvas_frame, highlightthickness=0)
+        self._canvas = tk.Canvas(
+            canvas_frame, highlightthickness=0, bg=self.shell.gui_app.theme_manager.get_color("bg")
+        )
         scrollbar = ttk.Scrollbar(canvas_frame, orient="vertical", command=self._canvas.yview)
         self.content_frame = ttk.Frame(self._canvas)
 
@@ -401,6 +403,11 @@ class MyHostsView(ttk.Frame):
     def refresh(self):
         """Public method to refresh the view"""
         self._load_assignments()
+
+    def refresh_theme(self):
+        """Update non-ttk widget colors after theme change"""
+        bg = self.shell.gui_app.theme_manager.get_color("bg")
+        self._canvas.configure(bg=bg)
 
     def apply_preferences(self, preferences):
         """Apply updated preferences"""

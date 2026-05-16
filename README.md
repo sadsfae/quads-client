@@ -530,17 +530,17 @@ QUADS Client allows you to maintain multiple authenticated connections simultane
 
 **Session Commands:**
 ```
-session-create quads-prod label prod      - Create new session with optional label
+session_create quads-prod label prod      - Create new session with optional label
 session prod                              - Quick switch to session by ID or label
-session-switch                            - Toggle to previous session (like screen Ctrl+A Ctrl+A)
-session-switch 2                          - Switch to specific session by ID
-session-list                              - Show all active sessions with status
-session-close 2                           - Close specific session
-session-close-all                         - Close all inactive sessions
+session_switch                            - Toggle to previous session (Ctrl+A Ctrl+A)
+session_switch 2                          - Switch to specific session by ID
+session_list                              - Show all active sessions with status
+session_close 2                           - Close specific session
+session_close_all                         - Close all inactive sessions
 ```
 
 > [!TIP]
-> **Quick Toggle**: Use `session-switch` (or just `session`) with no arguments to toggle between your last two sessions, similar to GNU screen's `Ctrl+A Ctrl+A` behavior. Perfect for bouncing between two environments!
+> **Quick Toggle**: Press `Ctrl+A Ctrl+A` (double-tap) to instantly toggle between your last two sessions, just like GNU screen. This works anywhere at the prompt — no command needed. You can also type `session_switch` or `session` with no arguments for the same effect.
 
 **Quick Start Example:**
 ```bash
@@ -565,7 +565,7 @@ Switched to session 1 (dev)
 ✓ [1:prod 2:dev*] (quads-dev) >
 
 # View all sessions
-> session-list
+> session_list
 ┏━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━┳━━━━━━━━━┳━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━┓
 ┃ Session  ┃ Server                   ┃ Label   ┃ Version ┃ Status       ┃ Last Active  ┃
 ┡━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━╇━━━━━━━━━╇━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━┩
@@ -592,9 +592,9 @@ Compare environments:
 > connect quads-dev session dev
 > session prod
 > cloud-list cloud cloud05 detail  # Check prod state
-> session-switch  # Toggle back to dev
+> session_switch  # Toggle back to dev (or Ctrl+A Ctrl+A)
 > cloud-list cloud cloud05 detail  # Compare with dev
-> session-switch  # Toggle back to prod
+> session_switch  # Toggle back to prod (or Ctrl+A Ctrl+A)
 ```
 
 Work in dev, monitor prod:
@@ -603,14 +603,14 @@ Work in dev, monitor prod:
 > connect quads-prod session prod
 > session dev
 > schedule 3 description "Testing new feature"
-> session-switch  # Quick toggle to production
+> session_switch  # Quick toggle to production
 > my-hosts      # Verify prod assignments
-> session-switch  # Toggle back to development work
+> session_switch  # Toggle back to development work
 ```
 
 **Tips:**
 - Sessions remain authenticated even when inactive
-- Use `session-close-all` to clean up when switching projects
+- Use `session_close_all` to clean up when switching projects
 - The `status` command shows all sessions when you have multiple connections
 - Configuration changes with `config-reload` update all active sessions
 
@@ -674,7 +674,7 @@ OK: Connected to quads2-dev as wfoster@example.com (session 2)
 ✓ [1:admin 2:user*] (quads2-dev) >
 
 # Toggle between admin and user sessions
-> session-switch
+> session_switch
 Switched to session 1 (admin)
 ✓ [1:admin* 2:user] (quads2-dev) [ADMIN] >
 
@@ -682,7 +682,7 @@ Switched to session 1 (admin)
 > extend cloud05 weeks 2
 
 # Back to user session
-> session-switch
+> session_switch
 Switched to session 2 (user)
 ✓ [1:admin 2:user*] (quads2-dev) >
 
@@ -693,7 +693,7 @@ Switched to session 2 (user)
 **Benefits:**
 
 - **Role Separation**: Keep admin and user workflows clearly separated
-- **Quick Switching**: Toggle between accounts with `session-switch`
+- **Quick Switching**: Toggle between accounts with `session_switch`
 - **Visual Indicators**: Prompt shows `[ADMIN]` badge for admin sessions
 - **Command Visibility**: Admin commands only visible in admin sessions
 - **Credential Security**: Each account's credentials stored separately
