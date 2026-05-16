@@ -170,13 +170,13 @@ pip install -e .
 ### Quick Setup (Recommended)
 
 > [!TIP]
-> The `add-quads-server` command creates the configuration file interactively. This is the easiest way to get started.
+> The `add_quads_server` command creates the configuration file interactively. This is the easiest way to get started.
 
-Use the interactive `add-quads-server` command:
+Use the interactive `add_quads_server` command:
 
 ```bash
 quads-client
-add-quads-server
+add_quads_server
 # Follow the prompts to add your QUADS server
 # (includes optional credential entry for existing users)
 connect <server_name>
@@ -188,8 +188,8 @@ register your.email@example.com YourPassword123
 Alternatively, manually create the configuration file using the provided [example configuration](conf/quads-client.yml.example) as a template.
 
 **Configuration Notes**:
-- For new users: Leave `username` and `password` blank (or skip credentials during `add-quads-server`). Use the `register` command after connecting — if the account already exists, it will auto-login.
-- For existing users: Enter credentials during `add-quads-server` or fill them into the config file to login automatically on connect.
+- For new users: Leave `username` and `password` blank (or skip credentials during `add_quads_server`). Use the `register` command after connecting — if the account already exists, it will auto-login.
+- For existing users: Enter credentials during `add_quads_server` or fill them into the config file to login automatically on connect.
 - Specify the base URL only (no `/api/v3/` path, no port `:5000`). The client automatically appends the API path.
 - `verify: true` enables SSL certificate verification (recommended). Set to `false` only for development/testing with self-signed certificates.
 
@@ -354,9 +354,9 @@ quads-client extend host01.example.com weeks 1
 quads-client shrink host01.example.com weeks 2
 
 # Cloud utilities
-quads-client find-free-cloud
-quads-client cloud-only cloud05
-quads-client ls-vlan
+quads-client find_free_cloud
+quads-client cloud_only cloud05
+quads-client ls_vlan
 ```
 
 **Exit Codes:**
@@ -424,8 +424,8 @@ schedule host01,host02 description "CI testing"
 schedule host-list hosts.txt description "Perf lab"
 
 # 3. Check your hosts
-my-hosts
-my-assignments
+my_hosts
+my_assignments
 
 # 4. Release when done
 terminate 42                    # Terminate entire assignment
@@ -443,13 +443,13 @@ QUADS Client provides comprehensive tab completion for all commands and their ar
 **Command Completion**: Press `Tab` after typing partial command names
 ```
 (quads1-dev) > clo<Tab>
-cloud-list  cloud-only
+cloud_list  cloud_only
 ```
 
 **Context-Aware Argument Completion**: Press `Tab` to complete command arguments based on live server data
 
-- **Cloud names**: `mod-cloud <Tab>` → shows available clouds
-- **Hostnames**: `mark-broken <Tab>` → shows non-broken hosts
+- **Cloud names**: `mod_cloud <Tab>` → shows available clouds
+- **Hostnames**: `mark_broken <Tab>` → shows non-broken hosts
 - **Assignment IDs**: `terminate <Tab>` → shows your active assignment IDs
 - **Server names**: `connect <Tab>` → shows configured servers
 - **Keywords**: `schedule <Tab>` → shows options like `description`, `nowipe`, `vlan`, `qinq`, `model`, `ram`
@@ -468,7 +468,7 @@ description  nowipe  vlan  qinq  model  ram  host-list
 cloud01  cloud02  cloud03
 
 # Cloud operations
-(quads1-dev) > cloud-list cloud <Tab>
+(quads1-dev) > cloud_list cloud <Tab>
 cloud01  cloud02  cloud03
 
 # Terminate command
@@ -476,7 +476,7 @@ cloud01  cloud02  cloud03
 42  43  44
 
 # Host management
-(quads1-dev) > mark-broken <Tab>
+(quads1-dev) > mark_broken <Tab>
 host01.example.com  host02.example.com  host03.example.com
 ```
 
@@ -557,7 +557,7 @@ OK: Connected to quads-dev.example.com as user@example.com (session 2)
 # Quick switch between environments
 > session prod
 Switched to session 1 (prod)
-✓ [1:prod* 2:dev] (quads-prod) > cloud-list
+✓ [1:prod* 2:dev] (quads-prod) > cloud_list
 [shows production clouds]
 
 > session dev
@@ -591,9 +591,9 @@ Compare environments:
 > connect quads-prod session prod
 > connect quads-dev session dev
 > session prod
-> cloud-list cloud cloud05 detail  # Check prod state
+> cloud_list cloud cloud05 detail  # Check prod state
 > session_switch  # Toggle back to dev (or Ctrl+A Ctrl+A)
-> cloud-list cloud cloud05 detail  # Compare with dev
+> cloud_list cloud cloud05 detail  # Compare with dev
 > session_switch  # Toggle back to prod (or Ctrl+A Ctrl+A)
 ```
 
@@ -604,7 +604,7 @@ Work in dev, monitor prod:
 > session dev
 > schedule 3 description "Testing new feature"
 > session_switch  # Quick toggle to production
-> my-hosts      # Verify prod assignments
+> my_hosts      # Verify prod assignments
 > session_switch  # Toggle back to development work
 ```
 
@@ -612,7 +612,7 @@ Work in dev, monitor prod:
 - Sessions remain authenticated even when inactive
 - Use `session_close_all` to clean up when switching projects
 - The `status` command shows all sessions when you have multiple connections
-- Configuration changes with `config-reload` update all active sessions
+- Configuration changes with `config_reload` update all active sessions
 
 ### Managing Multiple Users on Same Server
 
@@ -628,18 +628,18 @@ The same server URL can be added multiple times with different names and credent
 
 ```bash
 # Add admin user account
-> add-quads-server
+> add_quads_server
 Enter server name: admin-quads2-dev
 Enter server URL: https://quads2-dev.rdu2.scalelab.example.com
 Enable SSL verification? [Y/n]: Y
 
 # Add regular user account  
-> add-quads-server
+> add_quads_server
 Enter server name: quads2-dev
 Enter server URL: https://quads2-dev.rdu2.scalelab.example.com  # Same URL!
 Enable SSL verification? [Y/n]: Y
 
-> config-reload
+> config_reload
 ```
 
 **Configuration Result:**
@@ -712,19 +712,19 @@ Switched to session 2 (user)
 
 ```
 servers              - List all configured servers with status
-add-quads-server     - Interactive wizard to add a new QUADS server
-add-server quads3 https://quads3.example.com user@example.com password123 [noverify]  
+add_quads_server     - Interactive wizard to add a new QUADS server
+add_server quads3 https://quads3.example.com user@example.com password123 [noverify]  
                      - Add new server to configuration (advanced)
-edit-server quads3 [url https://new.example.com] [username newuser@example.com] 
+edit_server quads3 [url https://new.example.com] [username newuser@example.com] 
                    [password newpass] [verify true|false]
                      - Edit existing server configuration
-rm-server quads3     - Remove server from configuration
-config-reload        - Reload configuration from file
+rm_server quads3     - Remove server from configuration
+config_reload        - Reload configuration from file
 ```
 
 **Adding a server (interactive method)**:
 ```bash
-add-quads-server
+add_quads_server
 # Follow the prompts:
 #   1. Enter server name (e.g., quads1.example.com)
 #   2. Enter server URL (e.g., https://quads1.example.com)
@@ -737,39 +737,39 @@ add-quads-server
 ### Cloud Management
 
 ```
-cloud-list                                         - List all clouds
-cloud-list cloud cloud05 detail                    - Show detailed cloud info with hosts
-mod-cloud <cloud_name> [OPTIONS]                   - Modify cloud attributes (admin only)
+cloud_list                                         - List all clouds
+cloud_list cloud cloud05 detail                    - Show detailed cloud info with hosts
+mod_cloud <cloud_name> [OPTIONS]                   - Modify cloud attributes (admin only)
   cloud-owner <username>                           - Set cloud owner
   description <text>                               - Set cloud description
   cloud-ticket <ticket_id>                         - Set ticket ID
   cc-users <user1,user2>                           - Comma-separated CC users
   vlan <vlan_id>                                   - VLAN ID number
   qinq <0|1>                                       - QinQ setting
-  os <title>                                       - OS for provisioning (see os-list)
+  os <title>                                       - OS for provisioning (see os_list)
   wipe                                             - Enable host wiping
   nowipe                                           - Disable host wiping
-find-free-cloud                                    - List clouds without active assignments
-cloud-only <cloud_name>                            - List all hosts assigned to a specific cloud
-ls-vlan                                            - List VLANs with assigned clouds
-os-list                                            - List available operating systems
+find_free_cloud                                    - List clouds without active assignments
+cloud_only <cloud_name>                            - List all hosts assigned to a specific cloud
+ls_vlan                                            - List VLANs with assigned clouds
+os_list                                            - List available operating systems
 ```
 
 **Examples:**
 ```bash
 # Modify cloud assignment properties
-mod-cloud cloud05 description "Updated test environment"
-mod-cloud cloud02 cloud-owner alice cloud-ticket JIRA-456
-mod-cloud cloud17 cc-users bob@example.com,charlie@example.com wipe
-mod-cloud cloud04 os "RHEL 9.4"
+mod_cloud cloud05 description "Updated test environment"
+mod_cloud cloud02 cloud-owner alice cloud-ticket JIRA-456
+mod_cloud cloud17 cc-users bob@example.com,charlie@example.com wipe
+mod_cloud cloud04 os "RHEL 9.4"
 
 # Find available clouds and check assignments
-find-free-cloud
-cloud-only cloud05
+find_free_cloud
+cloud_only cloud05
 ```
 
 > [!NOTE]
-> The `cloud-create` and `cloud-delete` commands have been removed for safety. Use the unified `schedule` command which automatically creates assignments and manages cloud lifecycle.
+> The `cloud_create` and `cloud_delete` commands have been removed for safety. Use the unified `schedule` command which automatically creates assignments and manages cloud lifecycle.
 
 ### Self-Scheduling Mode (SSM)
 
@@ -784,11 +784,11 @@ schedule <count|hostname[,hostname...]|host-list path> description <desc> [OPTIO
   nowipe                                         - Disable wipe (default: wipe enabled)
   vlan <id>                                      - VLAN ID
   qinq <0|1>                                     - QinQ mode
-  os <title>                                     - OS for provisioning (see os-list)
+  os <title>                                     - OS for provisioning (see os_list)
   model <model>                                  - Filter by model (count mode only)
   ram <GB>                                       - Minimum RAM in GB (count mode only)
-my-assignments                                   - List all your assignments
-my-hosts                                         - Show your currently scheduled hosts
+my_assignments                                   - List all your assignments
+my_hosts                                         - Show your currently scheduled hosts
 available                                        - Show available hosts for self-scheduling
 terminate <assignment-id> [hostname]             - Terminate assignment or release host
 ```
@@ -806,12 +806,12 @@ schedule host01.example.com,host02.example.com description "CI pipeline"
 # MODE 3: Host list file - one hostname per line
 schedule host-list ~/hosts.txt description "Batch test" vlan 1150 nowipe
 
-# With OS selection (see available options with os-list)
+# With OS selection (see available options with os_list)
 schedule 3 description "RHEL 9 testing" os "RHEL 9.4"
 
 # View and manage assignments
-my-assignments
-my-hosts
+my_assignments
+my_hosts
 terminate 42
 terminate 42 host03.example.com
 ```
@@ -834,13 +834,13 @@ schedule 3 description "test"
 ### Host Management (Admin)
 
 ```
-ls-hosts                         - List all hosts
-mark-broken host01.example.com   - Mark a host as broken
-mark-repaired host01.example.com - Mark a broken host as repaired
+ls_hosts                         - List all hosts
+mark_broken host01.example.com   - Mark a host as broken
+mark_repaired host01.example.com - Mark a broken host as repaired
 retire host01.example.com        - Mark a host as retired
 unretire host01.example.com      - Mark a retired host as active
-ls-broken                        - List all broken hosts
-ls-retired                       - List all retired hosts
+ls_broken                        - List all broken hosts
+ls_retired                       - List all retired hosts
 ```
 
 ### Schedule Management (Admin)
@@ -867,12 +867,12 @@ Options:
   cc-users <user1,user2>             - Comma-separated CC users
   vlan <vlan_id>                     - VLAN ID number
   qinq <0|1>                         - QinQ setting (default 0)
-  os <title>                         - OS for provisioning (see os-list)
+  os <title>                         - OS for provisioning (see os_list)
   nowipe                             - Don't wipe hosts (default: wipe=true)
 
 Other Schedule Commands:
-  ls-schedule [host <hostname>] [cloud <cloud>]             - List schedules
-  mod-schedule id <id> [start <date>] [end <date>]          - Modify schedule dates
+  ls_schedule [host <hostname>] [cloud <cloud>]             - List schedules
+  mod_schedule id <id> [start <date>] [end <date>]          - Modify schedule dates
   extend <cloud|hostname> weeks <N>                         - Extend by weeks
   extend <cloud|hostname> date "YYYY-MM-DD HH:MM"           - Extend to specific date
   shrink <cloud|hostname> weeks <N>                         - Shrink schedule by weeks
@@ -939,7 +939,7 @@ shrink host01.example.com weeks 2
 ### Available Hosts
 
 ```
-ls-available [OPTIONS]
+ls_available [OPTIONS]
   start YYYY-MM-DD        - Start date for availability
   end YYYY-MM-DD          - End date for availability
   model MODEL             - Filter by server model
@@ -954,10 +954,10 @@ ls-available [OPTIONS]
 
 **Examples:**
 ```bash
-ls-available model r640 ram 256
-ls-available gpu-vendor "NVIDIA Corporation" gpu-product "Tesla V100"
-ls-available disk-type nvme disk-count 2 interfaces 4
-ls-available start 2026-06-01 end 2026-06-15 model r650
+ls_available model r640 ram 256
+ls_available gpu-vendor "NVIDIA Corporation" gpu-product "Tesla V100"
+ls_available disk-type nvme disk-count 2 interfaces 4
+ls_available start 2026-06-01 end 2026-06-15 model r650
 ```
 
 ### Other Commands
@@ -988,19 +988,19 @@ Users can register accounts directly from the CLI:
 1. **Connect** to a server (credentials can be blank in config)
 2. **Register** with `register <email> <password>`
    - If the account already exists, the client will auto-login and save credentials
-   - If auto-login fails (wrong password), guidance is shown to update credentials via `edit-server`
+   - If auto-login fails (wrong password), guidance is shown to update credentials via `edit_server`
 3. Credentials are automatically saved to your config file
 4. **Login** with the `login` command or reconnect
 
 SSM users can:
 - **Schedule** hosts with unified `schedule` command (count/hosts/host-list syntax)
-- **View** their own resources with `my-assignments` and `my-hosts` (ownership enforced)
+- **View** their own resources with `my_assignments` and `my_hosts` (ownership enforced)
 - **Terminate** assignments when done with `terminate` (own assignments only)
 - **Duration**: Server-controlled (5 days or Sunday 21:00 UTC, whichever first)
 - **Limits**: Max 10 hosts per assignment, max 3 active assignments per user
 
 Command visibility:
-- SSM users see only allowed commands (no `extend`, no admin commands); `edit-server` is always visible since it modifies local config only
+- SSM users see only allowed commands (no `extend`, no admin commands); `edit_server` is always visible since it modifies local config only
 - Admin users see all commands
 
 The server controls which hosts can be self-scheduled via the `can_self_schedule` flag.
