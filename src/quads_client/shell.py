@@ -175,14 +175,9 @@ class QuadsClientShell(cmd2.Cmd):
             "ls_broken",
             "ls_retired",
             "ls_schedule",
-            "add_schedule",
             "mod_schedule",
             "extend",
             "shrink",
-            "define_cloud",
-            "schedule_list",
-            "schedule_update",
-            "schedule_delete",
             "add_server",
             "rm_server",
             "debug_admin",
@@ -204,7 +199,6 @@ class QuadsClientShell(cmd2.Cmd):
             "my_hosts",
             "my_assignments",
             "terminate",
-            "release",
             "cloud_list",
             "ls_available",
             "os_list",
@@ -322,8 +316,8 @@ class QuadsClientShell(cmd2.Cmd):
         self.user_commands.cmd_assignment_status(args)
 
     def do_assignment_terminate(self, args):
-        """Terminate an assignment"""
-        self.user_commands.cmd_assignment_terminate(args)
+        """Terminate an assignment (deprecated, use terminate)"""
+        self.user_commands.cmd_terminate(args)
 
     def do_schedule(self, args):
         """
@@ -632,39 +626,6 @@ class QuadsClientShell(cmd2.Cmd):
             pass
         return []
 
-    def complete_add_schedule(self, text, line, begidx, endidx):
-        """Autocomplete for add-schedule command"""
-        if not self.connection or not self.connection.is_admin:
-            return []
-
-        parts = line.split()
-        try:
-            keywords = ["--host", "--cloud", "--start", "--end"]
-
-            # If looking for hostname after --host
-            if len(parts) > 1 and parts[-2] == "--host":
-                hosts = self.connection.api.get_hosts()
-                hostnames = [h.get("name") for h in hosts]
-                if text:
-                    return [h for h in hostnames if h.startswith(text)]
-                return hostnames
-
-            # If looking for cloud name after --cloud
-            if len(parts) > 1 and parts[-2] == "--cloud":
-                clouds = self.connection.api.get_clouds()
-                cloud_names = [c.get("name") for c in clouds]
-                if text:
-                    return [c for c in cloud_names if c.startswith(text)]
-                return cloud_names
-
-            # Otherwise suggest keywords
-            if text:
-                return [k for k in keywords if k.startswith(text)]
-            return keywords
-        except Exception:
-            pass
-        return []
-
     def complete_mod_schedule(self, text, line, begidx, endidx):
         """Autocomplete for mod-schedule command"""
         if not self.connection or not self.connection.is_admin:
@@ -773,10 +734,6 @@ class QuadsClientShell(cmd2.Cmd):
     def do_ls_schedule(self, args):
         """List schedules"""
         self.schedule_commands.cmd_ls_schedule(args)
-
-    def do_add_schedule(self, args):
-        """Add a schedule"""
-        self.schedule_commands.cmd_add_schedule(args)
 
     def do_mod_schedule(self, args):
         """Modify a schedule"""

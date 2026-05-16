@@ -746,13 +746,13 @@ mod-cloud <cloud_name> [OPTIONS]                   - Modify cloud attributes (ad
   cc-users <user1,user2>                           - Comma-separated CC users
   vlan <vlan_id>                                   - VLAN ID number
   qinq <0|1>                                       - QinQ setting
-  os <title>                                       - OS for provisioning (see os_list)
+  os <title>                                       - OS for provisioning (see os-list)
   wipe                                             - Enable host wiping
   nowipe                                           - Disable host wiping
 find-free-cloud                                    - List clouds without active assignments
 cloud-only <cloud_name>                            - List all hosts assigned to a specific cloud
 ls-vlan                                            - List VLANs with assigned clouds
-os_list                                            - List available operating systems
+os-list                                            - List available operating systems
 ```
 
 **Examples:**
@@ -784,7 +784,7 @@ schedule <count|hostname[,hostname...]|host-list path> description <desc> [OPTIO
   nowipe                                         - Disable wipe (default: wipe enabled)
   vlan <id>                                      - VLAN ID
   qinq <0|1>                                     - QinQ mode
-  os <title>                                     - OS for provisioning (see os_list)
+  os <title>                                     - OS for provisioning (see os-list)
   model <model>                                  - Filter by model (count mode only)
   ram <GB>                                       - Minimum RAM in GB (count mode only)
 my-assignments                                   - List all your assignments
@@ -806,7 +806,7 @@ schedule host01.example.com,host02.example.com description "CI pipeline"
 # MODE 3: Host list file - one hostname per line
 schedule host-list ~/hosts.txt description "Batch test" vlan 1150 nowipe
 
-# With OS selection (see available options with os_list)
+# With OS selection (see available options with os-list)
 schedule 3 description "RHEL 9 testing" os "RHEL 9.4"
 
 # View and manage assignments
@@ -867,7 +867,7 @@ Options:
   cc-users <user1,user2>             - Comma-separated CC users
   vlan <vlan_id>                     - VLAN ID number
   qinq <0|1>                         - QinQ setting (default 0)
-  os <title>                         - OS for provisioning (see os_list)
+  os <title>                         - OS for provisioning (see os-list)
   nowipe                             - Don't wipe hosts (default: wipe=true)
 
 Other Schedule Commands:
