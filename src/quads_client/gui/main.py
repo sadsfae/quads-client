@@ -137,17 +137,17 @@ class QuadsClientApp(tk.Tk):
 
         # Store navigation items with admin flag and view name for tracking
         nav_items = [
-            ("📡 Servers", self._show_servers_view, False, "servers"),
-            ("📅 Schedule", self._show_schedule_view, False, "schedule"),
-            ("📊 Available", self._show_available_view, False, "available"),
-            ("💻 My Hosts", self._show_my_hosts_view, False, "my_hosts"),
-            ("📋 Assignments", self._show_assignments_view, False, "assignments"),
+            ("◎ Servers", self._show_servers_view, False, "servers"),
+            ("◆ Schedule", self._show_schedule_view, False, "schedule"),
+            ("○ Available", self._show_available_view, False, "available"),
+            ("⌂ My Hosts", self._show_my_hosts_view, False, "my_hosts"),
+            ("☰ Assignments", self._show_assignments_view, False, "assignments"),
             ("", None, True, ""),  # Separator (admin section)
-            ("👑 Admin Schedule", self._show_admin_schedule_view, True, "admin_schedule"),
-            ("☁️  Clouds", self._show_clouds_view, True, "clouds"),
-            ("🖥️  Hosts", self._show_hosts_view, True, "hosts"),
+            ("★ Admin Schedule", self._show_admin_schedule_view, True, "admin_schedule"),
+            ("☁ Clouds", self._show_clouds_view, True, "clouds"),
+            ("✦ Hosts", self._show_hosts_view, True, "hosts"),
             ("", None, False, ""),  # Separator
-            ("⚙️  Settings", self._show_settings_view, False, "settings"),
+            ("⚙ Settings", self._show_settings_view, False, "settings"),
         ]
 
         self.nav_buttons = []
