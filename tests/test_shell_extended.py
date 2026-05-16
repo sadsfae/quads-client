@@ -167,6 +167,72 @@ def test_shell_update_visible_commands_admin():
             assert "mod_cloud" not in shell.hidden_commands
 
 
+def test_shell_update_prompt_admin_badge():
+    """Test prompt includes [ADMIN] badge for admin users with readline wrapping"""
+    with patch("quads_client.shell.QuadsClientConfig"):
+        with patch("quads_client.shell.SessionManager"):
+            shell = QuadsClientShell()
+            mock_conn = MagicMock()
+            mock_conn.is_connected = True
+            mock_conn.is_admin = True
+            mock_conn.current_server = "quads1.example.com"
+            shell.session_manager.active_connection = mock_conn
+            shell.config.get_server_url.return_value = "https://quads1.example.com"
+            shell.config.get_server_verify.return_value = True
+            shell.session_manager.list_sessions.return_value = []
+
+            shell._update_prompt()
+            assert "[ADMIN]" in shell.prompt
+            # Verify readline wrapping markers are present
+            assert "\001" in shell.prompt
+            assert "\002" in shell.prompt
+
+
+def test_shell_update_prompt_no_admin_badge():
+    """Test prompt omits [ADMIN] badge for non-admin users"""
+    with patch("quads_client.shell.QuadsClientConfig"):
+        with patch("quads_client.shell.SessionManager"):
+            shell = QuadsClientShell()
+            mock_conn = MagicMock()
+            mock_conn.is_connected = True
+            mock_conn.is_admin = False
+            mock_conn.current_server = "quads1.example.com"
+            shell.session_manager.active_connection = mock_conn
+            shell.config.get_server_url.return_value = "https://quads1.example.com"
+            shell.config.get_server_verify.return_value = True
+            shell.session_manager.list_sessions.return_value = []
+
+            shell._update_prompt()
+            assert "[ADMIN]" not in shell.prompt
+
+
+def test_rl_wraps_ansi_for_readline():
+    """Test _rl helper wraps ANSI codes with readline non-printing markers"""
+    from quads_client.shell import _rl
+
+    result = _rl("\033[1;31m")
+    assert result == "\001\033[1;31m\002"
+
+
+def test_shell_preloop_binds_readline():
+    """Test preloop sets up Ctrl+A Ctrl+A keybinding"""
+    with patch("quads_client.shell.QuadsClientConfig"):
+        with patch("quads_client.shell.SessionManager"):
+            shell = QuadsClientShell()
+            with patch("readline.parse_and_bind") as mock_bind:
+                shell.preloop()
+                mock_bind.assert_called_once_with('"\\C-a\\C-a": "session_switch\\n"')
+
+
+def test_shell_preloop_handles_no_readline():
+    """Test preloop gracefully handles missing readline"""
+    with patch("quads_client.shell.QuadsClientConfig"):
+        with patch("quads_client.shell.SessionManager"):
+            shell = QuadsClientShell()
+            with patch("builtins.__import__", side_effect=ImportError):
+                shell.preloop()
+
+
 def test_shell_exit_command():
     """Test that exit command returns True to exit the shell"""
     with patch("quads_client.shell.QuadsClientConfig"):
