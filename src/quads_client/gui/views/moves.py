@@ -69,6 +69,8 @@ class MoveProgressView(BaseAdminView):
 
         def _on_loaded(moves):
             self._loading = False
+            if not self.winfo_exists():
+                return
             self.tree.clear()
             if not moves:
                 self.update_status("No active moves")
@@ -94,6 +96,8 @@ class MoveProgressView(BaseAdminView):
 
         def _on_error(exc):
             self._loading = False
+            if not self.winfo_exists():
+                return
             self.update_status(f"Error: {exc}")
 
         self._run_in_thread(_fetch, _on_loaded, _on_error)
