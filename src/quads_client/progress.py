@@ -1,7 +1,7 @@
 from typing import Any, Optional
 
 
-# Keep in sync with MOVE_STAGES in quads/server/models.py
+# Keep in sync with MoveStatus enum / Schedule.PROGRESSIVE_STAGES in quads/server/models.py
 MOVE_STAGES = [
     "pending",
     "switch_config",
