@@ -1,13 +1,37 @@
 # CHANGELOG
 
 
-## v0.7.0 (Unreleased)
+## v0.7.0 (2026-06-08)
+
+### Bug Fixes
+
+- Re-align with MoveStatus enum refactor
+  ([`44d0be6`](https://github.com/quadsproject/quads-client/commit/44d0be6487ad8014d1ee86ceb66c48659ee44f77))
+
+- Refactor for dropping MoveProgress DB structure
+  ([`2442bc7`](https://github.com/quadsproject/quads-client/commit/2442bc7208aa2ff1815f75fe1b542d22af27e995))
+
+- Thread Safety on GUI Teardown
+  ([`2a2013b`](https://github.com/quadsproject/quads-client/commit/2a2013be380da2a7cbbc9b706447bf96db72afa7))
+
+### Chores
+
+- Fix test linting
+  ([`d34f91b`](https://github.com/quadsproject/quads-client/commit/d34f91bf5bc98488a7cb6e324b60eee54a177e1b))
+
+- Update docs
+  ([`88c93d4`](https://github.com/quadsproject/quads-client/commit/88c93d4d0f71b0c6963bb33f787c612dc81258ca))
+
+- Update RPM spec version to 0.6.0
+  ([`75a7caf`](https://github.com/quadsproject/quads-client/commit/75a7caff1b8905bf87afc463c0a131f8b001c85f))
 
 ### Features
 
-- Add `move_status` TUI command for tracking host moves through the 12-stage provisioning pipeline
-- Add Move Progress GUI view with auto-refresh toggle
-- Refactor `ProgressTracker` to server-backed implementation using the QUADS move progress API
+- Add support for polling/status API.
+  ([`0e650d1`](https://github.com/quadsproject/quads-client/commit/0e650d1d1f37c32c3cf42d29733782d1fabb10a1))
+
+related-to: https://github.com/quadsproject/quads/issues/661
+
 
 ## v0.6.0 (2026-05-25)
 
