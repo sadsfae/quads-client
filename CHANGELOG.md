@@ -1,6 +1,19 @@
 # CHANGELOG
 
 
+## v0.7.1 (2026-06-08)
+
+### Bug Fixes
+
+- Handle edge case for old QUADS servers.
+  ([`a24744c`](https://github.com/quadsproject/quads-client/commit/a24744c0d6b98e7e62a90199a3883f7fcf413aa3))
+
+### Chores
+
+- Update RPM spec version to 0.7.0
+  ([`ad4e469`](https://github.com/quadsproject/quads-client/commit/ad4e469629e74e4151051301aa8d1fabc57b8072))
+
+
 ## v0.7.0 (2026-06-08)
 
 ### Bug Fixes
