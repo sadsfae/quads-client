@@ -213,6 +213,48 @@ class TestFormatProgressStr:
         assert format_progress_str("released") == "12/12"
 
 
+class TestGetProgressBar:
+    @staticmethod
+    def _make_view():
+        from quads_client.gui.views.my_hosts import MyHostsView
+
+        return MyHostsView.__new__(MyHostsView)
+
+    def test_na(self):
+        view = self._make_view()
+        result = view._get_progress_bar("N/A")
+        assert "N/A" in result
+        assert "░" in result
+
+    def test_failed(self):
+        view = self._make_view()
+        result = view._get_progress_bar("FAILED")
+        assert "FAILED" in result
+        assert "░" in result
+
+    def test_stage_fraction(self):
+        view = self._make_view()
+        result = view._get_progress_bar("6/12")
+        assert "6/12" in result
+        assert "█" in result
+
+    def test_stage_full(self):
+        view = self._make_view()
+        result = view._get_progress_bar("12/12")
+        assert "12/12" in result
+
+    def test_numeric_percent(self):
+        view = self._make_view()
+        result = view._get_progress_bar(50)
+        assert "50%" in result
+        assert "█" in result
+
+    def test_unknown_string(self):
+        view = self._make_view()
+        result = view._get_progress_bar("unknown")
+        assert "unknown" in result
+
+
 class TestStageOf:
     def test_pending(self):
         assert stage_of("pending") == 1

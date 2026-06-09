@@ -200,6 +200,14 @@ class MyHostsView(ttk.Frame):
             if not user_assignments:
                 return []
 
+            move_status_map = {}
+            try:
+                all_moves = self.shell.connection.api.get_all_move_status()
+                if all_moves:
+                    move_status_map = {m["host"]: m for m in all_moves if isinstance(m, dict)}
+            except Exception as e:
+                self.shell.perror(f"Failed to fetch move status: {e}")
+
             for assignment in user_assignments:
                 if isinstance(assignment, dict):
                     assignment_id = assignment.get("_id") or assignment.get("id")
@@ -227,18 +235,17 @@ class MyHostsView(ttk.Frame):
                                 hostname = hostname.get("name", "")
 
                             status = "active" if is_validated else "provisioning"
-                            progress = "N/A"
 
-                            if status != "active":
-                                try:
-                                    move_data = self.shell.connection.api.get_move_status(str(hostname))
-                                    if move_data:
-                                        move_status = move_data.get("status", "pending")
-                                        progress = format_progress_str(move_status)
-                                        if move_status == "failed":
-                                            status = "failed"
-                                except Exception:
-                                    pass
+                            if status == "active":
+                                progress = format_progress_str("completed")
+                            else:
+                                progress = "N/A"
+                                move_data = move_status_map.get(str(hostname))
+                                if move_data:
+                                    move_status = move_data.get("status", "pending")
+                                    progress = format_progress_str(move_status)
+                                    if move_status == "failed":
+                                        status = "failed"
 
                             hosts.append({"name": str(hostname), "status": status, "progress": progress})
 
@@ -359,18 +366,19 @@ class MyHostsView(ttk.Frame):
         """Get text progress bar"""
         if progress == "N/A":
             return "░" * 10 + " N/A"
-        if isinstance(progress, str) and "/" in progress:
-            label = progress
+        if isinstance(progress, str):
             if progress.startswith("FAILED"):
-                return "░" * 10 + f" {label}"
-            parts = progress.split("/")
-            try:
-                current, total = int(parts[0]), int(parts[1])
-                filled = int((current / total) * 10) if total else 0
-            except (ValueError, IndexError):
-                filled = 0
-            empty = 10 - filled
-            return "█" * filled + "░" * empty + f" {label}"
+                return "░" * 10 + " FAILED"
+            if "/" in progress:
+                parts = progress.split("/")
+                try:
+                    current, total = int(parts[0]), int(parts[1])
+                    filled = int((current / total) * 10) if total else 0
+                except (ValueError, IndexError):
+                    filled = 0
+                empty = 10 - filled
+                return "█" * filled + "░" * empty + f" {progress}"
+            return "░" * 10 + f" {progress}"
         filled = int(progress / 10)
         empty = 10 - filled
         return "█" * filled + "░" * empty + f" {progress}%"
