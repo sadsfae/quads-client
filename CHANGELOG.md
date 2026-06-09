@@ -1,6 +1,22 @@
 # CHANGELOG
 
 
+## v0.8.2 (2026-06-09)
+
+### Bug Fixes
+
+- Clear previous tracking CLI elements.
+  ([`4de998e`](https://github.com/quadsproject/quads-client/commit/4de998e06d543266d3117340dfefe1d5987ce35e))
+
+When transitioning from the "waiting room" pre-move to actual polling/status API move status we
+  inherently leave the previous views on the screen.
+
+### Chores
+
+- Update RPM spec version to 0.8.1
+  ([`012a978`](https://github.com/quadsproject/quads-client/commit/012a978348aad419ddccbd0fbdda75cfb928d422))
+
+
 ## v0.8.1 (2026-06-09)
 
 ### Bug Fixes
