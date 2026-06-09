@@ -1,6 +1,36 @@
 # CHANGELOG
 
 
+## v0.7.2 (2026-06-09)
+
+### Bug Fixes
+
+- Failed moves don't get tracked, fix my_hosts view
+  ([`f21647c`](https://github.com/quadsproject/quads-client/commit/f21647c73c7135735ffadd7b6e5142702edc1f97))
+
+related-to: https://github.com/quadsproject/quads/issues/663
+
+- Ui progress bar/views.
+  ([`6b36c4a`](https://github.com/quadsproject/quads-client/commit/6b36c4a26b280d488fde7cd92cf662728add6d3e))
+
+* Ensure views were reflecting move status * Fix stale rendering.
+
+- Use move_status everywhere.
+  ([`cd985d1`](https://github.com/quadsproject/quads-client/commit/cd985d1a4faef465382f1b3b4e749fc1a5a65922))
+
+We were not properly using move_status for move stage descriptions in a few places, namely the GUI.
+
+Assisted-by: claude
+
+### Chores
+
+- Fix tests
+  ([`db7bc9c`](https://github.com/quadsproject/quads-client/commit/db7bc9c684758cfbba9974a1457675b5f9ee3a8f))
+
+- Update RPM spec version to 0.7.1
+  ([`6c34e59`](https://github.com/quadsproject/quads-client/commit/6c34e596d7626c98042c3104fd194424bf658490))
+
+
 ## v0.7.1 (2026-06-08)
 
 ### Bug Fixes
