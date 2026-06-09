@@ -244,8 +244,7 @@ class MyHostsView(ttk.Frame):
                                 if move_data:
                                     move_status = move_data.get("status", "pending")
                                     progress = format_progress_str(move_status)
-                                    if move_status == "failed":
-                                        status = "failed"
+                                    status = move_status
 
                             hosts.append({"name": str(hostname), "status": status, "progress": progress})
 
@@ -322,24 +321,25 @@ class MyHostsView(ttk.Frame):
         for host in assignment["hosts"]:
             status_icon = self._get_status_icon(host["status"])
             progress_bar = self._get_progress_bar(host["progress"])
+            display_status = host["status"].replace("_", " ").title()
 
             item_id = tree.insert(
                 "",
                 tk.END,
-                values=(host["name"], f"{status_icon} {host['status'].capitalize()}", progress_bar),
+                values=(host["name"], f"{status_icon} {display_status}", progress_bar),
             )
 
             if host["status"] == "active":
                 tree.item(item_id, tags=("active",))
                 tree.tag_configure("active", foreground=self.shell.gui_app.theme_manager.get_color("success"))
-            elif host["status"] == "provisioning":
+            elif host["status"] == "failed":
+                tree.item(item_id, tags=("failed",))
+                tree.tag_configure("failed", foreground=self.shell.gui_app.theme_manager.get_color("error"))
+            else:
                 tree.item(item_id, tags=("provisioning",))
                 tree.tag_configure(
                     "provisioning", foreground=self.shell.gui_app.theme_manager.get_color("provisioning")
                 )
-            elif host["status"] == "failed":
-                tree.item(item_id, tags=("failed",))
-                tree.tag_configure("failed", foreground=self.shell.gui_app.theme_manager.get_color("error"))
 
         tree.pack(fill=tk.BOTH, expand=True)
 
@@ -356,11 +356,9 @@ class MyHostsView(ttk.Frame):
         """Get status icon for host"""
         icons = {
             "active": "✓",
-            "provisioning": "⏳",
-            "queued": "○",
             "failed": "✗",
         }
-        return icons.get(status, "○")
+        return icons.get(status, "⏳")
 
     def _get_progress_bar(self, progress):
         """Get text progress bar"""

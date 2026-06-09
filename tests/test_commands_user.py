@@ -197,7 +197,7 @@ def test_my_hosts_provisioning_with_move_progress(mock_shell):
     user_cmd.cmd_my_hosts("")
 
     output = " ".join(str(c) for c in mock_shell.poutput.call_args_list)
-    assert "Provisioning" in output
+    assert "Hardware Prep" in output
     assert "4/12" in output
 
 

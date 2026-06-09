@@ -808,8 +808,7 @@ class UserCommands:
                                 if move_data:
                                     move_st = move_data.get("status", "pending")
                                     progress = format_progress_str(move_st)
-                                    if move_st == "failed":
-                                        status = "Failed"
+                                    status = move_st.replace("_", " ").title()
 
                             unique_hosts[host_name] = {
                                 "status": status,
