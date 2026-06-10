@@ -1,6 +1,22 @@
 # CHANGELOG
 
 
+## v0.8.3 (2026-06-10)
+
+### Bug Fixes
+
+- Default_server should be set by CLI onboarding.
+  ([`c472e81`](https://github.com/quadsproject/quads-client/commit/c472e810d25d488bf388005588857b709d9c01fc))
+
+### Chores
+
+- Update onboard docs
+  ([`7b1f927`](https://github.com/quadsproject/quads-client/commit/7b1f9274d82c8b72a848bed1c387a289e24d15d4))
+
+- Update RPM spec version to 0.8.2
+  ([`9ef98a1`](https://github.com/quadsproject/quads-client/commit/9ef98a199c2dc7175f26739bbd20b4501f966dfe))
+
+
 ## v0.8.2 (2026-06-09)
 
 ### Bug Fixes
