@@ -1,6 +1,7 @@
 import time
 
 import cmd2
+from cmd2 import Choices, CompletionItem
 
 from quads_client.commands.available import AvailableCommands
 from quads_client.commands.cloud import CloudCommands
@@ -120,6 +121,25 @@ class QuadsClientShell(cmd2.Cmd):
         if func is None and "-" in command:
             func = super().get_command_func(command.replace("-", "_"))
         return func
+
+    def _get_commands_aliases_and_macros_choices(self):
+        """Command-token completion choices, plus hyphenated variants.
+
+        cmd2 completes the command token from the do_* method names (underscore
+        form). Add the hyphenated spelling for each visible command so e.g.
+        'edit-s' completes to 'edit-server' like the documented UX.
+        """
+        choices = super()._get_commands_aliases_and_macros_choices()
+        items = list(choices)
+        by_name = {item.text: item for item in items}
+        for command in self.get_visible_commands():
+            if "_" not in command or command not in by_name:
+                continue
+            hyphenated = command.replace("_", "-")
+            if hyphenated in by_name:
+                continue
+            items.append(CompletionItem(hyphenated, display_meta=by_name[command].display_meta))
+        return Choices(items=items)
 
     def _get_activity_indicator(self):
         if not self.connection or not self.connection.is_authenticated:
