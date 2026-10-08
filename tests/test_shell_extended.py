@@ -279,3 +279,14 @@ def test_hyphenated_command_recorded_in_history():
             shell.onecmd("edit-server perf-lab verify false")
 
             assert any("edit-server" == str(item.statement.command) for item in shell.history)
+
+
+def test_hyphenated_command_prefix_completes():
+    """Hyphenated command prefixes complete to the underscore command's hyphenated form"""
+    with patch("quads_client.shell.QuadsClientConfig"):
+        with patch("quads_client.shell.SessionManager"):
+            shell = QuadsClientShell(quiet=True)
+
+            result = shell.complete("edit-s", "edit-s", 0, 6)
+
+            assert "edit-server" in [str(c) for c in result]
